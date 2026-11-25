@@ -1071,6 +1071,7 @@ function messages() {
   handle("rove:pass-items", (q) => passItems(q));
   handle("rove:pass-fill", (id) => passFill(String(id)));
   handle("rove:pass-copy", (id, what) => passCopy(String(id), String(what)));
+  handle("rove:pass-codes", (q) => passCodes(String(q || "")));
   handle("rove:pass-peek", () => passPeek());
   handle("rove:pass-save", (name) => passSave(String(name || "")));
   handle("rove:pass-sync", async () => { try { await pass.sync(); } catch (e) { return { error: e.message }; } tell(); return { ok: true }; });
@@ -1293,6 +1294,14 @@ function passItems(q) {
   const here = webby(url) ? pass.forPage(url) : [];
   const more = q ? pass.search(q).filter((i) => !here.includes(i)) : [];
   return [...(q ? here.filter((i) => pass.search(q).includes(i)) : here), ...more].map((i) => plainItem(i, url));
+}
+// the 인증 코드 list: each login with a key, its code now and the seconds it has left. The
+// codes reach the overlay (they last seconds, and are what that list is for); keys never do.
+function passCodes(q) {
+  if (!pass || pass.status().state !== "open") return null;
+  return pass.withCodes(q)
+    .sort((a, b) => a.name.localeCompare(b.name, "ko") || a.username.localeCompare(b.username, "ko"))
+    .map((i) => { const c = pass.code(i.id); const p = plainItem(i, ""); return { id: p.id, name: p.name, username: p.username, host: p.host, code: c?.code || "", left: c?.left || 0, period: c?.period || 30, bad: !c }; });
 }
 // a password or a code on the clipboard goes again after 30 seconds, or when Rove quits
 // (if it is still there: something copied since is left alone)
@@ -1961,7 +1970,7 @@ function testHooks() {
     windows, use, get cur() { return cur; }, createWindow, takeTab, putTab, moveToWindow, tear, inStrip, get privGrants() { return privGrants; }, get privateSes() { return privateSes; }, record,
     keys, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
     get asks() { return asks; }, answer, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
-    makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passQuick,
+    makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,

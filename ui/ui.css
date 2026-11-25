@@ -351,3 +351,31 @@ body.vertical .pop.tabfind { top: 48px; }
   .ask { animation: none; }
   .scrim.dim.enter, .pop.share.enter, .share .grid.arrive .pic img, .share .pic.wait { animation: none; }
 }
+/* RobinPass 인증 코드: a pick between the logins and the codes, then a row per login with a
+   key: name and user, the code (mono, in groups of three), a ring of the seconds left that
+   turns salmon for the last seven (as the web vault's does). A press copies the code. */
+.pass .views { padding: 10px 10px 0; }
+.pass .views .rk-tabs { display: grid; width: 100%; }
+.pass .views .rk-tab { min-height: 26px; font-size: 12.5px; }
+.pass .code { display: flex; align-items: center; gap: 10px; width: calc(100% - 12px); min-height: 50px; margin: 0 6px; padding: 0 8px 0 12px; border: 0; border-radius: var(--rk-r); background: none; color: var(--rk-text); font: inherit; text-align: left; cursor: pointer; }
+.pass .code:hover:not(:disabled), .pass .code:focus-visible { background: var(--rk-hover); color: var(--rk-head); outline: 0; }
+.pass .code:focus-visible { box-shadow: inset 0 0 0 1px var(--rk-accent); }
+.pass .code:disabled { cursor: default; }
+.pass .code .w { flex: 1; min-width: 0; }
+.pass .code b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13.5px; line-height: 18px; }
+.pass .code small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
+.pass .code .v { display: inline-flex; flex: none; gap: 0.4em; font: 500 18px/1 var(--rk-mono); letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: var(--rk-head); }
+.pass .code:disabled .v { color: var(--rk-faint); }
+.pass .code .v.fresh { animation: pass-code-new 240ms cubic-bezier(0.2, 0, 0, 1); }
+@keyframes pass-code-new { from { opacity: 0.25; } }
+.pass .code .left { position: relative; display: grid; place-items: center; flex: none; width: 22px; height: 22px; }
+.pass .code .left svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.pass .code .left circle { fill: none; stroke: var(--rk-control-line); stroke-width: 2; }
+.pass .code .left .arc { stroke: var(--rk-accent); stroke-dasharray: 100; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 200ms; }
+.pass .code .secs { position: relative; font-style: normal; font-size: 9px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--rk-soft); }
+.pass .code.soon .left .arc { stroke: var(--rk-note); }
+.pass .code.soon .secs { color: var(--rk-note); }
+@media (prefers-reduced-motion: reduce) {
+  .pass .code .left .arc { transition: none; }
+  .pass .code .v.fresh { animation: none; }
+}

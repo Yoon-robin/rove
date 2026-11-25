@@ -1,6 +1,7 @@
 // For tests only: a throwaway account on a throwaway RobinPass (ops/robinpass/pass-test.sh,
 // through an SSH tunnel on 8086), made the way the web vault makes one, and a few logins in it.
-//   node test/pass-account.cjs <out.json> [pbkdf2|argon2] [2fa]
+//   node test/pass-account.cjs <out.json> [pbkdf2|argon2] [2fa] [codes]
+// codes: three more logins for the 인증 코드 list (an 8-digit SHA-256 key of 60 s, Steam, a broken key).
 // Writes { server, email, password, kdf, items, secret } to out.json (the scratch folder, never the repository).
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // the instance's own certificate, localhost only
 const crypto = require("node:crypto");
@@ -37,6 +38,11 @@ const kdf = how === "argon2" ? { type: 1, iterations: 3, memory: 64, parallelism
   const items = [
     { name: "시험 사이트", uri: "http://127.0.0.1/", username: "robin-test", password: "pw-" + crypto.randomBytes(6).toString("hex"), totp: "JBSWY3DPEHPK3PXP" },
     { name: "다른 곳", uri: "https://example.org/login", username: "someone", password: "x", totp: null },
+    ...(process.argv.includes("codes") ? [
+      { name: "Cloudflare", uri: "https://dash.cloudflare.com/", username: "me@example.com", password: "x", totp: "otpauth://totp/Cloudflare:robin?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA256&digits=8&period=60" },
+      { name: "Steam", uri: "https://store.steampowered.com/", username: "zxcrobin", password: "x", totp: "steam://JBSWY3DPEHPK3PXP" },
+      { name: "깨진 키", uri: "", username: "test", password: "x", totp: "not a key!!" },
+    ] : []),
   ];
   for (const it of items) {
     const c = await fetch(server + "/api/ciphers", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t.access_token}` },

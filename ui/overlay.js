@@ -27,6 +27,7 @@ rove.on("rove:overlay", (what) => {
   open = what;
   if (what?.kind === "drawer") { if (was !== "drawer" || what.panel) panel = what.panel || panel; sure = false; }
   if (what?.kind === "pass" && was !== "pass") { pq = ""; pmsg = ""; ppeek = undefined; psecond = null; }
+  if (what?.kind !== "pass") stopTick();
   if (what?.kind === "site" && was !== "site") { siteSure = false; siteMsg = null; siteKey = ""; }
   if (what?.kind === "tabs" && was !== "tabs") { tq = ""; tsel = 0; }
   if (what?.kind === "drawer" && was !== "drawer") { importing = null; importMsg = null; }
@@ -241,20 +242,63 @@ let pmsg = ""; // the last answer: { text, bad }
 let ppeek; // what the page has typed (undefined: not looked yet)
 let psecond = null; // the second step: { providers, kdf, email, password }
 let pbusy = false;
+let pview = "logins"; // or "codes": the 인증 코드 list (kept between openings)
+let ptick = 0; // the codes' one-second clock while that list is shown
 const say = (text, bad = false) => { pmsg = { text, bad }; };
+// 123 456, 1234 5678, 123 4567; Steam's five letters stay one group
+const groups = (code) => {
+  if (code.length <= 5) return [code];
+  if (code.length === 8) return [code.slice(0, 4), code.slice(4)];
+  const out = [];
+  for (let i = 0; i < code.length; i += 3) out.push(code.slice(i, i + 3));
+  if (out.length > 1 && out.at(-1).length === 1) out[out.length - 2] += out.pop();
+  return out;
+};
+const otp = (c) => c.bad ? "—" : groups(c.code).map((g) => `<span>${esc(g)}</span>`).join("");
+// the arc: what is left of the period, run down through the coming second (the CSS moves it over that second)
+const arc = (c) => String(100 - (Math.max(0, c.left - 1) / c.period) * 100);
+const codeLabel = (c) => `${c.name || c.host}${c.username ? `, ${c.username}` : ""}, 코드 ${c.code.split("").join(" ")}, 누르면 복사`;
+function stopTick() { clearTimeout(ptick); ptick = 0; }
+function startTick() {
+  stopTick();
+  const go = async () => {
+    if (open?.kind !== "pass" || pview !== "codes" || state.pass?.state !== "open") { ptick = 0; return; }
+    const list = await rove.ask("rove:pass-codes", pq);
+    if (open?.kind !== "pass" || pview !== "codes") { ptick = 0; return; }
+    const rows = [...root.querySelectorAll(".code[data-id]")];
+    // a different list (synced, locked): draw it again; otherwise only the numbers move
+    if (!list || list.length !== rows.length || list.some((c, i) => c.id !== rows[i].dataset.id)) { draw(); return; }
+    list.forEach((c, i) => {
+      const r = rows[i];
+      if (c.bad) return; // a broken key has no code and no ring
+      const v = r.querySelector(".v");
+      if (v.dataset.code !== c.code) { v.dataset.code = c.code; v.innerHTML = otp(c); v.classList.remove("fresh"); void v.offsetWidth; v.classList.add("fresh"); r.setAttribute("aria-label", codeLabel(c)); }
+      r.querySelector(".secs").textContent = c.left;
+      r.querySelector(".arc").setAttribute("stroke-dashoffset", arc(c)); // an attribute: the CSP takes no inline style
+      r.classList.toggle("soon", c.left <= 7);
+    });
+    ptick = setTimeout(go, 1000 - (Date.now() % 1000) + 5);
+  };
+  ptick = setTimeout(go, 1000 - (Date.now() % 1000) + 5);
+}
 async function drawPass() {
   const mine = open;
   const p = state.pass || { state: "none" };
   let items = [];
-  if (p.state === "open") {
+  let codes = [];
+  if (p.state === "open" && pview === "codes") codes = (await rove.ask("rove:pass-codes", pq)) || [];
+  else if (p.state === "open") {
     items = (await rove.ask("rove:pass-items", pq)) || [];
     if (ppeek === undefined) ppeek = (await rove.ask("rove:pass-peek")) || null;
   }
+  stopTick();
   if (open !== mine) return;
   const keepFocus = document.activeElement?.id;
+  const keepCode = document.activeElement?.closest?.(".code")?.dataset.id;
   const msg = pmsg ? `<p class="msg${pmsg.bad ? " alarm" : ""}" role="status">${esc(pmsg.text)}</p>` : "";
   const busy = pbusy ? " disabled" : "";
   let body = "";
+  const tabs = `<div class="views"><div class="rk-tabs" role="tablist" aria-label="보기">${[["logins", "로그인"], ["codes", "인증 코드"]].map(([k, n]) => `<button class="rk-tab" role="tab" data-view="${k}" aria-selected="${k === pview}">${n}</button>`).join("")}</div></div>`;
   if (p.state === "none" && psecond) {
     body = `<form class="pf" data-form="second">
       <input class="rk-input rk-num" id="pc" inputmode="numeric" autocomplete="one-time-code" placeholder="${psecond.providers.includes(0) ? "인증 앱 코드" : "메일로 받은 코드"}" spellcheck="false">
@@ -268,6 +312,13 @@ async function drawPass() {
     body = `<form class="pf" data-form="unlock">
       <input class="rk-input" id="pp" type="password" placeholder="마스터 비밀번호" autocomplete="off">
       <div class="row"><button class="rk-btn rk-btn--small" type="button" data-logout>로그아웃</button><button class="rk-btn rk-btn--primary"${busy}>${pbusy ? "여는 중" : "잠금 해제"}</button></div>${msg}</form>`;
+  } else if (pview === "codes") {
+    const row = (c) => `<button type="button" class="code${c.left <= 7 && !c.bad ? " soon" : ""}" data-id="${esc(c.id)}"${c.bad ? " disabled" : ` aria-label="${esc(codeLabel(c))}"`}><div class="w"><b>${esc(c.name || c.host)}</b><small>${esc(c.bad ? "인증 키가 올바르지 않아요" : c.username || c.host)}</small></div>
+      <span class="v" data-code="${esc(c.code)}">${otp(c)}</span>
+      ${c.bad ? "" : `<span class="left" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle class="arc" cx="12" cy="12" r="10" pathLength="100" stroke-dashoffset="${arc(c)}"/></svg><i class="secs">${c.left}</i></span>`}</button>`;
+    body = `${tabs}<div class="search"><input class="rk-input" id="pq" type="search" placeholder="인증 코드 찾기" spellcheck="false" value="${esc(pq)}"></div>
+      <div class="list codes">${codes.length ? codes.map(row).join("") : `<div class="rk-empty">${icon(pq ? "search" : "clock")}${pq ? "찾은 항목이 없어요" : "인증 키가 있는 로그인이 없어요"}</div>`}</div>
+      ${msg}`;
   } else {
     const here = items.filter((i) => i.here);
     const other = items.filter((i) => !i.here);
@@ -275,7 +326,7 @@ async function drawPass() {
       <button class="btn" data-c="username" aria-label="아이디 복사" title="아이디 복사">${icon("user")}</button>
       <button class="btn" data-c="password" aria-label="비밀번호 복사" title="비밀번호 복사">${icon("copy")}</button>
       ${i.totp ? `<button class="btn" data-c="totp" aria-label="인증 코드 복사" title="인증 코드 복사">${icon("clock")}</button>` : ""}</div>`;
-    body = `<div class="search"><input class="rk-input" id="pq" type="search" placeholder="금고에서 찾기" spellcheck="false" value="${esc(pq)}"></div>
+    body = `${tabs}<div class="search"><input class="rk-input" id="pq" type="search" placeholder="금고에서 찾기" spellcheck="false" value="${esc(pq)}"></div>
       <div class="list">${here.length ? `<div class="rk-label">이 사이트</div>${here.map(row).join("")}` : pq ? "" : `<div class="rk-empty">${icon("key")}이 사이트의 로그인이 없어요</div>`}
       ${other.length ? `<div class="rk-label">금고</div>${other.map(row).join("")}` : pq && !here.length ? `<div class="rk-empty">${icon("search")}찾은 항목이 없어요</div>` : ""}</div>
       ${ppeek && !ppeek.known ? `<div class="save">${icon("plus")}<div class="w"><b>${esc(ppeek.host)}</b><small>${esc(ppeek.username || "아이디 없음")}</small></div><button class="rk-btn rk-btn--small rk-btn--primary" data-save${busy}>금고에 저장</button></div>` : ""}
@@ -317,6 +368,16 @@ async function drawPass() {
   });
   const q = root.querySelector("#pq");
   q?.addEventListener("input", () => { pq = q.value; draw(); });
+  root.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
+    if (pview === b.dataset.view) return;
+    pview = b.dataset.view; pq = ""; pmsg = ""; draw();
+  }));
+  root.querySelectorAll(".code[data-id]").forEach((b) => b.addEventListener("click", async () => {
+    const r = await rove.ask("rove:pass-copy", b.dataset.id, "totp");
+    say(r?.error || "인증 코드를 복사했어요 · 30초 뒤 지워요", !!r?.error);
+    draw();
+  }));
+  if (p.state === "open" && pview === "codes") startTick();
   root.querySelectorAll(".item[data-id]").forEach((el) => {
     const fill = async () => { const r = await rove.ask("rove:pass-fill", el.dataset.id); if (r?.error) { say(r.error, true); draw(); } };
     if (el.classList.contains("fill")) {
@@ -336,6 +397,8 @@ async function drawPass() {
     if (r?.ok) { ppeek = null; say("금고에 저장했어요"); } else say(r?.error || "저장하지 못했어요", true);
     draw();
   });
+  const back = keepCode && [...root.querySelectorAll(".code[data-id]")].find((b) => b.dataset.id === keepCode);
+  if (back) { back.focus(); return; }
   const focus = root.querySelector(`#${keepFocus}`) || root.querySelector("#pc, #pe:placeholder-shown, #pp, #pq");
   if (focus) { focus.focus(); if (focus.id === "pq") focus.setSelectionRange(focus.value.length, focus.value.length); }
 }

@@ -89,22 +89,35 @@ function base32(s) {
   for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2));
   return Buffer.from(out);
 }
+// a plain base32 key, otpauth://totp/… (SHA-1/256/512, 4–10 digits, any period up to 5 minutes)
+// or Steam's (steam://<key>, or otpauth with encoder=steam): five letters from its own alphabet.
+// A key that is none of these throws; callers treat that as no code.
+const STEAM = "23456789BCDFGHJKMNPQRTVWXY";
 function totp(spec, now = Date.now()) {
-  if (!spec || /^steam:/i.test(spec)) return null;
-  let secret = spec, digits = 6, period = 30, algo = "sha1";
-  if (/^otpauth:/i.test(spec)) {
-    const u = new URL(spec);
+  if (!spec) return null;
+  let secret = spec.trim(), digits = 6, period = 30, algo = "sha1", steam = false;
+  if (/^steam:\/\//i.test(secret)) { secret = secret.slice(8); steam = true; }
+  else if (/^otpauth:/i.test(secret)) {
+    const u = new URL(secret);
+    if (u.hostname.toLowerCase() !== "totp") throw new Error("hotp");
     secret = u.searchParams.get("secret") || "";
     digits = Number(u.searchParams.get("digits")) || 6;
     period = Number(u.searchParams.get("period")) || 30;
     algo = (u.searchParams.get("algorithm") || "sha1").toLowerCase().replace("-", "");
+    steam = (u.searchParams.get("encoder") || "").toLowerCase() === "steam";
   }
+  if (!["sha1", "sha256", "sha512"].includes(algo) || digits < 4 || digits > 10 || !(period >= 1 && period <= 300)) throw new Error("totp");
+  const key = base32(secret);
+  if (!key.length) throw new Error("base32");
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(now / 1000 / period)));
-  const h = crypto.createHmac(algo, base32(secret)).update(counter).digest();
+  const h = crypto.createHmac(algo, key).update(counter).digest();
   const o = h[h.length - 1] & 15;
-  const n = (h.readUInt32BE(o) & 0x7fffffff) % 10 ** digits;
-  return { code: String(n).padStart(digits, "0"), left: period - (Math.floor(now / 1000) % period) };
+  let n = h.readUInt32BE(o) & 0x7fffffff;
+  let code;
+  if (steam) { code = ""; for (let i = 0; i < 5; i++) { code += STEAM[n % STEAM.length]; n = Math.floor(n / STEAM.length); } }
+  else code = String(n % 10 ** digits).padStart(digits, "0");
+  return { code, left: period - (Math.floor(now / 1000) % period), period };
 }
 
 // ---- which logins belong to a page ------------------------------------------------------------
@@ -287,6 +300,12 @@ function vault({ fetch, file, protect, server: fixed, log = () => {} }) {
       if (!live) return [];
       const s = String(q || "").trim().toLowerCase();
       return live.items.filter((i) => !s || (i.name + " " + i.username + " " + i.uris.map((u) => u.uri).join(" ")).toLowerCase().includes(s)).slice(0, 200);
+    },
+    // the logins with an authenticator key, for the 인증 코드 list (names, not keys)
+    withCodes(q) {
+      if (!live) return [];
+      const s = String(q || "").trim().toLowerCase();
+      return live.items.filter((i) => i.totp && (!s || (i.name + " " + i.username + " " + i.uris.map((u) => u.uri).join(" ")).toLowerCase().includes(s)));
     },
     item: (id) => live?.items.find((i) => i.id === id) || null,
     code: (id) => { const i = live?.items.find((x) => x.id === id); try { return i?.totp ? totp(i.totp) : null; } catch { return null; } },

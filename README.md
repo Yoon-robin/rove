@@ -9,7 +9,7 @@ A browser by Robin. Windows용 데스크톱 브라우저예요(Electron 45, Chro
 - 사이트마다 권한 묻기·정하기, 화면 공유 고르기, 위험한 파일 묻기
 - 읽기 모드(Readability), 화면 속 화면, 맞춤법 검사, 사이트별 확대 기억
 - 다른 브라우저(Chrome·Edge·Brave·Vivaldi·Opera·Firefox·Zen·LibreWolf)에서 즐겨찾기 가져오기
-- RobinPass: Vaultwarden(Bitwarden 호환) 서버의 비밀번호를 채우기·저장하기, 인증 코드(TOTP)
+- RobinPass: Vaultwarden(Bitwarden 호환) 서버의 비밀번호를 채우기·저장하기, 인증 코드(TOTP) 목록
 - 기본 브라우저 등록, 서명을 확인하는 자동 업데이트
 
 ## 설치
@@ -48,7 +48,7 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 | `ui/fonts/` | Pretendard(SIL OFL 1.1, `LICENSE.txt`) |
 | `install.cmd` | 설치: 최신 GitHub 릴리스를 받아 `%LOCALAPPDATA%\Rove`에 넣고 바로가기를 만듦 |
 | `test/drive.mjs` | 시험 드라이버 |
-| `test/pass-account.cjs` | 시험용 Vaultwarden(https://localhost)에 임시 계정과 항목 둘 만들기 |
+| `test/pass-account.cjs` | 시험용 Vaultwarden(https://localhost)에 임시 계정과 항목 둘 만들기(`codes`면 인증 코드 시험용 셋 더) |
 
 - 페이지는 `persist:rove` 세션, 샌드박스, preload 없음. `rove://`는 기본 세션에만 있어서 페이지에서는 못 열어요.
 - 페이지가 보내는 메시지는 없고, `ipcMain`은 보낸 쪽이 우리 두 뷰인지 확인해요.

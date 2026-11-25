@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: http: data:; style-src 'self'; font-src 'self'; script-src 'self'">
+<title>Rove</title>
+<link rel="stylesheet" href="fonts/pretendard.css">
+<link rel="stylesheet" href="robin-ui.css">
+<link rel="stylesheet" href="ui.css">
+</head>
+<body class="rk top">
+  <div class="strip">
+    <span class="rk-mark mark" aria-hidden="true">R</span>
+    <span class="priv" id="priv" hidden><svg class="rk-ico"><use href="icons.svg#rk-i-private"/></svg>비공개</span>
+    <div class="tabs-home" id="tabs-home"><div class="tabs" id="tabs" role="tablist" aria-label="탭"></div></div>
+    <button class="btn new" id="new" type="button" aria-label="새 탭" title="새 탭"><svg class="rk-ico"><use href="icons.svg#rk-i-plus"/></svg></button>
+    <div class="drag"></div>
+  </div>
+  <div class="tools">
+    <button class="btn" id="back" type="button" aria-label="뒤로" title="뒤로"><svg class="rk-ico"><use href="icons.svg#rk-i-back"/></svg></button>
+    <button class="btn" id="forward" type="button" aria-label="앞으로" title="앞으로"><svg class="rk-ico"><use href="icons.svg#rk-i-forward"/></svg></button>
+    <button class="btn" id="reload" type="button" aria-label="새로 고침" title="새로 고침"><svg class="rk-ico"><use href="icons.svg#rk-i-refresh"/></svg></button>
+    <button class="btn" id="home" type="button" aria-label="홈" title="홈"><svg class="rk-ico"><use href="icons.svg#rk-i-home"/></svg></button>
+    <form class="address" id="address" autocomplete="off">
+      <button class="btn lead" id="lead" type="button" aria-label="사이트 정보" title="사이트 정보"><svg class="rk-ico"><use href="icons.svg#rk-i-globe"/></svg></button>
+      <input id="url" type="text" spellcheck="false" placeholder="검색어 또는 주소" aria-label="주소">
+      <button class="btn star" id="read" type="button" aria-label="읽기 모드" title="읽기 모드 (F9)" hidden><svg class="rk-ico"><use href="icons.svg#rk-i-read"/></svg></button>
+      <button class="btn star" id="pass" type="button" aria-label="RobinPass" title="RobinPass (Ctrl+Shift+L)"><svg class="rk-ico"><use href="icons.svg#rk-i-key"/></svg></button>
+      <button class="btn star" id="star" type="button" aria-label="즐겨찾기" title="즐겨찾기"><svg class="rk-ico"><use href="icons.svg#rk-i-star"/></svg></button>
+    </form>
+    <button class="newver rk-hud rk-hud--pill" id="newver" type="button" data-tone="on" hidden>새 버전</button>
+    <button class="btn" id="downloads" type="button" aria-label="내려받기" title="내려받기" hidden><svg class="rk-ico"><use href="icons.svg#rk-i-download"/></svg><i class="tick" id="dltick"></i></button>
+    <button class="btn" id="menu" type="button" aria-label="메뉴" title="메뉴"><svg class="rk-ico"><use href="icons.svg#rk-i-menu"/></svg></button>
+  </div>
+  <nav class="side" id="side" aria-label="탭" hidden>
+    <button class="sidenew" id="sideNew" type="button" title="새 탭 (Ctrl+T)"><svg class="rk-ico"><use href="icons.svg#rk-i-plus"/></svg><span>새 탭</span></button>
+    <div class="sidelist" id="sidelist"></div>
+    <div class="sidefoot"><button class="btn" id="sideFold" type="button"><svg class="rk-ico"><use href="icons.svg#rk-i-sidebar"/></svg></button></div>
+  </nav>
+  <div class="ask" id="ask" role="alert" hidden>
+    <svg class="rk-ico" id="askIcon"><use href="icons.svg#rk-i-lock"/></svg>
+    <b id="askWho"></b>
+    <span id="askWhat"></span>
+    <button class="rk-btn rk-btn--small" id="askNo" type="button"></button>
+    <button class="rk-btn rk-btn--small rk-btn--primary" id="askYes" type="button"></button>
+    <button class="btn" id="askShut" type="button" aria-label="이번만 거절" title="이번만 거절"><svg class="rk-ico"><use href="icons.svg#rk-i-close"/></svg></button>
+  </div>
+  <div class="find" id="find" hidden>
+    <svg class="rk-ico"><use href="icons.svg#rk-i-search"/></svg>
+    <input id="findText" type="text" spellcheck="false" placeholder="페이지에서 찾기" aria-label="페이지에서 찾기">
+    <span class="count rk-num" id="findCount"></span>
+    <button class="btn" id="findPrev" type="button" aria-label="이전" title="이전"><svg class="rk-ico"><use href="icons.svg#rk-i-left"/></svg></button>
+    <button class="btn" id="findNext" type="button" aria-label="다음" title="다음"><svg class="rk-ico"><use href="icons.svg#rk-i-right"/></svg></button>
+    <button class="btn" id="findClose" type="button" aria-label="닫기" title="닫기"><svg class="rk-ico"><use href="icons.svg#rk-i-close"/></svg></button>
+  </div>
+  <div class="split" id="split" hidden><i class="l"></i><i class="r"></i><div class="gap" id="gap" title="끌어서 너비 바꾸기"></div></div>
+  <div class="gone" id="gone" hidden>
+    <b>이 페이지가 멈췄어요</b>
+    <button class="rk-btn rk-btn--primary" id="revive" type="button">다시 불러오기</button>
+  </div>
+  <script src="ui.js"></script>
+</body>
+</html>

@@ -1768,6 +1768,17 @@ function popupGoing(child, url) {
   keepGoing(wc, awakeFor(url));
   wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url)); });
   wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url); });
+  // a popup has no address bar: its title says whose page it is, the host first and as
+  // punycode (a look-alike name shows as xn--…), whatever the page calls itself
+  const name = (title = wc.getTitle()) => {
+    let host = "";
+    try { const u = new URL(wc.getURL() || url); host = u.host || u.protocol; } catch { /* not yet */ }
+    child.setTitle(host ? `${host} · ${title || ""}`.replace(/ · $/, "") : title);
+  };
+  child.on("page-title-updated", (e, title) => { e.preventDefault(); name(title); });
+  wc.on("did-navigate", () => name());
+  wc.on("did-navigate-in-page", () => name());
+  name("");
 }
 function setAwake(on) {
   const site = active && siteOf(active.url);

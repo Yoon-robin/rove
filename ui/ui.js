@@ -53,9 +53,9 @@ function tabEl(t) {
       ic.append(img);
     } else ic.innerHTML = icon("globe");
   }
-  el.querySelector(".t").textContent = t.title || t.url;
+  el.querySelector(".t").textContent = t.title || readable(t.url || "");
   const g = (state.groups || []).find((x) => x.id === t.group);
-  el.title = (t.title || t.url) + (t.shown ? ` · ${t.shown}에 보이는 중` : "") + (t.asleep ? " · 자는 중" : "") + (t.pinned ? " · 고정" : "") + (g ? ` · ${g.name || COLORS[g.color]}` : "");
+  el.title = (t.title || readable(t.url || "")) + (t.shown ? ` · ${t.shown}에 보이는 중` : "") + (t.asleep ? " · 자는 중" : "") + (t.pinned ? " · 고정" : "") + (g ? ` · ${g.name || COLORS[g.color]}` : "");
   el.setAttribute("aria-selected", String(t.id === state.active));
   return el;
 }
@@ -180,7 +180,32 @@ $("sideFold").addEventListener("click", () => rove.send("rove:narrow", !state.na
 
 // ---- the toolbar --------------------------------------------------------------
 const url = $("url");
-const shown = (u) => (u || "").replace(/^https:\/\/home\.yoonrobin\.xyz\/?$/, "");
+// %EC%84%9C%EC%9A%B8 reads as 서울; what would change the address when typed
+// back (/ ? # & = + % and spaces), controls and invisible or bidi marks stay escaped.
+const RESERVED = /[%/?#&=+;:@$,[\]\\^`{|}<>"' ]/;
+const HIDDEN = [[0, 0x1f], [0x7f, 0xa0], [0xad, 0xad], [0x61c, 0x61c], [0x115f, 0x1160], [0x180e, 0x180e], [0x2000, 0x200f], [0x2028, 0x202f], [0x205f, 0x206f], [0x3000, 0x3000], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff0, 0xffff], [0xe0000, 0xe0fff]];
+const bytes = new TextEncoder();
+const keep = (c) => RESERVED.test(c) || HIDDEN.some(([a, b]) => c.codePointAt(0) >= a && c.codePointAt(0) <= b);
+function readable(u) {
+  if (!/^(https?|file):\/\//i.test(u)) return u;
+  const at = u.indexOf("/", u.indexOf("//") + 2);
+  if (at < 0) return u;
+  return u.slice(0, at) + u.slice(at).replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
+    let text;
+    try { text = decodeURIComponent(run); } catch { return run; } // not UTF-8: leave it
+    return [...text].map((c) => (keep(c) ? [...bytes.encode(c)].map((b) => "%" + b.toString(16).toUpperCase().padStart(2, "0")).join("") : c)).join("");
+  });
+}
+const shown = (u) => readable((u || "").replace(/^https:\/\/home\.yoonrobin\.xyz\/?$/, ""));
+// copying the whole, untouched address gives the real one
+for (const kind of ["copy", "cut"]) url.addEventListener(kind, (e) => {
+  const t = state.tabs.find((x) => x.id === state.active);
+  if (!t?.url || url.value !== shown(t.url) || url.value === t.url) return;
+  if (url.selectionStart !== 0 || url.selectionEnd !== url.value.length) return;
+  e.preventDefault();
+  e.clipboardData.setData("text/plain", t.url);
+  if (kind === "cut") url.value = "";
+});
 function drawTools() {
   const t = state.tabs.find((x) => x.id === state.active);
   $("back").disabled = !state.canBack;

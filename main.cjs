@@ -941,6 +941,17 @@ function star() {
   save("bookmarks.json", bookmarks);
   tell();
 }
+// Ctrl+Shift+D: every tab of the window kept (Chrome puts them in a folder; there are no folders here),
+// none taken off
+function starAll() {
+  const at = Date.now();
+  for (const t of tabs) {
+    const url = t.failed || t.url;
+    if (webby(url) && !bookmarks.some((b) => b.url === url)) bookmarks.push({ url, title: t.title || url, at });
+  }
+  save("bookmarks.json", bookmarks);
+  tell();
+}
 function setFind(open) {
   findOpen = open;
   if (!open) for (const t of tabs) t.view.webContents.stopFindInPage("clearSelection");
@@ -1020,6 +1031,8 @@ function keyAction(input, fromBar = false) {
   if (c && input.shift && k === "t") return run(reopenClosed);
   if (c && !input.shift && k === "n") return run(() => createWindow({}));
   if (c && input.shift && k === "n") return run(() => createWindow({ priv: true }));
+  // Ctrl+Shift+W: the whole window, as in Chrome (Ctrl+Shift+T brings it back while another stays)
+  if (c && input.shift && k === "w") return run(() => win.close());
   if (c && k === "w") return run(() => active && closeTab(active));
   if (c && k === "Tab") return run(() => { const i = tabs.indexOf(active); select(tabs[(i + (input.shift ? -1 : 1) + tabs.length) % tabs.length]); });
   if (c && /^[1-9]$/.test(k)) return run(() => select(k === "9" ? tabs[tabs.length - 1] : tabs[Number(k) - 1]));
@@ -1030,6 +1043,7 @@ function keyAction(input, fromBar = false) {
   if ((c && k === "r") || k === "F5") return run(() => reload(input.shift || (c && k === "F5")));
   if (input.alt && k === "ArrowLeft") return run(() => active?.view.webContents.navigationHistory.goBack());
   if (input.alt && k === "ArrowRight") return run(() => active?.view.webContents.navigationHistory.goForward());
+  if (c && input.shift && k === "d") return run(starAll);
   if (c && k === "d") return run(star);
   // keyed: opened from the keyboard, it is there at once (docs/brand.md V5.1)
   if (c && k === "h") return run(() => showOverlay({ kind: "drawer", panel: "history", keyed: true }));

@@ -1808,7 +1808,14 @@ function permissions(ses, priv = false) {
   // an extension's own pages (its background, its popup): what it was given when it was added
   const theirs = new Set(["notifications", "clipboard-read", "unlimitedStorage"]);
   const extension = (u) => /^chrome-extension:\/\//.test(u || "");
-  const G = () => (priv ? privGrants : grants);
+  // a private window takes the normal windows' no (as Chrome's incognito), never their yes
+  const G = () => {
+    if (!priv) return grants;
+    const out = {};
+    for (const [o, g] of Object.entries(grants)) out[o] = Object.fromEntries(Object.entries(g).filter(([, v]) => v === false));
+    for (const [o, g] of Object.entries(privGrants)) out[o] = { ...out[o], ...g };
+    return out;
+  };
   ses.setPermissionRequestHandler((wc, what, done, details = {}) => {
     if (yes.has(what)) return done(true);
     if (theirs.has(what) && extension(details.requestingUrl || wc?.getURL())) return done(true);

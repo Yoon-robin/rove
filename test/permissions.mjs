@@ -29,5 +29,9 @@ export default [
     const got = { asks, page, priv: { ...R.privGrants }, saved: Object.keys(SAVED()) };
     p.win.close(); await sleep(800); got.after = Object.keys(R.privGrants);
     return CHECK("a private window: asks for itself, keeps nothing on disk, forgets with its window", asks === 1 && page === "granted" && !!got.priv[B]?.notifications && !got.saved.includes(B) && got.after.length === 0, got);` },
+  // Chrome's incognito: a site said no to in a normal window is no there too (a yes is not taken)
+  { js: `R.createWindow({ priv: true }); await sleep(1500); const p = R.windows.find((w) => w.private && !w.gone); const t = p.tabs[0]; R.use(p);
+    await LOAD(t, A + "/again"); ASK(t); await sleep(600); const asks = MINE(t).length; const page = await GOT(t); p.win.close(); await sleep(800);
+    return CHECK("a private window takes a normal window's no without asking", asks === 0 && page === "denied", { asks, page });` },
   { js: `R.use(R.windows[0]); SRV.close(); return undefined;` },
 ];

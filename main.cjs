@@ -1823,7 +1823,8 @@ async function clearSite() {
       n++;
     }
     await ses.clearStorageData({ origin });
-    await ses.clearCache();
+    // its cached files only (clearCache() empties every site's, as Chrome does not)
+    await ses.clearData({ dataTypes: ["cache"], origins: [origin] });
   } catch (err) { return { error: err.message }; }
   log(`사이트 데이터 지움 ${hostOf(url)} (쿠키 ${n})`);
   tab.view.webContents.reload();

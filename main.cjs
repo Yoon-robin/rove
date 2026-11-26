@@ -966,7 +966,8 @@ function historyDays(q) {
 }
 
 // ---- keys (from the top, the overlay and every page) --------------------------------
-function keys(input) {
+// fromBar: the key came from our own bar (the address bar, the tabs), not a page or the overlay
+function keys(input, fromBar = false) {
   if (input.type !== "keyDown") return false;
   const c = input.control || input.meta;
   const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
@@ -979,6 +980,8 @@ function keys(input) {
   if (c && k === "Tab") return run(() => { const i = tabs.indexOf(active); select(tabs[(i + (input.shift ? -1 : 1) + tabs.length) % tabs.length]); });
   if (c && /^[1-9]$/.test(k)) return run(() => select(k === "9" ? tabs[tabs.length - 1] : tabs[Number(k) - 1]));
   if (c && input.shift && k === "l") return run(passQuick);
+  // F6 goes back and forth between the address bar and the page, as in Chrome
+  if (k === "F6" && !c && !input.alt && fromBar && active) return run(() => active.view.webContents.focus());
   if ((c && k === "l") || (input.alt && k === "d") || k === "F6") return run(focusAddress);
   if ((c && k === "r") || k === "F5") return run(() => reload(input.shift || (c && k === "F5")));
   if (input.alt && k === "ArrowLeft") return run(() => active?.view.webContents.navigationHistory.goBack());
@@ -1920,7 +1923,7 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   if (fits && saved.max) win.maximize();
   titleBar();
   const here = (f) => (...a) => { if (!w.gone) { use(w); return f(...a); } };
-  win.webContents.on("before-input-event", here((e, input) => { if (keys(input)) e.preventDefault(); }));
+  win.webContents.on("before-input-event", here((e, input) => { if (keys(input, true)) e.preventDefault(); }));
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   bw.on("page-title-updated", (e) => e.preventDefault()); // ours, not the screen's <title>

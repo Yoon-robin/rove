@@ -566,7 +566,9 @@ function wire(tab) {
   on("enter-html-full-screen", () => { fullTab = tab; win.setFullScreen(true); layout(); tell(); });
   on("leave-html-full-screen", () => { fullTab = null; win.setFullScreen(false); layout(); tell(); });
   on("found-in-page", (e, r) => { if (tab === active) win.webContents.send("rove:found", { at: r.activeMatchOrdinal, of: r.matches }); });
-  on("before-input-event", (e, input) => { if (keys(input)) e.preventDefault(); });
+  on("before-input-event", (e, input) => pageKey(tab, e, input));
+  on("dom-ready", () => wc.executeJavaScriptInIsolatedWorld(KEY_WORLD, [{ code: KEY_LISTENER }]).catch(() => {}));
+  on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
   on("zoom-changed", (e, dir) => zoom(dir === "in" ? 1 : -1));
   on("audio-state-changed", (e) => { if (!mine()) return; tab.audible = !!e.audible; tell(); });
@@ -1004,10 +1006,16 @@ function historyDays(q) {
 // ---- keys (from the top, the overlay and every page) --------------------------------
 // fromBar: the key came from our own bar (the address bar, the tabs), not a page or the overlay
 function keys(input, fromBar = false) {
-  if (input.type !== "keyDown") return false;
+  const f = keyAction(input, fromBar);
+  if (f) f();
+  return !!f;
+}
+// the shortcut a key is (a function to run), or null
+function keyAction(input, fromBar = false) {
+  if (input.type !== "keyDown") return null;
   const c = input.control || input.meta;
   const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
-  const run = (f) => { f(); return true; };
+  const run = (f) => f;
   if (c && !input.shift && k === "t") return run(() => { newTab(HOME_PAGE); focusAddress(); });
   if (c && input.shift && k === "t") return run(reopenClosed);
   if (c && !input.shift && k === "n") return run(() => createWindow({}));
@@ -1038,7 +1046,63 @@ function keys(input, fromBar = false) {
   if (k === "F12" || (c && input.shift && k === "i")) return run(() => active?.view.webContents.toggleDevTools());
   if (k === "Escape" && overlayOn) return run(hideOverlay);
   if (k === "Escape" && findOpen) return run(() => setFind(false));
-  return false;
+  return null;
+}
+
+// ---- keys a page has first (as in Chrome) ------------------------------------------------
+// Chrome gives a page its keys before its own shortcuts but for a few it keeps (new tab or
+// window, close, reopen, switch tabs; RobinPass's fill is an extension's key there, before the
+// page too), so a web app's Ctrl+F or Ctrl+H (Google Docs' find, replace) is the app's. A listener
+// in an isolated world, in the page and its same-site frames, says after each such key whether
+// the page took it (defaultPrevented), and Rove runs its shortcut when not. No word in KEY_WAIT ms
+// (a frame of another site, a PDF, a page not ready yet): Rove runs it, as before. The word
+// carries a secret the page cannot see and says only taken or not: the key is the one Rove got.
+const KEY_WORLD = 1004;
+const KEY_WAIT = 400;
+const KEY_WORD = `rove-key:${crypto.randomUUID()}:`;
+const KEY_LISTENER = `(() => {
+  const hook = (w) => {
+    if (!w || w.__roveKeys) return;
+    w.__roveKeys = true;
+    w.addEventListener("keydown", (e) => {
+      if (!(e.ctrlKey || e.metaKey || e.altKey || /^(F\\d+|Escape)$/.test(e.key))) return;
+      setTimeout(() => console.debug(${JSON.stringify(KEY_WORD)} + (e.defaultPrevented ? "1" : "0") + e.key), 0);
+    }, true);
+    const frames = () => { for (const f of w.document.querySelectorAll("iframe")) { f.addEventListener("load", () => { try { hook(f.contentWindow); } catch {} }); try { hook(f.contentWindow); } catch {} } };
+    new w.MutationObserver(frames).observe(w.document, { subtree: true, childList: true });
+    frames();
+  };
+  hook(window);
+})()`;
+function reserved(input) {
+  const c = input.control || input.meta;
+  const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
+  // and the ways out a page must not stop: full screen (F11) and the developer tools
+  return (c && (k === "t" || k === "n" || k === "w" || k === "Tab" || (input.shift && (k === "l" || k === "i")))) || k === "F11" || k === "F12";
+}
+function pageKey(tab, e, input) {
+  const f = keyAction(input);
+  if (!f) return;
+  if (reserved(input)) { e.preventDefault(); f(); return; }
+  const wait = { key: input.key, f };
+  tab.keysWaiting = [...(tab.keysWaiting || []), wait];
+  wait.timer = setTimeout(() => { tab.keysWaiting = tab.keysWaiting.filter((x) => x !== wait); runKey(tab, f); }, KEY_WAIT);
+}
+function keyWord(tab, message) {
+  if (!message.startsWith(KEY_WORD)) return;
+  const taken = message[KEY_WORD.length] === "1";
+  const key = message.slice(KEY_WORD.length + 1);
+  const wait = (tab.keysWaiting || []).find((x) => x.key === key);
+  if (!wait) return;
+  tab.keysWaiting = tab.keysWaiting.filter((x) => x !== wait);
+  clearTimeout(wait.timer);
+  if (!taken) runKey(tab, wait.f);
+}
+// a shortcut run later: in the tab's window (others may be in use by then), not after it is gone
+function runKey(tab, f) {
+  if (!tab.w || tab.w.gone || !tab.w.tabs.includes(tab)) return;
+  use(tab.w);
+  f();
 }
 function focusAddress() {
   hideOverlay();

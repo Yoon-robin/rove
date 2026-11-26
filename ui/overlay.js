@@ -160,8 +160,8 @@ async function drawSite(fromState) {
   siteKey = key;
   const [ic, conn] = CONN[s.conn] || CONN.other;
   const b = s.block || {};
-  const perms = s.grants.map((g) => `<div class="perm">${icon(g.allow ? "check" : "close")}<span>${WHAT[g.key] || g.key}</span>
-    <select class="rk-select rk-select--row" data-k="${esc(g.key)}" aria-label="${esc(WHAT[g.key] || g.key)}">${[["ask", "묻기"], ["allow", "허용"], ["block", "차단"]].map(([v, t]) => `<option value="${v}"${(g.allow ? "allow" : "block") === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>`).join("");
+  const perms = s.grants.map((g) => `<div class="perm">${icon(g.allow ? "check" : "close")}<span>${permName(g.key)}</span>
+    <select class="rk-select rk-select--row" data-k="${esc(g.key)}" aria-label="${esc(permName(g.key))}">${[["ask", "묻기"], ["allow", "허용"], ["block", "차단"]].map(([v, t]) => `<option value="${v}"${(g.allow ? "allow" : "block") === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>`).join("");
   const ads = !b.ready ? "" : b.on
     ? `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><small class="rk-num">${b.siteOn ? `${b.count}개 막음` : "꺼짐"}</small><button class="rk-switch" role="switch" data-block-site aria-checked="${!!b.siteOn}" aria-label="${esc(b.site)}에서 광고·추적 막기"></button></div>`
     : `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><small>모든 사이트 꺼짐</small><button class="rk-switch" role="switch" data-block aria-checked="false" aria-label="광고·추적 막기"></button></div>`;
@@ -508,6 +508,7 @@ const NAMES = { history: "방문 기록", bookmarks: "즐겨찾기", downloads: 
 const STORE = "https://chromewebstore.google.com/";
 const TAB = { ...NAMES, extensions: "확장" }; // the drawer's tab row (five do not fit in full)
 const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기" };
+const permName = (k) => WHAT[k] || (k.startsWith("external:") ? `${k.slice(9)}: 링크 열기` : k); // a kept permission, or another program's link kept
 function day(at) {
   const d = new Date(at);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -554,7 +555,7 @@ async function drawDrawer() {
   } else if (panel === "sites") {
     for (const s of list) {
       if (s.ads === false && !s.origin) { body += `<div class="item">${icon("shield")}<div class="w"><b>${esc(s.host)}</b><small>광고·추적 막기 꺼짐</small></div><button class="btn hover" data-unallow="${esc(s.host)}" aria-label="다시 막기" title="다시 막기">${icon("close")}</button></div>`; continue; }
-      const said = Object.keys(WHAT).filter((k) => typeof s[k] === "boolean").map((k) => `${WHAT[k]} ${s[k] ? "허용" : "차단"}`);
+      const said = [...Object.keys(WHAT), ...Object.keys(s).filter((k) => k.startsWith("external:"))].filter((k) => typeof s[k] === "boolean").map((k) => `${permName(k)} ${s[k] ? "허용" : "차단"}`);
       if (said.length) body += `<div class="item wrap">${icon("lock")}<div class="w"><b title="${esc(s.host)}">${esc(s.host)}</b><small>${said.join(" · ")}</small></div><button class="btn hover" data-site="${esc(s.origin)}" aria-label="잊기" title="잊기">${icon("close")}</button></div>`;
     }
   } else if (panel === "extensions") {

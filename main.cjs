@@ -1671,7 +1671,8 @@ let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
 const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock });
+const keepable = (a) => a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || ""); // another program's link: kept for an https site only, as Chrome
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a) });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -1688,10 +1689,10 @@ function answer(id, yes, keep = true) {
   if (a.kind === "download") keepDownload(a.d, !!yes);
   else if (a.kind === "extension") for (const f of a.done) f(!!yes);
   else {
-    if (keep) {
+    if (keep && keepable(a)) {
       const g = a.tab?.w?.private ? privGrants : grants;
       g[a.origin] = { ...g[a.origin] };
-      for (const k of a.what) g[a.origin][k] = !!yes;
+      for (const k of a.what) g[a.origin][k === "external" ? "external:" + a.scheme : k] = !!yes;
       if (g === grants) save("permissions.json", grants);
     }
     for (const f of a.done) f(!!yes);
@@ -1727,6 +1728,9 @@ function permissions(ses, priv = false) {
       // refused without asking: ones that run or reach files, and Windows ones used in attacks
       // (search-ms:/search: show a remote share as a local folder; hcp:, its:, mk: old help-file holes)
       if (!tab || !scheme || /^(javascript|file|data|blob|vbscript|ms-.*|search(-ms)?|shell|hcp|its|mk)$/i.test(scheme)) return done(false);
+      // 늘 열기 (or 차단 in the site popup) for this site and scheme: answered without asking
+      const kept = G()[origin]?.["external:" + scheme];
+      if (typeof kept === "boolean") return done(kept);
       asks.push({ id: nextId++, kind: "site", tab, origin, host: hostOf(origin) || origin, what: ["external"], scheme, done: [done] });
       layout(); tell(); return;
     }
@@ -1897,13 +1901,14 @@ function siteInfo() {
   const g = gr()[origin] || {};
   return {
     origin, host: hostOf(url) || url, conn,
-    grants: KINDS.filter((k) => typeof g[k] === "boolean").map((k) => ({ key: k, allow: g[k] })),
+    grants: [...KINDS, ...Object.keys(g).filter(linkKey)].filter((k) => typeof g[k] === "boolean").map((k) => ({ key: k, allow: g[k] })),
     block: snapshot().block,
     awake: siteOf(url) ? { site: siteOf(url), on: awakeFor(url) } : null,
   };
 }
+const linkKey = (k) => /^external:[a-z][a-z0-9+.-]*$/.test(k); // another program's link kept for a site (external:zoommtg)
 function setSite(origin, key, value) {
-  if (!origin || !KINDS.includes(key)) return;
+  if (!origin || !(KINDS.includes(key) || linkKey(key))) return;
   if (value === "ask") { forgetSite(origin, key); return; }
   if (value !== "allow" && value !== "block") return;
   gr()[origin] = { ...gr()[origin], [key]: value === "allow" };

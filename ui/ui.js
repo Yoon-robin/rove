@@ -326,6 +326,7 @@ function drawAsk() {
     $("askNo").classList.remove("rk-btn--danger");
     $("askYes").textContent = "추가";
     $("askShut").hidden = true;
+    $("askAlways").hidden = true;
     return;
   }
   const download = a.kind === "download";
@@ -338,9 +339,11 @@ function drawAsk() {
   $("askNo").classList.toggle("rk-btn--danger", download);
   $("askYes").textContent = download ? "받기" : once(a) ? "열기" : "허용";
   $("askShut").hidden = download || once(a);
+  $("askAlways").hidden = !(once(a) && a.keepable);
 }
 $("askYes").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, true, !once(state.ask)));
 $("askNo").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, false, !once(state.ask)));
+$("askAlways").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, true, true));
 $("askShut").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, false, false));
 
 rove.on("rove:state", (s) => { state = s; drawTabs(); drawTools(); });

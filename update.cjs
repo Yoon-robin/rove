@@ -67,6 +67,11 @@ function current(home) {
   try { return readlinkSync(join(home, "current")).replace(/[\\/]+$/, ""); } catch { return null; }
 }
 
+// the version an app-<version> folder holds, or null
+function held(dir) {
+  try { const v = JSON.parse(readFileSync(join(dir, "resources", "app.asar", "version.json"), "utf8")); return { version: String(v.version), build: Number(v.build) || 0 }; } catch { return null; }
+}
+
 // mine: installed(); url: where latest.json is (a folder, ending in /); key: the
 // release keys (config.cjs updateKeys); fetch: Electron's net.fetch; tell(state) for the window; log(text).
 // Returns { check, state }.
@@ -89,6 +94,10 @@ function updater({ mine, tell, log, url, key, fetch }) {
       if (!safe(latest.version) || !safe(latest.file) || !/^[0-9a-f]{64}$/.test(latest.sha256 || "") || !(Number(latest.size) > 0)) throw new Error("latest.json이 이상해요");
       if (!trusted(latest, key)) throw new Error("latest.json의 서명이 맞지 않아요");
       if (!(Number(latest.build) > mine.build)) { set({ checking: false, checkedAt: Date.now() }); return state; }
+      // current may already hold a newer one than latest.json (put there by hand, or by a
+      // newer Rove while this one stayed open): moving it to latest.json's would go back
+      const now = held(current(mine.home) || "");
+      if (now && now.build >= Number(latest.build)) { set({ checking: false, checkedAt: Date.now(), ready: now.build > mine.build ? now.version : null }); return state; }
       const to = join(mine.home, `app-${latest.version}`);
       if (!existsSync(join(to, "Rove.exe")) || !existsSync(join(to, "resources", "app.asar"))) {
         set({ downloading: latest.version });

@@ -124,6 +124,8 @@ body.full .side { display: none; }
 .address:focus-within { box-shadow: inset 0 0 0 1px var(--rk-ring); }
 .address input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--rk-head); font: inherit; font-size: 13px; outline: 0; user-select: text; }
 .address input::placeholder { color: var(--rk-faint); }
+/* the box draws the ring (.address:focus-within, .find input:focus): the kit's .rk :focus-visible outline would be a second one */
+.address input:focus-visible, .find input:focus-visible { outline: 0; }
 .address input::selection { background: rgb(75 125 254 / 35%); }
 .address .star { width: 28px; height: 28px; }
 .address .star .rk-ico { width: 15px; height: 15px; }

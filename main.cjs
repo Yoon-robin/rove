@@ -2363,7 +2363,7 @@ function testHooks() {
   }
   globalThis.__rove = { get win() { return win; }, get overlay() { return overlay; }, get overlayOn() { return overlayOn; }, get tabs() { return tabs; }, get active() { return active; },
     windows, use, get cur() { return cur; }, createWindow, takeTab, putTab, moveToWindow, tear, inStrip, get privGrants() { return privGrants; }, get privateSes() { return privateSes; }, record,
-    keys, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
+    keys, keyAction, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
     get asks() { return asks; }, answer, askExtension, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
     makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick, passIdle,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,

@@ -445,18 +445,20 @@ function drawSuggest() {
 }
 
 // ---- the menu -----------------------------------------------------------------------
+// each row's shortcut on its right, as in Chrome (the keys are main.cjs keyAction's)
+const shortcut = (k) => `<small class="key" aria-hidden="true">${k}</small>`;
 function drawMenu() {
   root.innerHTML = `<div class="scrim"></div><div class="pop menu rk-menu" role="menu">
-    <button class="rk-menu__item" data-do="new" role="menuitem">${icon("plus")}새 탭</button>
-    <button class="rk-menu__item" data-do="window" role="menuitem">${icon("window")}새 창</button>
-    <button class="rk-menu__item" data-do="private" role="menuitem">${icon("private")}새 비공개 창</button>
+    <button class="rk-menu__item" data-do="new" role="menuitem">${icon("plus")}새 탭${shortcut("Ctrl+T")}</button>
+    <button class="rk-menu__item" data-do="window" role="menuitem">${icon("window")}새 창${shortcut("Ctrl+N")}</button>
+    <button class="rk-menu__item" data-do="private" role="menuitem">${icon("private")}새 비공개 창${shortcut("Ctrl+Shift+N")}</button>
     <hr>
-    <button class="rk-menu__item" data-do="history" role="menuitem">${icon("clock")}방문 기록</button>
-    <button class="rk-menu__item" data-do="bookmarks" role="menuitem">${icon("star")}즐겨찾기</button>
-    <button class="rk-menu__item" data-do="downloads" role="menuitem">${icon("download")}내려받기</button>
+    <button class="rk-menu__item" data-do="history" role="menuitem">${icon("clock")}방문 기록${shortcut("Ctrl+H")}</button>
+    <button class="rk-menu__item" data-do="bookmarks" role="menuitem">${icon("star")}즐겨찾기${shortcut("Ctrl+Shift+O")}</button>
+    <button class="rk-menu__item" data-do="downloads" role="menuitem">${icon("download")}내려받기${shortcut("Ctrl+J")}</button>
     <button class="rk-menu__item" data-do="sites" role="menuitem">${icon("lock")}사이트 권한</button>
     ${state.private ? "" : `<button class="rk-menu__item" data-do="extensions" role="menuitem">${icon("spark")}확장 프로그램</button>`}
-    <button class="rk-menu__item" data-do="tabs" role="menuitem">${icon("tabs")}탭 찾기</button>
+    <button class="rk-menu__item" data-do="tabs" role="menuitem">${icon("tabs")}탭 찾기${shortcut("Ctrl+Shift+A")}</button>
     <div class="switchrow">${icon("moon")}<span>안 쓰는 탭 재우기</span><button class="rk-switch" role="switch" data-sleep aria-checked="${!!state.sleep}" aria-label="안 쓰는 탭 재우기"></button></div>
     <div class="switchrow">${icon("sidebar")}<span>세로 탭</span><button class="rk-switch" role="switch" data-vertical aria-checked="${!!state.vertical}" aria-label="세로 탭"></button></div>
     <hr>
@@ -468,10 +470,10 @@ function drawMenu() {
       <span class="rk-num">${state.zoom || 100}%</span>
       <button class="btn" data-do="zoom-in" aria-label="크게" title="크게">${icon("plus")}</button>
     </div>
-    <button class="rk-menu__item" data-do="find" role="menuitem">${icon("search")}페이지에서 찾기</button>
-    <button class="rk-menu__item" data-do="print" role="menuitem">${icon("print")}인쇄</button>
-    <button class="rk-menu__item" data-do="full" role="menuitem">${icon("target")}전체 화면</button>
-    <button class="rk-menu__item" data-do="devtools" role="menuitem">${icon("terminal")}개발자 도구</button>
+    <button class="rk-menu__item" data-do="find" role="menuitem">${icon("search")}페이지에서 찾기${shortcut("Ctrl+F")}</button>
+    <button class="rk-menu__item" data-do="print" role="menuitem">${icon("print")}인쇄${shortcut("Ctrl+P")}</button>
+    <button class="rk-menu__item" data-do="full" role="menuitem">${icon("target")}전체 화면${shortcut("F11")}</button>
+    <button class="rk-menu__item" data-do="devtools" role="menuitem">${icon("terminal")}개발자 도구${shortcut("F12")}</button>
     <hr>
     ${state.isDefault ? "" : `<button class="rk-menu__item" data-do="default" role="menuitem">${icon("globe")}기본 브라우저로</button>`}
     ${state.update?.ready ? `<button class="rk-menu__item" data-do="relaunch" role="menuitem">${icon("refresh")}다시 켜서 새 버전으로</button>` : ""}

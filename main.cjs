@@ -115,7 +115,7 @@ let history = load("history.json", []); // [{ url, title, at }], newest last
 let bookmarks = load("bookmarks.json", []); // [{ url, title, at }]
 // host → its page icon (data:, normal windows only) for the history and bookmark lists; a host in neither goes
 let siteIcons = load("icons.json", {});
-function keepIcons() { const kept = new Set([...history, ...bookmarks].map((x) => hostOf(x.url))); for (const h of Object.keys(siteIcons)) if (!kept.has(h)) delete siteIcons[h]; save("icons.json", siteIcons); }
+function keepIcons(now) { const kept = new Set([...history, ...bookmarks].map((x) => hostOf(x.url))); for (const h of Object.keys(siteIcons)) if (!kept.has(h)) delete siteIcons[h]; save("icons.json", siteIcons, now); }
 const withIcon = (x) => ({ ...x, icon: siteIcons[hostOf(x.url)] || null });
 const HISTORY_MAX = 5000;
 let grants = load("permissions.json", {}); // { origin: { camera: true, location: false, ... } }
@@ -456,7 +456,7 @@ function record(url, title) {
   if (!webby(url) || cur?.private) return;
   const last = history[history.length - 1];
   if (last && last.url === url && Date.now() - last.at < 30 * 60e3) { last.title = title || last.title; last.at = Date.now(); } else history.push({ url, title: title || url, at: Date.now() });
-  if (history.length > HISTORY_MAX) history = history.slice(-HISTORY_MAX);
+  if (history.length > HISTORY_MAX) { history = history.slice(-HISTORY_MAX); keepIcons(); }
   save("history.json", history);
 }
 
@@ -967,7 +967,7 @@ function star() {
   const url = active.failed || active.url;
   if (!webby(url)) return;
   const i = bookmarks.findIndex((b) => b.url === url);
-  if (i >= 0) bookmarks.splice(i, 1); else bookmarks.push({ url, title: active.title || url, at: Date.now() });
+  if (i >= 0) { bookmarks.splice(i, 1); keepIcons(); } else bookmarks.push({ url, title: active.title || url, at: Date.now() });
   save("bookmarks.json", bookmarks);
   tell();
 }
@@ -1256,7 +1256,7 @@ function messages() {
   on("rove:unsplit", unsplit);
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
   on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
-  on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(); });
+  on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });
   on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); keepIcons(); tell(); });
   on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.openPath(d.path); });
   on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.showItemInFolder(d.path); });
@@ -2218,6 +2218,7 @@ function keepAll() {
   saveTabs(true);
   save("history.json", history, true);
   save("bookmarks.json", bookmarks, true);
+  keepIcons(true);
 }
 function closedWindow(w) {
   if (cur === w) store();

@@ -16,6 +16,11 @@ export default [
     const k = KEPT(), shown = !!R.active?.favicon; R.win.close(); await sleep(800); return CHECK("private window: its tab has the icon, but it is not kept", shown && !k.some((h) => h.includes("github")), { shown, k });` },
   { js: `R.use(R.windows.find((w) => !w.private && !w.gone)); await sleep(300);
     const ipc = process.mainModule.require("electron").ipcMain;
-    ipc.emit("rove:unstar", { sender: R.win.webContents }, "https://www.wikipedia.org/"); ipc.emit("rove:forget-all", { sender: R.win.webContents }); await sleep(1500);
-    const k = KEPT(); return CHECK("history and bookmarks cleared: no icon kept", k.length === 0, k);` },
+    ipc.emit("rove:unstar", { sender: R.win.webContents }, "https://www.wikipedia.org/"); ipc.emit("rove:forget-all", { sender: R.win.webContents }); await sleep(100);
+    const k = KEPT(); return CHECK("history and bookmarks cleared: no icon kept, written at once (not 800ms later)", k.length === 0, k);` },
+  // turning the star off on a page not in the history: its icon goes with it
+  { js: `R.go("https://github.com/"); await sleep(6000); R.star(); await sleep(300);
+    const ipc = process.mainModule.require("electron").ipcMain; ipc.emit("rove:forget-all", { sender: R.win.webContents }); await sleep(100);
+    const before = KEPT(); R.star(); await sleep(1200); const after = KEPT();
+    return CHECK("star off (not in history): icon dropped", before.includes("github.com") && !after.includes("github.com"), { before, after, history: R.history.map((h) => h.url), bookmarks: R.bookmarks.map((b) => b.url) });` },
 ];

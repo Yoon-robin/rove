@@ -46,6 +46,7 @@
 // 1.0: more than one window (a tab dragged out of the strip makes one, or goes
 // into another window's strip), and private windows (a session in memory: no
 // history, no answers kept, no downloads listed, all gone with the last one).
+const { getDomain } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
 const { join, normalize, sep, parse, resolve } = require("node:path");
@@ -110,8 +111,9 @@ let bookmarks = load("bookmarks.json", []); // [{ url, title, at }]
 const HISTORY_MAX = 5000;
 let grants = load("permissions.json", {}); // { origin: { camera: true, location: false, ... } }
 // allow: hosts ads are not stopped on; sleep: tabs not looked at for SLEEP_AFTER
-// are put to sleep; zoom: { host: factor } (not 1)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, ...load("settings.json", {}) };
+// are put to sleep; zoom: { host: factor } (not 1); awake: sites (edup.co.kr)
+// whose pages keep going with the window down (keepGoing, below)
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], ...load("settings.json", {}) };
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
@@ -127,6 +129,9 @@ function toUrl(text) {
 const webby = (url) => /^https?:/i.test(url || "");
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const originOf = (url) => { try { const o = new URL(url).origin; return o === "null" ? "" : o; } catch { return ""; } };
+// the site a host is part of (www.edup.co.kr, contentsm.edup.co.kr: edup.co.kr)
+const siteOf = (url) => { const h = webby(url) ? hostOf(url) : ""; return h ? getDomain(h) || h : ""; };
+const awakeFor = (url) => { const s = siteOf(url); return !!s && settings.awake.includes(s); };
 // what Windows hands us: addresses, and pages saved as files
 function opened(argv) {
   const out = [];
@@ -329,7 +334,7 @@ function select(tab) {
 // stays awake, and so does a page that asks to be left (beforeunload: what
 // was typed there would go).
 function canSleep(tab) {
-  return tab !== active && !tab.asleep && !tab.awake && !tab.audible && !tab.shownTo && !tab.loading && !tab.failed && !tab.crashed
+  return tab !== active && !tab.asleep && !tab.awake && !tab.audible && !awakeFor(tab.url) && !tab.shownTo && !tab.loading && !tab.failed && !tab.crashed
     && webby(tab.url) && share?.tab !== tab && fullTab !== tab && !asks.some((a) => a.tab === tab) && split?.a !== tab && split?.b !== tab;
 }
 function sleepTab(tab) {
@@ -444,8 +449,9 @@ function wire(tab) {
     if (webby(url) || /^about:blank/.test(url)) newTab(url, { background: disposition === "background-tab", after: tab });
     return { action: "deny" };
   });
-  on("did-create-window", (child) => {
+  on("did-create-window", (child, d) => {
     child.setMenu(null);
+    popupGoing(child, d.url);
     child.webContents.on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Escape" && input.control) child.close(); });
   });
   // asleep: what about:blank does is not the tab's
@@ -468,6 +474,7 @@ function wire(tab) {
   });
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
+    keepGoing(wc, awakeFor(d.url));
     // a new page: the old one's questions and count go with it
     if (originOf(d.url) !== originOf(tab.url)) dropAsks(tab);
     blocked.delete(wc.id);
@@ -1061,6 +1068,7 @@ function messages() {
   on("rove:forget-site", (origin, key) => forgetSite(String(origin), key ? String(key) : null));
   on("rove:unallow", (host) => { settings.allow = settings.allow.filter((h) => h !== String(host)); save("settings.json", settings); tell(); });
   on("rove:block", (on, site) => setBlock(!!on, site ? active?.url : null));
+  on("rove:awake", (on) => setAwake(!!on));
   on("rove:share", (id, pick, audio) => shareAnswer(Number(id), pick && typeof pick === "object" ? { kind: String(pick.kind), id: pick.kind === "tab" ? Number(pick.id) : String(pick.id) } : null, !!audio));
   handle("rove:site", () => siteInfo());
   on("rove:site-set", (origin, key, value) => setSite(String(origin), String(key), String(value)));
@@ -1638,6 +1646,7 @@ function siteInfo() {
     origin, host: hostOf(url) || url, conn,
     grants: KINDS.filter((k) => typeof g[k] === "boolean").map((k) => ({ key: k, allow: g[k] })),
     block: snapshot().block,
+    awake: siteOf(url) ? { site: siteOf(url), on: awakeFor(url) } : null,
   };
 }
 function setSite(origin, key, value) {
@@ -1692,6 +1701,57 @@ function setBlock(on, site) {
     if (!on) settings.allow.push(h);
   } else settings.block = !!on;
   save("settings.json", settings);
+  tell();
+}
+
+// ---- pages that keep going with the window down (settings.awake) ----------------------
+// An online lecture counts its time only while its page is seen and has the
+// focus. Minimized, Chromium tells a page it is hidden, takes its focus and
+// slows its timers. On a site put here: timers at full speed (no background
+// throttling, which also keeps it seen), the focus kept
+// (Emulation.setFocusEmulationEnabled), and SEEN, run before the page's own
+// scripts in every new document, for what is left (a tab not in front).
+const SEEN = `(() => { const D = Document.prototype; const v = (x) => ({ get: () => x, configurable: true });
+  for (const [k, x] of [["hidden", false], ["webkitHidden", false], ["visibilityState", "visible"], ["webkitVisibilityState", "visible"]]) { try { Object.defineProperty(D, k, v(x)); } catch {} }
+  try { D.hasFocus = function hasFocus() { return true; }; } catch {}
+  const stop = (e) => { if (e.type !== "blur" || e.target === window) e.stopImmediatePropagation(); };
+  for (const t of ["visibilitychange", "webkitvisibilitychange", "blur"]) window.addEventListener(t, stop, true);
+})();`;
+function keepGoing(wc, on) {
+  if (!wc || wc.isDestroyed() || !!wc.roveAwake === on) return;
+  wc.roveAwake = on;
+  wc.setBackgroundThrottling(!on);
+  const d = wc.debugger;
+  const send = (m, p) => d.sendCommand(m, p).catch((e) => { log(`창을 내려도 계속 ${m}: ${e.message}`); return null; });
+  if (on) {
+    try { if (!d.isAttached()) d.attach("1.3"); } catch (e) { log(`창을 내려도 계속: ${e.message}`); return; }
+    send("Emulation.setFocusEmulationEnabled", { enabled: true });
+    send("Page.addScriptToEvaluateOnNewDocument", { source: SEEN }).then((r) => {
+      if (!r) return;
+      if (wc.roveAwake) wc.roveSeen = r.identifier; else send("Page.removeScriptToEvaluateOnNewDocument", { identifier: r.identifier });
+    });
+    send("Runtime.evaluate", { expression: SEEN });
+  } else if (d.isAttached()) {
+    send("Emulation.setFocusEmulationEnabled", { enabled: false });
+    if (wc.roveSeen) send("Page.removeScriptToEvaluateOnNewDocument", { identifier: wc.roveSeen });
+    wc.roveSeen = null;
+  }
+}
+// a window a page opened (a lecture's player): the same, and so on down
+function popupGoing(child, url) {
+  const wc = child.webContents;
+  keepGoing(wc, awakeFor(url));
+  wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url)); });
+  wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url); });
+}
+function setAwake(on) {
+  const site = active && siteOf(active.url);
+  if (!site) return;
+  settings.awake = settings.awake.filter((x) => x !== site);
+  if (on) settings.awake.push(site);
+  save("settings.json", settings);
+  for (const wc of webContents.getAllWebContents()) if (siteOf(wc.getURL()) === site) keepGoing(wc, on);
+  log(`창을 내려도 계속 ${on ? "켬" : "끔"}: ${site}`);
   tell();
 }
 
@@ -1974,6 +2034,7 @@ function testHooks() {
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
+    setAwake, keepGoing, awakeFor, siteOf,
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame };
 }
 

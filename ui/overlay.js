@@ -163,13 +163,14 @@ async function drawSite(fromState) {
     ? `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><small class="rk-num">${b.siteOn ? `${b.count}개 막음` : "꺼짐"}</small><button class="rk-switch" role="switch" data-block-site aria-checked="${!!b.siteOn}" aria-label="${esc(b.site)}에서 광고·추적 막기"></button></div>`
     : `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><small>모든 사이트 꺼짐</small><button class="rk-switch" role="switch" data-block aria-checked="false" aria-label="광고·추적 막기"></button></div>`;
   const web = s.conn !== "file" && s.conn !== "other";
+  const awake = !s.awake ? "" : `<div class="switchrow">${icon("window")}<span>창을 내려도 계속</span><button class="rk-switch" role="switch" data-awake aria-checked="${!!s.awake.on}" aria-label="${esc(s.awake.site)}: 창을 내려도 계속"></button></div>`;
   const clear = !web ? "" : siteSure
     ? `<div class="confirm"><span>쿠키와 저장된 데이터를 지울까요?</span><button class="rk-btn rk-btn--small" data-no>그만두기</button><button class="rk-btn rk-btn--small rk-btn--danger-fill" data-yes>지우기</button></div>`
     : `<button class="rk-menu__item" data-clear role="menuitem">${icon("trash")}사이트 데이터 지우기</button>`;
   root.innerHTML = `<div class="scrim"></div><div class="pop site rk-menu${s.conn === "plain" ? " plain" : ""}" role="dialog" aria-label="사이트 정보">
     <header>${icon(ic)}<div class="w"><b>${esc(s.host)}</b>${conn ? `<small class="${s.conn === "plain" ? "alarm" : ""}">${conn}</small>` : ""}</div></header>
     ${perms ? `<div class="rk-label">권한</div>${perms}` : ""}
-    ${ads ? `<hr>${ads}` : ""}
+    ${ads || awake ? `<hr>${ads}${awake}` : ""}
     <hr>${clear}
     <button class="rk-menu__item" data-all role="menuitem">${icon("lock")}모든 사이트 권한</button>
     ${siteMsg ? `<p class="msg${siteMsg.bad ? " alarm" : ""}" role="status">${esc(siteMsg.text)}</p>` : ""}</div>`;
@@ -180,6 +181,7 @@ async function drawSite(fromState) {
   root.querySelectorAll("select[data-k]").forEach((el) => el.addEventListener("change", () => rove.send("rove:site-set", s.origin, el.dataset.k, el.value)));
   root.querySelector("[data-block-site]")?.addEventListener("click", () => rove.send("rove:block", !b.siteOn, true));
   root.querySelector("[data-block]")?.addEventListener("click", () => rove.send("rove:block", true, false));
+  root.querySelector("[data-awake]")?.addEventListener("click", () => rove.send("rove:awake", !s.awake.on));
   root.querySelector("[data-clear]")?.addEventListener("click", () => { siteSure = true; siteMsg = null; drawSite(); });
   root.querySelector("[data-no]")?.addEventListener("click", () => { siteSure = false; drawSite(); });
   root.querySelector("[data-yes]")?.addEventListener("click", async () => {

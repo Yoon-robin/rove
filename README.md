@@ -8,6 +8,7 @@ A browser by Robin. Windows용 데스크톱 브라우저예요(Electron 45, Chro
 - 광고·추적 막기(Ghostery 엔진), 클릭 추적 꼬리 떼기, GPC
 - 사이트마다 권한 묻기·정하기, 화면 공유 고르기, 위험한 파일 묻기
 - 읽기 모드(Readability), 화면 속 화면, 맞춤법 검사, 사이트별 확대 기억
+- 사이트마다 "창을 내려도 계속": 창을 내리거나 다른 탭을 앞에 둬도 그 사이트의 쪽(쪽이 연 창도)은 보이고 포커스가 있는 채로, 타이머도 그대로 (온라인 강의의 수강 시간)
 - 다른 브라우저(Chrome·Edge·Brave·Vivaldi·Opera·Firefox·Zen·LibreWolf)에서 즐겨찾기 가져오기
 - RobinPass: Vaultwarden(Bitwarden 호환) 서버의 비밀번호를 채우기·저장하기, 인증 코드(TOTP) 목록
 - 기본 브라우저 등록, 서명을 확인하는 자동 업데이트
@@ -53,7 +54,7 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 - 페이지는 `persist:rove` 세션, 샌드박스, preload 없음. `rove://`는 기본 세션에만 있어서 페이지에서는 못 열어요.
 - 페이지가 보내는 메시지는 없고, `ipcMain`은 보낸 쪽이 우리 두 뷰인지 확인해요.
 - 사용자 에이전트에서 `Electron/`·`Rove/`를 빼요(구글 로그인 같은 곳이 막지 않게).
-- 권한은 전체 화면·클립보드 쓰기·포인터 잠금·창 배치만 바로 허용, 카메라·마이크·위치·알림·클립보드 읽기·MIDI는 묻기 띠로 묻고(`permissions.json`), 화면 공유는 고르기 창이 권한 물음(`display-capture`, `shareAsked()`)에 답하고, 고른 것을 공유 처리기(`sharing()`, `desktopCapturer`·탭은 `mainFrame`)에 넘겨요. 주소창 자물쇠의 사이트 정보는 `siteInfo`·`setSite`·`clearSite`.
+- 권한은 전체 화면·클립보드 쓰기·포인터 잠금·창 배치만 바로 허용, 카메라·마이크·위치·알림·클립보드 읽기·MIDI는 묻기 띠로 묻고(`permissions.json`), 화면 공유는 고르기 창이 권한 물음(`display-capture`, `shareAsked()`)에 답하고, 고른 것을 공유 처리기(`sharing()`, `desktopCapturer`·탭은 `mainFrame`)에 넘겨요. 주소창 자물쇠의 사이트 정보는 `siteInfo`·`setSite`·`clearSite`. "창을 내려도 계속"은 `settings.awake`(사이트 = `tldts` getDomain)·`setAwake`·`keepGoing`: 그 쪽의 `setBackgroundThrottling(false)`, `webContents.debugger`로 `Emulation.setFocusEmulationEnabled`와 새 문서마다 먼저 도는 `SEEN`(보임·포커스 값 고정, visibilitychange·창 blur 막음), 쪽이 연 창은 `popupGoing`.
 - 안 쓰는 탭 재우기는 `sleepTab()`(기록 저장 → `close({ waitForBeforeUnload })` → 새 뷰로 바꿈)·`wake()`(`navigationHistory.restore`), 30분(`ROVE_SLEEP_MS`). 사이트별 확대 `settings.zoom`, 즐겨찾기 가져오기 `importSources()`(Firefox 계열은 `places()`, 시험은 `ROVE_IMPORT_ROOT`), 추적 꼬리 떼기·GPC는 `blocker.cjs`의 `clean()`.
 - 탭 고정은 `pin()`(고정 칸은 `newTab`·`moveTab`이 지킴), 나란히 보기는 `split`(`splitWith`·`unsplit`·`splitRatio`, `layout()`이 두 뷰를 놓음, 앞 탭 바꾸기는 `focus`·`input-event` mouseDown, 틈 끌기는 겹침 층 `splitdrag`), 읽기 모드는 `read()`·`lookReadable()`(`did-stop-loading`마다).
 - 탭 묶음은 `groups`(`groupNew`·`groupAdd`·`groupOut`·`groupSet`·`groupFold`·`ungroup`·`groupClose`, 붙여 두기는 `cluster()`, 이름 카드는 겹침 층 `group`), 세로 탭은 `settings.vertical`·`narrow`(페이지 자리는 `frame()`, 창 단추 줄은 `titleBar()`, 탭 목록은 `#tabs`가 `#tabs-home`과 `#sidelist` 사이를 옮겨 다님).

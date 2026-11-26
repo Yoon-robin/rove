@@ -379,3 +379,17 @@ body.vertical .pop.tabfind { top: 48px; }
   .pass .code .left .arc { transition: none; }
   .pass .code .v.fresh { animation: none; }
 }
+
+/* ---- V5.1: the feel (yoonrobin.xyz docs/brand.md "V5.1", 2026-11-26): a pressed button gives to
+   0.97, a tab's hover band is on in 90ms and off in 160ms, a menu grows from its corner (the
+   menu button at the top right), no slide. robin-ui.css carries the rest (light on top edges). */
+.btn { transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out, transform 200ms var(--rk-ease-out); }
+.btn:active:not(:disabled) { transform: scale(0.97); transition-duration: var(--rk-t-fast), var(--rk-t-fast), var(--rk-t-press); }
+.tab { transition: background-color var(--rk-t-out) ease-out, color var(--rk-t-out) ease-out; }
+.tab:hover { transition-duration: var(--rk-t-in); }
+.pop { transform-origin: top center; animation: rk-pop 150ms var(--rk-ease-out); }
+.pop.menu { transform-origin: top right; }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled) { transform: none; }
+  .pop { animation: rk-fade-in 150ms ease-out; }
+}

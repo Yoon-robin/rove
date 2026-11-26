@@ -394,3 +394,90 @@ a.rk-row:hover, button.rk-row:hover { color: var(--rk-head); }
   .rk-btn, .rk-nav, .rk-switch, .rk-switch::before, .rk-tab { transition: none; }
   .rk-btn:active, .rk-nav:active { transform: none; }
 }
+
+/* =====================================================================
+   V5.1: THE FEEL (docs/brand.md "V5.1", 2026-11-26)
+   The faces, colours and corners above stay. What changes is how a part answers a hand:
+   - light is height: a floating face has a 1px light along its top edge inside, a card's
+     top line is a shade brighter than its sides (no new colour, no glow);
+   - a pressed part gives to 0.97 in 160ms and comes back; a row gives 1%;
+   - a hover band comes on in 90ms and goes in 160ms (measured from the game menu);
+   - a menu grows from the side it opened on, 0.97 to 1 with its opacity, 150ms; it leaves
+     in 100ms on opacity alone. A window over the page the same from its middle, 200ms;
+   - a switch's knob stretches while it is held, and lands where it was going.
+   Under reduced motion only the fades are left.
+   ===================================================================== */
+:root, [data-theme="dark"] {
+  --rk-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --rk-ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --rk-t-press: 160ms;
+  --rk-t-in: 90ms;
+  --rk-t-out: 160ms;
+  --rk-lift: rgb(255 255 255 / 5%);
+  --rk-card-top: #212428;
+}
+[data-theme="light"] {
+  --rk-lift: rgb(255 255 255 / 80%);
+  --rk-card-top: #e3e6eb;
+}
+
+/* light is height */
+.rk-card, .rk-tile { box-shadow: inset 0 1px 0 var(--rk-card-top), inset 0 0 0 1px var(--rk-line); }
+.rk-hud, .rk-toast, .rk-alert, .rk-person, .rk-menu, .rk-pilltabs, .rk-watermark { box-shadow: 0 0 0 1px var(--rk-hud-line), inset 0 1px 0 var(--rk-lift), var(--rk-hud-shadow); }
+.rk-chip { box-shadow: inset 0 0 0 1px var(--rk-chip-line), inset 0 1px 0 var(--rk-lift); }
+.rk-dialog { box-shadow: inset 0 1px 0 var(--rk-lift), var(--rk-window-shadow); }
+
+/* pressing: the part gives, then comes back */
+.rk-btn, .rk-tab, .rk-pick, .rk-pilltabs a, .rk-round { transition-property: background-color, box-shadow, color, transform; transition-duration: var(--rk-t-fast), var(--rk-t-fast), var(--rk-t-fast), 200ms; transition-timing-function: ease-out, ease-out, ease-out, var(--rk-ease-out); }
+.rk-btn:active, .rk-tab:active, .rk-pick:active, .rk-pilltabs a:active, .rk-round:active { transform: scale(0.97); transition-duration: var(--rk-t-fast), var(--rk-t-fast), var(--rk-t-fast), var(--rk-t-press); }
+.rk-btn:disabled:active, .rk-btn[aria-disabled="true"]:active { transform: none; }
+.rk-nav:active, a.rk-row:active, button.rk-row:active, .rk-menu__item:active { transform: scale(0.99); }
+
+/* pointing: on quickly, off slowly */
+.rk-nav, a.rk-row, button.rk-row, .rk-menu__item, .rk-table td { transition: background-color var(--rk-t-out) ease-out, color var(--rk-t-out) ease-out, transform var(--rk-t-press) var(--rk-ease-out); }
+.rk-nav:hover, a.rk-row:hover, button.rk-row:hover, .rk-menu__item:hover, .rk-table tbody tr:hover td { transition-duration: var(--rk-t-in), var(--rk-t-in), var(--rk-t-press); }
+/* a › at a row's end leans toward where it goes */
+a.rk-row > .rk-ico:last-child, button.rk-row > .rk-ico:last-child { transition: transform 200ms var(--rk-ease-out), color var(--rk-t-fast) ease-out; }
+@media (hover: hover) and (pointer: fine) {
+  a.rk-row:hover > .rk-ico:last-child, button.rk-row:hover > .rk-ico:last-child { transform: translateX(2px); color: var(--rk-head); }
+}
+
+/* opening: from the side it opened on. Set data-from="top|bottom" (and data-align="end")
+   on the menu, or --rk-origin. Add .is-leaving for the way out, then hide it on animationend. */
+.rk-menu { transform-origin: var(--rk-origin, top left); animation: rk-pop 150ms var(--rk-ease-out) both; }
+.rk-menu[data-from="bottom"] { --rk-origin: bottom left; }
+.rk-menu[data-align="end"] { --rk-origin: top right; }
+.rk-menu[data-from="bottom"][data-align="end"] { --rk-origin: bottom right; }
+.rk-menu.is-leaving { animation: rk-fade-out 100ms ease-out both; }
+.rk-dialog[open] { animation: rk-pop 200ms var(--rk-ease-out) both; }
+.rk-dialog[open]::backdrop { animation: rk-fade-in 200ms ease-out both; }
+.rk-toast.is-leaving { animation: rk-toast-out 160ms var(--rk-ease-out) both; }
+@keyframes rk-pop { from { opacity: 0; transform: scale(0.97); } }
+@keyframes rk-fade-in { from { opacity: 0; } }
+@keyframes rk-fade-out { to { opacity: 0; } }
+@keyframes rk-toast-out { to { opacity: 0; transform: translateY(6px); } }
+
+/* the switch: the knob stretches 4px while held; on, it stretches toward the left */
+.rk-switch::before { transition: transform 165ms ease-out, width 165ms ease-out, background-color 165ms ease-out; }
+.rk-switch:active:not(:disabled)::before { width: 18px; }
+.rk-switch[aria-checked="true"]:active:not(:disabled)::before { transform: translateX(11px); }
+.rk-switch:active:not(:disabled) { transform: none; }
+
+/* arriving in a group: the parts of one container come in 40ms apart (the first five) */
+.rk-stagger > * { animation: rk-in var(--rk-t-slow) var(--rk-ease) both; }
+.rk-stagger > :nth-child(2) { animation-delay: 40ms; }
+.rk-stagger > :nth-child(3) { animation-delay: 80ms; }
+.rk-stagger > :nth-child(4) { animation-delay: 120ms; }
+.rk-stagger > :nth-child(n + 5) { animation-delay: 160ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-btn:active, .rk-tab:active, .rk-pick:active, .rk-pilltabs a:active, .rk-round:active,
+  .rk-nav:active, a.rk-row:active, button.rk-row:active, .rk-menu__item:active { transform: none; }
+  a.rk-row:hover > .rk-ico:last-child, button.rk-row:hover > .rk-ico:last-child { transform: none; }
+  .rk-menu, .rk-dialog[open] { animation-name: rk-fade-in; }
+  .rk-toast.is-leaving { animation-name: rk-fade-out; }
+  .rk-stagger > * { animation: rk-fade-in 200ms ease-out both; }
+  .rk-switch::before { transition: background-color 165ms ease-out; }
+  .rk-switch:active:not(:disabled)::before { width: 14px; }
+  .rk-switch[aria-checked="true"]:active:not(:disabled)::before { transform: translateX(15px); }
+}

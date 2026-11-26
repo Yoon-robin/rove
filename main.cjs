@@ -96,7 +96,7 @@ const log = (text) => {
 };
 let update = null; // what the updater last said
 log(`켜짐: ${mine ? `설치 버전 ${mine.version}` : `설치 버전 아님 ${app.getVersion()}`}${TEST ? " (시험)" : ""}`);
-const updates = mine && !TEST ? updater({ mine, log, url: process.env.ROVE_UPDATE_URL || config.updates, key: config.updateKey, fetch: (u, o) => net.fetch(u, o), tell: (s) => { update = s; tell(); } }) : null;
+const updates = mine && !TEST ? updater({ mine, log, url: process.env.ROVE_UPDATE_URL || config.updates, key: config.updateKeys, fetch: (u, o) => net.fetch(u, o), tell: (s) => { update = s; tell(); } }) : null;
 Menu.setApplicationMenu(null);
 nativeTheme.themeSource = "dark";
 

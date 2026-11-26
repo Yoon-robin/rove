@@ -2,7 +2,7 @@
 // A release is the whole app, Electron with it (a browser's engine fixes come
 // with Electron). The release script puts Rove-<version>-win-x64.zip and
 // latest.json in a GitHub release (config.cjs: updates). latest.json is signed
-// with the release key (Ed25519, config.cjs: updateKey) and names the zip's
+// with a release key (Ed25519, config.cjs: updateKeys) and names the zip's
 // sha256: a new version is taken only when both hold.
 //
 // Installed layout (install.cmd makes it):
@@ -30,8 +30,11 @@ const sha256 = (file) => new Promise((done, fail) => {
 const safe = (v) => /^[0-9A-Za-z][\w.-]{0,79}$/.test(String(v || "")) && !String(v).includes("..");
 // what the release key signs (scripts/release-rove.mjs makes the same lines)
 const signed = (l) => ["rove-update", l.version, l.build, l.file, l.sha256, l.size].join("\n");
-function trusted(latest, key) {
-  try { return verify(null, Buffer.from(signed(latest)), createPublicKey({ key: Buffer.from(key, "base64"), format: "der", type: "spki" }), Buffer.from(String(latest.sig || ""), "base64")); } catch { return false; }
+// keys: one release key or a list of them (config.cjs updateKeys) — any one that signed it will do
+function trusted(latest, keys) {
+  return [].concat(keys).some((key) => {
+    try { return verify(null, Buffer.from(signed(latest)), createPublicKey({ key: Buffer.from(key, "base64"), format: "der", type: "spki" }), Buffer.from(String(latest.sig || ""), "base64")); } catch { return false; }
+  });
 }
 
 // where the running copy lives, if it is an installed one:
@@ -65,7 +68,7 @@ function current(home) {
 }
 
 // mine: installed(); url: where latest.json is (a folder, ending in /); key: the
-// release key; fetch: Electron's net.fetch; tell(state) for the window; log(text).
+// release keys (config.cjs updateKeys); fetch: Electron's net.fetch; tell(state) for the window; log(text).
 // Returns { check, state }.
 function updater({ mine, tell, log, url, key, fetch }) {
   let state = { version: mine.version, ready: null, checking: false, downloading: null, checkedAt: 0, error: null };

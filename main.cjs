@@ -589,7 +589,7 @@ function wire(tab) {
   on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Enter") passTyped(tab); pageKey(tab, e, input); });
   on("before-mouse-event", (e, m) => { if (m.type === "mouseDown") passTyped(tab); });
   on("dom-ready", () => wc.executeJavaScriptInIsolatedWorld(KEY_WORLD, [{ code: KEY_LISTENER }]).catch(() => {}));
-  on("dom-ready", () => { if (!tab.w.private) wc.executeJavaScriptInIsolatedWorld(1001, [{ code: SNAP }]).catch(() => {}); });
+  on("dom-ready", () => { if (!tab.w.private && pass?.status().state === "open") wc.executeJavaScriptInIsolatedWorld(1001, [{ code: SNAP }]).catch(() => {}); });
   on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
   on("zoom-changed", (e, dir) => zoom(dir === "in" ? 1 : -1));
@@ -1623,9 +1623,10 @@ const PEEK = `(origin) => {
   const before = all.slice(0, all.indexOf(pw)).filter((e) => ["text", "email", "tel", ""].includes(e.type) && e.value);
   return { username: (before.filter((e) => e.form === pw.form).pop() || before.pop())?.value || "", password: pw.value };
 }`;
-// in each page (not a private window's): the login as Enter or a press reaches it, taken before the
-// page's own handlers (capture, on window) — a page may empty the box as it sends (MIKAEL n346).
-// Kept 1.5 s in this world only; TYPED reads it when the box itself is empty by then.
+// in each page loaded while the vault is open (not a private window's): the login as Enter or a press
+// reaches it, taken before the page's own handlers (capture, on window) — a page may empty the box as
+// it sends (MIKAEL n346). Kept 1.5 s in this world only; TYPED reads it when the box is empty by then.
+// A page loaded while locked has none (MIKAEL n352): its boxes are read as they are.
 const SNAP = `(() => {
   const take = (e) => {
     if (e.type === "keydown" && e.key !== "Enter") return;

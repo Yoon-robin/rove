@@ -61,6 +61,13 @@ export default [
     const read2 = await TYPED("idle@test", "s3cret-8"); await sleep(15500);
     const idle = { read: read2, kept: !!R.active.typed || !!R.active.sent };
     return CHECK("read on a press, then forgotten: on an address-bar move and after 15 s", moved.read && !moved.kept && !moved.asked && idle.read && !idle.kept, { moved, idle });` },
+  { js: `const has = () => R.active.view.webContents.executeJavaScriptInIsolatedWorld(1001, [{ code: "'__roveTyped' in globalThis" }]);
+    // loaded in one state, then pressed while locked (so only the page's own listener can take anything)
+    const TRY = async (state) => { V.state = state; R.go(SITE + "/hash"); await sleep(900); V.state = "locked"; const wc = R.active.view.webContents;
+      await wc.executeJavaScript("document.querySelector('[name=p]').value = 'x'; 1"); wc.focus();
+      for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: 300, y: 300, button: "left", clickCount: 1 }); await sleep(300); return has(); };
+    const locked = await TRY("locked"), open = await TRY("open"); V.state = "open";
+    return CHECK("loaded while locked: nothing taken in the page; while open: taken", !locked && open, { locked, open });` },
   { js: `R.createWindow({ priv: true }); await sleep(1500); await LOGIN("private@test", "s3cret-9"); const got = { private: !!R.cur?.private, title: R.active.title, asked: !!OFFER(), read: !!R.active.typed }; SRV.close();
     return CHECK("a private window: nothing read, nothing asked (its logins are saved by hand)", got.private && got.title === "들어옴" && !got.asked && !got.read, got);` },
 ];

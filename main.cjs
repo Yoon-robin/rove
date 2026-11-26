@@ -995,7 +995,15 @@ function setFind(open) {
 function overlayOnTop() {
   if (overlay) { win.contentView.removeChildView(overlay); win.contentView.addChildView(overlay); }
 }
+// RobinPass opened a while after the vault was last fetched: fetched again first, as the
+// Bitwarden extension does (a login put in on the phone is there without locking)
+const PASS_FRESH = 5 * 60e3;
+function freshPass() {
+  if (pass?.status().state !== "open" || Date.now() - pass.syncedAt() < PASS_FRESH) return;
+  pass.sync().then(() => everywhere(tell), (e) => log(`RobinPass: 다시 받기 못 함: ${e.message}`));
+}
 function showOverlay(what) {
+  if (what.kind === "pass") freshPass();
   overlayOn = what;
   overlay.setVisible(true);
   layout();
@@ -1273,7 +1281,7 @@ function messages() {
   handle("rove:pass-codes", (q) => passCodes(String(q || "")));
   handle("rove:pass-peek", () => passPeek());
   handle("rove:pass-save", (name) => passSave(String(name || "")));
-  handle("rove:pass-sync", async () => { try { await pass.sync(); } catch (e) { return { error: e.message }; } tell(); return { ok: true }; });
+  handle("rove:pass-sync", async () => { let count; try { count = await pass.sync(); } catch (e) { return { error: e.message }; } tell(); return { ok: true, count }; });
   on("rove:pass-lock", () => { pass.lock(); peeked = null; tell(); });
   on("rove:pass-logout", () => { pass.logout(); peeked = null; tell(); });
   on("rove:relaunch", () => {
@@ -1487,7 +1495,7 @@ function passState() {
   if (!pass) return null;
   const s = pass.status();
   const url = active?.view.webContents.getURL() || "";
-  return { state: s.state, email: s.email, server: s.server.replace(/^https?:\/\//, ""), count: s.state === "open" && webby(url) ? pass.forPage(url).length : 0 };
+  return { state: s.state, email: s.email, server: s.server.replace(/^https?:\/\//, ""), count: s.state === "open" && webby(url) ? pass.forPage(url).length : 0, synced: s.state === "open" ? pass.syncedAt() : 0 };
 }
 const plainItem = (i, url) => ({ id: i.id, name: i.name, username: i.username, here: !!url && i.uris.some((u) => matches(u.uri, u.match, url)), totp: !!i.totp, host: (() => { try { return new URL(/^[a-z]+:/i.test(i.uris[0]?.uri) ? i.uris[0].uri : "https://" + i.uris[0]?.uri).hostname; } catch { return ""; } })() });
 function passItems(q) {

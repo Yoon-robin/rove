@@ -11,11 +11,12 @@ let query = "";
 let sure = false; // "clear all" asked once
 
 rove.on("rove:state", (s) => {
-  const was = state.pass?.state;
+  const was = state.pass?.state, fetched = state.pass?.synced;
   state = s;
   if (open?.kind === "menu") draw();
   if (open?.kind === "drawer" && panel !== "history") draw();
   if (open?.kind === "pass" && s.pass?.state !== was) { pmsg = ""; draw(); }
+  else if (open?.kind === "pass" && s.pass?.synced !== fetched && !pbusy) draw();
   if (open?.kind === "site") drawSite(true);
   if (open?.kind === "tabs") drawTabs();
   if (open?.kind === "group") groupShown();
@@ -286,6 +287,7 @@ function startTick() {
   };
   ptick = setTimeout(go, 1000 - (Date.now() % 1000) + 5);
 }
+const fetchedLabel = (p) => (p.synced ? `금고 다시 받기 · ${new Date(p.synced).toTimeString().slice(0, 5)}에 받음` : "금고 다시 받기");
 async function drawPass() {
   const mine = open;
   const p = state.pass || { state: "none" };
@@ -343,13 +345,21 @@ async function drawPass() {
       ${msg}`;
   }
   root.innerHTML = `<div class="scrim"></div><div class="pop pass rk-menu" role="dialog" aria-label="RobinPass">
-    <header>${icon("key")}<b>RobinPass</b><small>${esc(p.email || p.server || "")}</small>${p.state === "open" ? `<button class="btn" data-lock aria-label="잠그기" title="잠그기">${icon("lock")}</button>` : ""}</header>
+    <header>${icon("key")}<b>RobinPass</b><small>${esc(p.email || p.server || "")}</small>${p.state === "open" ? `<button class="btn" data-sync aria-label="${fetchedLabel(p)}" title="${fetchedLabel(p)}"${busy}>${icon("refresh")}</button><button class="btn" data-lock aria-label="잠그기" title="잠그기">${icon("lock")}</button>` : ""}</header>
     ${body}</div>`;
   const box = root.querySelector(".pass");
   box.style.left = `${Math.max(8, Math.min(innerWidth - 348, (open.x || innerWidth) - 340))}px`;
   box.style.top = `${open.y || 84}px`;
   root.querySelector(".scrim").addEventListener("mousedown", shut);
   root.querySelector("[data-lock]")?.addEventListener("click", () => rove.send("rove:pass-lock"));
+  root.querySelector("[data-sync]")?.addEventListener("click", async () => {
+    if (pbusy) return;
+    pbusy = true; pmsg = ""; draw();
+    let r;
+    try { r = await rove.ask("rove:pass-sync"); } finally { pbusy = false; }
+    if (r?.error) say(r.error, true); else say(`금고를 다시 받았어요 · ${r?.count ?? 0}개`);
+    draw();
+  });
   root.querySelector("[data-logout]")?.addEventListener("click", () => rove.send("rove:pass-logout"));
   root.querySelector("[data-back]")?.addEventListener("click", () => { psecond = null; pagain = null; pmsg = ""; draw(); });
   const form = root.querySelector("form");

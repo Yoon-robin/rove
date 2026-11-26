@@ -7,7 +7,8 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 
-static class Ed25519
+// public: install.cmd loads this same text with Add-Type, and PowerShell sees only public types
+public static class Ed25519
 {
     static readonly BigInteger P = BigInteger.Pow(2, 255) - 19;
     static readonly BigInteger L = BigInteger.Pow(2, 252) + BigInteger.Parse("27742317777372353535851937790883648493");

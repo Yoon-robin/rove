@@ -2,10 +2,11 @@
 // same .NET Framework csc as RoveSetup.exe) against Node's own Ed25519 — a good signature,
 // a changed line, the wrong key, a list of keys, a stretched signature (S + L), broken base64,
 // and the real latest.json of the newest release with config.cjs's keys (needs the network).
-// Each line prints ok or FAIL.
-import { execFileSync } from "node:child_process";
+// install.cmd carries the same C# and keys (checked here), and its own check lines are run in
+// PowerShell against the same latest.json. Each line prints ok or FAIL.
+import { execFileSync, spawnSync } from "node:child_process";
 import { generateKeyPairSync, sign } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -34,9 +35,10 @@ const cases = [
   ["broken base64", [one.pub], signed(line), "not base64!", false],
   ["no signature", [one.pub], signed(line), "", false],
 ];
+let latest = null;
 try {
   const r = await fetch("https://github.com/Yoon-robin/rove/releases/latest/download/latest.json", { signal: AbortSignal.timeout(20000) });
-  const latest = await r.json();
+  latest = await r.json();
   cases.push(["the newest release, config.cjs keys", updateKeys, signed(latest), latest.sig, true]);
   cases.push(["the newest release, its size changed", updateKeys, signed({ ...latest, size: latest.size + 1 }), latest.sig, false]);
 } catch (e) { console.log("skip the newest release: " + e.message); }
@@ -52,5 +54,31 @@ static class Check { static void Main(string[] a) { foreach (var l in File.ReadA
   const got = execFileSync(join(dir, "check.exe"), [join(dir, "cases.txt")], { encoding: "utf8" }).trim().split(/\r?\n/);
   let bad = 0;
   cases.forEach(([name, , , , want], i) => { const ok = got[i] === String(want); if (!ok) bad++; console.log((ok ? "ok   " : "FAIL ") + name + ": " + got[i] + (ok ? "" : ` (want ${want})`)); });
+  // install.cmd: the C# after #CSSTART is Ed25519.cs, its keys are config.cjs's, and its own lines decide
+  const say = (name, ok, got) => { if (!ok) bad++; console.log((ok ? "ok   " : "FAIL ") + name + (ok ? "" : ": " + got)); };
+  const lf = (t) => t.replace(/\r\n/g, "\n");
+  const installCmd = join(rove, "install.cmd");
+  const cmd = lf(readFileSync(installCmd, "utf8"));
+  const cs = cmd.slice(cmd.indexOf("\n", cmd.indexOf("#CSSTART")) + 1);
+  say("install.cmd: the same C# as Ed25519.cs", cs === lf(readFileSync(join(rove, "setup", "Ed25519.cs"), "utf8")), cs.length);
+  const lines = cmd.split("\n");
+  const from = lines.findIndex((l) => l.startsWith("$keys = @(")), to = lines.findIndex((l) => l.startsWith("if (-not [Ed25519]"));
+  const theirs = [...(lines[from] || "").matchAll(/'([A-Za-z0-9+/=]+)'/g)].map((m) => m[1]);
+  say("install.cmd: the keys of config.cjs", JSON.stringify(theirs) === JSON.stringify(updateKeys), JSON.stringify(theirs));
+  const run = (name, json, want) => {
+    const file = join(dir, "latest.json");
+    writeFileSync(file, JSON.stringify(json));
+    const ps = ["$ErrorActionPreference = 'Stop'", `$t = [IO.File]::ReadAllText('${installCmd}', [Text.Encoding]::UTF8)`, `$latest = Get-Content -Raw -Encoding UTF8 '${file}' | ConvertFrom-Json`,
+      ...lines.slice(from, to + 1), "Write-Host signed"];
+    writeFileSync(join(dir, "check.ps1"), "﻿" + ps.join("\r\n"));
+    const out = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join(dir, "check.ps1")], { encoding: "utf8" });
+    const got = out.status === 0 && /signed/.test(out.stdout) ? "signed" : "refused";
+    say("install.cmd: " + name + " " + got, got === want, (out.stdout + out.stderr).trim().slice(0, 300));
+  };
+  if (latest && from >= 0 && to > from) {
+    run("the newest release", latest, "signed");
+    run("its size changed", { ...latest, size: latest.size + 1 }, "refused");
+    run("no signature", { ...latest, sig: undefined }, "refused");
+  } else say("install.cmd: its check lines", from >= 0 && to > from, `${from}..${to}`);
   process.exitCode = bad ? 1 : 0;
 } finally { rmSync(dir, { recursive: true, force: true }); }

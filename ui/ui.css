@@ -18,7 +18,8 @@ button { font: inherit; }
 .strip > * { -webkit-app-region: no-drag; }
 .strip .drag { flex: 1; align-self: stretch; -webkit-app-region: drag; }
 .mark { width: 24px; height: 24px; margin: 0 6px 8px 2px; font-size: 12px; -webkit-app-region: drag; }
-.tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; height: 100%; flex: 0 1 auto; overflow: hidden; }
+/* past the tabs' 44px least the strip scrolls sideways (no bar): a hidden overflow left those tabs out of reach */
+.tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; height: 100%; flex: 0 1 auto; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tabs-home .tabs { flex: 1 1 auto; }
 .tab { position: relative; display: flex; align-items: center; gap: 8px; flex: 0 1 220px; width: 220px; min-width: 44px; height: 32px; padding: 0 6px 0 10px; border-radius: var(--rk-r) var(--rk-r) 0 0; color: var(--rk-soft); font-size: 12px; cursor: default; transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
 .tab:hover { background: var(--rk-hover); color: var(--rk-text); }

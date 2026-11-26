@@ -133,6 +133,14 @@ function away(ev) {
   if (ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= innerWidth || ev.clientY >= innerHeight) return true;
   return state.vertical ? ev.clientX > (state.frame?.left || 240) + 60 : ev.clientY > 84 + 40;
 }
+let shownActive = null; // the tab the strip last scrolled to
+// across: bring the current tab into the strip (it may sit past the edge once tabs are at their 44px least)
+function showChosen() {
+  const sel = !state.vertical && tabsEl.querySelector('.tab[aria-selected="true"]');
+  if (!sel) return;
+  const r = sel.getBoundingClientRect(), s = tabsEl.getBoundingClientRect();
+  tabsEl.scrollLeft += r.left < s.left ? r.left - s.left : r.right > s.right ? r.right - s.right : 0;
+}
 function drawTabs() {
   const v = !!state.vertical;
   // a private window says so, at the left of the top row
@@ -173,8 +181,16 @@ function drawTabs() {
     const narrow = !v && first && first.getBoundingClientRect().width < 96;
     els.forEach((el) => el.classList.toggle("narrow", !!narrow));
     if (v) tabsEl.querySelector('.tab[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+    // when it changes, not on every redraw: a strip scrolled by hand stays
+    if (state.active !== shownActive) showChosen();
+    shownActive = state.active;
   });
 }
+// and when the strip narrows (the window made smaller)
+let stripWidth = 0;
+new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); stripWidth = tabsEl.clientWidth; }).observe(tabsEl);
+// a plain wheel over the strip moves it sideways
+tabsEl.addEventListener("wheel", (e) => { if (state.vertical || !e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; tabsEl.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
 $("sideNew").addEventListener("click", () => rove.send("rove:new-tab"));
 $("sideFold").addEventListener("click", () => rove.send("rove:narrow", !state.narrow));
 

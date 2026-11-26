@@ -13,7 +13,7 @@
 // to it; the next start runs it. The running one is never touched.
 const { execFile } = require("node:child_process");
 const { createHash, createPublicKey, verify } = require("node:crypto");
-const { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync } = require("node:fs");
+const { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync } = require("node:fs");
 const { basename, dirname, join } = require("node:path");
 const { Readable } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
@@ -138,4 +138,37 @@ function tidy(mine) {
   } catch { /* nothing to tidy */ }
 }
 
-module.exports = { installed, updater, tidy, signed, trusted };
+// Rove in Windows' installed apps (Settings > Apps, under the current user, no
+// administrator): its remove button runs current\RoveSetup.exe --uninstall
+// (rove/setup, in every release beside Rove.exe). Written at every start, so the
+// version and size there follow updates. RoveSetup.exe writes the same at install.
+const UNINSTALL = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Rove";
+function size(dir) {
+  let n = 0;
+  try { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, e.name); n += e.isDirectory() ? size(p) : statSync(p).size; } } catch { /* what could be read */ }
+  return n;
+}
+async function listed(mine, version) {
+  const cur = join(mine.home, "current");
+  const setup = join(cur, "RoveSetup.exe");
+  if (!existsSync(join(mine.dir, "RoveSetup.exe"))) return false; // a release from before it: nothing to remove with
+  const values = [
+    ["DisplayName", "REG_SZ", "Rove"],
+    ["DisplayVersion", "REG_SZ", version],
+    ["Publisher", "REG_SZ", "yoonrobin.xyz"],
+    ["DisplayIcon", "REG_SZ", `${join(cur, "Rove.exe")},0`],
+    ["InstallLocation", "REG_SZ", mine.home],
+    ["UninstallString", "REG_SZ", `"${setup}" --uninstall`],
+    ["URLInfoAbout", "REG_SZ", "https://rove.yoonrobin.xyz/"],
+    ["NoModify", "REG_DWORD", "1"],
+    ["NoRepair", "REG_DWORD", "1"],
+    ["EstimatedSize", "REG_DWORD", String(Math.round(size(mine.dir) / 1024))],
+  ];
+  for (const [name, type, data] of values) {
+    const r = await run(join(SYS, "reg.exe"), ["add", UNINSTALL, "/v", name, "/t", type, "/d", data, "/f"], 15000);
+    if (!r.ok) return false;
+  }
+  return true;
+}
+
+module.exports = { installed, updater, tidy, listed, signed, trusted };

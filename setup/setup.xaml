@@ -175,6 +175,36 @@
         </Setter.Value>
       </Setter>
     </Style>
+    <!-- removing: the kit's danger fill (rk-btn danger-fill), in place of the blue -->
+    <Style x:Key="Danger" TargetType="Button" BasedOn="{StaticResource Lead}">
+      <Setter Property="Background" Value="#d52236"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Grid>
+              <Border x:Name="Ring" CornerRadius="9" Margin="-3" BorderThickness="2" BorderBrush="Transparent"/>
+              <Border x:Name="Face" CornerRadius="7" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsPressed" Value="True">
+                <Trigger.EnterActions><BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="0.97" Duration="0:0:0.16"/>
+                  <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="0.97" Duration="0:0:0.16"/>
+                </Storyboard></BeginStoryboard></Trigger.EnterActions>
+                <Trigger.ExitActions><BeginStoryboard><Storyboard>
+                  <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.2"><DoubleAnimation.EasingFunction><QuinticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                  <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.2"><DoubleAnimation.EasingFunction><QuinticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                </Storyboard></BeginStoryboard></Trigger.ExitActions>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="BorderBrush" Value="#99e5475a"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <!-- the round close button of the kit (.rk-round) -->
     <Style x:Key="Round" TargetType="Button">
       <Setter Property="Cursor" Value="Hand"/>
@@ -218,7 +248,7 @@
               <TextBlock Text="A browser by Robin" FontSize="11.5" FontWeight="450" Foreground="{StaticResource Faint}"/>
             </StackPanel>
           </StackPanel>
-          <TextBlock DockPanel.Dock="Top" Text="설치" Style="{StaticResource Label}" Margin="6,20,0,6"/>
+          <TextBlock x:Name="SideLabel" DockPanel.Dock="Top" Text="설치" Style="{StaticResource Label}" Margin="6,20,0,6"/>
           <StackPanel x:Name="Steps" DockPanel.Dock="Top"/>
           <Border/>
         </DockPanel>
@@ -261,7 +291,7 @@
           </Grid>
         </Border>
 
-        <StackPanel Margin="14,4,14,0">
+        <StackPanel x:Name="InstallCards" Margin="14,4,14,0">
           <TextBlock Text="설치할 곳" Style="{StaticResource Label}"/>
           <Border Style="{StaticResource CardBox}">
             <StackPanel>
@@ -297,6 +327,37 @@
             <Grid Style="{StaticResource Row}">
               <TextBlock Text="Rove 켜기" Style="{StaticResource RowName}"/>
               <ToggleButton x:Name="Open" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="끝나면 Rove 켜기"/>
+            </Grid>
+          </Border>
+        </StackPanel>
+
+        <!-- removing (the uninstall mode): what goes, and whether the person's own things go with it -->
+        <StackPanel x:Name="RemoveCards" Margin="14,4,14,0" Visibility="Collapsed">
+          <TextBlock Text="지울 것" Style="{StaticResource Label}"/>
+          <Border Style="{StaticResource CardBox}">
+            <StackPanel>
+              <Grid Style="{StaticResource Row}">
+                <TextBlock Text="폴더" Style="{StaticResource RowName}"/>
+                <TextBlock x:Name="RFolder" Style="{StaticResource RowValue}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Margin="80,0,0,0"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}" Margin="9,0"/>
+              <Grid Style="{StaticResource Row}">
+                <TextBlock Text="크기" Style="{StaticResource RowName}"/>
+                <TextBlock x:Name="RSize" Style="{StaticResource RowValue}"/>
+              </Grid>
+              <Border Height="1" Background="{StaticResource Line}" Margin="9,0"/>
+              <Grid Style="{StaticResource Row}">
+                <TextBlock Text="바로가기" Style="{StaticResource RowName}"/>
+                <TextBlock x:Name="RLinks" Style="{StaticResource RowValue}"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Text="같이 지우기" Style="{StaticResource Label}"/>
+          <Border Style="{StaticResource CardBox}">
+            <Grid Style="{StaticResource Row}">
+              <TextBlock Text="방문 기록·즐겨찾기·로그인" Style="{StaticResource RowName}"/>
+              <ToggleButton x:Name="Mine" Style="{StaticResource Switch}" IsChecked="False" AutomationProperties.Name="방문 기록·즐겨찾기·로그인도 지우기"/>
             </Grid>
           </Border>
         </StackPanel>

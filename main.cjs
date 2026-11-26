@@ -79,7 +79,7 @@ if (process.env.ROVE_DEBUG_PORT && !app.isPackaged) app.commandLine.appendSwitch
 protocol.registerSchemesAsPrivileged([{ scheme: "rove", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 // an installed copy (app-<version> beside current): it updates itself (update.cjs)
-const { installed, updater, tidy } = require("./update.cjs");
+const { installed, updater, tidy, listed } = require("./update.cjs");
 const mine = installed(__dirname);
 const logFile = join(home, "rove.log");
 const log = (text) => {
@@ -1811,8 +1811,10 @@ app.whenReady().then(() => {
   setInterval(sleepIdle, Math.min(60e3, SLEEP_AFTER / 2)).unref?.();
   if (TEST) testHooks();
   if (updates) {
-    setTimeout(() => tidy(mine), 30e3);
-    setTimeout(() => updates.check(), 20e3);
+    // tidy first: it drops leftover *.zip.part, so never while a check downloads one
+    setTimeout(() => { tidy(mine); updates.check(); }, 20e3);
+    // the PC's own install only: a copy run elsewhere (tests) leaves Windows' list as it is
+    if (mine.home.toLowerCase() === join(process.env.LOCALAPPDATA || "", "Rove").toLowerCase()) listed(mine, app.getVersion()).then((ok) => { if (!ok) log("설치된 앱 목록에 넣지 못했어요"); });
     setInterval(() => updates.check(), 6 * 3600e3).unref?.();
   }
 });

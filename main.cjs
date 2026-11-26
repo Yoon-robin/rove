@@ -159,7 +159,7 @@ let overlayOn = null; // what the overlay shows: { kind, ... }
 let tabs = []; // { id, w, view, title, url, favicon, loading, failed, crashed }
 let active = null;
 let nextId = 1;
-let closed = []; // urls of closed tabs, newest last
+let closed = []; // closed tabs (their urls) and closed windows ({ urls, ... } as in tabs.json), newest last
 let findOpen = false;
 let downloads = []; // { id, name, path, url, received, total, state, at, private }
 const windows = []; // { id, win, overlay, tabs, closed, private, ses, gone } + the fields above while not in use
@@ -277,13 +277,21 @@ function saveTabs(now) {
   store();
   const normal = windows.filter((w) => !w.private && !w.gone);
   if (!normal.length) return;
-  const list = normal.map((w) => {
-    const kept = w.tabs.filter((t) => webby(t.failed || t.url));
-    let bounds = null;
-    try { bounds = { ...w.win.getNormalBounds(), max: w.win.isMaximized() }; } catch { /* going */ }
-    return { urls: kept.map((t) => t.failed || t.url), titles: kept.map((t) => t.title), pinned: kept.map((t) => !!t.pinned), group: kept.map((t) => t.group || null), groups: w.groups, active: kept.indexOf(w.active), bounds };
-  }).filter((x) => x.urls.length);
+  const list = normal.map(windowKept).filter((x) => x.urls.length);
   save("tabs.json", { windows: list }, now);
+}
+// a window as tabs.json keeps it (and as Ctrl+Shift+T brings a closed one back)
+function windowKept(w) {
+  const kept = w.tabs.filter((t) => webby(t.failed || t.url));
+  let bounds = null;
+  try { bounds = { ...w.win.getNormalBounds(), max: w.win.isMaximized() }; } catch { bounds = w.closedAt || null; }
+  return { urls: kept.map((t) => t.failed || t.url), titles: kept.map((t) => t.title), pinned: kept.map((t) => !!t.pinned), group: kept.map((t) => t.group || null), groups: w.groups, active: kept.indexOf(w.active), bounds };
+}
+// Ctrl+Shift+T and the tab menu: the newest closed thing — a tab, or a whole window
+function reopenClosed() {
+  const u = closed.pop();
+  if (typeof u === "string") newTab(u);
+  else if (u) createWindow({ restore: u });
 }
 
 // ---- tabs -------------------------------------------------------------------------
@@ -854,7 +862,7 @@ function tabItems(tab) {
     { label: "다른 탭 닫기", enabled: tabs.some((t) => t !== tab && !t.pinned), click: () => shut(tabs.filter((t) => t !== tab && !t.pinned)) },
     { label: "오른쪽 탭 닫기", enabled: tabs.slice(i + 1).some((t) => !t.pinned), click: () => shut(tabs.slice(i + 1).filter((t) => !t.pinned)) },
     { type: "separator" },
-    { label: "닫은 탭 다시 열기", enabled: closed.length > 0, click: () => { const u = closed.pop(); if (u) newTab(u); } },
+    { label: closed.length && typeof closed[closed.length - 1] !== "string" ? "닫은 창 다시 열기" : "닫은 탭 다시 열기", enabled: closed.length > 0, click: reopenClosed },
   ];
 }
 function tabMenu(tab) {
@@ -979,7 +987,7 @@ function keys(input, fromBar = false) {
   const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
   const run = (f) => { f(); return true; };
   if (c && !input.shift && k === "t") return run(() => { newTab(HOME_PAGE); focusAddress(); });
-  if (c && input.shift && k === "t") return run(() => { const u = closed.pop(); if (u) newTab(u); });
+  if (c && input.shift && k === "t") return run(reopenClosed);
   if (c && !input.shift && k === "n") return run(() => createWindow({}));
   if (c && input.shift && k === "n") return run(() => createWindow({ priv: true }));
   if (c && k === "w") return run(() => active && closeTab(active));
@@ -1060,7 +1068,7 @@ function messages() {
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   handle("rove:history", (q) => historyDays(q));
   handle("rove:bookmarks", () => bookmarks.slice().reverse());
-  handle("rove:closed", () => closed.slice(-10).reverse());
+  handle("rove:closed", () => closed.filter((u) => typeof u === "string").slice(-10).reverse());
   handle("rove:import-from", () => importSources().map(({ list, ...x }) => x));
   handle("rove:import", (id) => importFrom(String(id)));
   on("rove:read", () => read());
@@ -1992,6 +2000,7 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   bw.on("focus", here(() => { if (!priv) lastNormal = w; checkDefault(); })); // back from Windows' settings
   bw.on("close", here(() => {
     if (quitting || priv) return;
+    w.closedAt = { ...bw.getNormalBounds(), max: bw.isMaximized() }; // where Ctrl+Shift+T puts it back (gone by "closed")
     // the last normal window: what it has is kept for the next start
     if (!windows.some((x) => x !== w && !x.private && !x.gone)) keepAll();
   }));
@@ -2008,6 +2017,11 @@ function keepAll() {
   save("bookmarks.json", bookmarks, true);
 }
 function closedWindow(w) {
+  if (cur === w) store();
+  // a normal window closed while another stays: Ctrl+Shift+T brings it back (as in Chrome); on quit,
+  // tabs.json keeps it instead. A private window is never kept.
+  const kept = !quitting && !w.private && windows.some((x) => x !== w && !x.private) ? windowKept(w) : null;
+  if (kept?.urls.length) { closedTabs.push(kept); if (closedTabs.length > 25) closedTabs.shift(); }
   w.gone = true;
   windows.splice(windows.indexOf(w), 1);
   if (share?.tab?.w === w) { const s = share; share = null; safe(() => s.answer(null)); }
@@ -2019,7 +2033,7 @@ function closedWindow(w) {
   if (cur === w) { cur = null; if (windows.length) use(windows[windows.length - 1]); }
   if (lastNormal === w) lastNormal = windows.find((x) => !x.private) || null;
   if (w.private && !windows.some((x) => x.private)) endPrivate();
-  // a window closed while others stay: its tabs are not kept (as in Chrome)
+  // a window closed while others stay: tabs.json no longer has it (closedTabs does, above)
   if (!quitting && !w.private && windows.some((x) => !x.private)) saveTabs(true);
   if (!windows.length) app.quit();
   else tell();

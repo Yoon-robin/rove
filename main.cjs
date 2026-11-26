@@ -1364,7 +1364,8 @@ function marks(f) {
   const out = [];
   const walk = (n) => {
     if (!n || typeof n !== "object") return;
-    if (n.type === "url" && webby(n.url)) out.push({ url: n.url, title: String(n.name || n.url) });
+    // the same page in two folders is one bookmark here (the count shown is what comes in)
+    if (n.type === "url" && webby(n.url) && !out.some((b) => b.url === n.url)) out.push({ url: n.url, title: String(n.name || n.url) });
     for (const c of n.children || []) walk(c);
   };
   for (const r of Object.values(data.roots || {})) walk(r);

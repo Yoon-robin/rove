@@ -51,7 +51,7 @@
 // 1.2 (robin 2026-11-26 "chrome 확장기능 rove에서 쓸수있게해줘야지 왜안돼"): Chrome
 // extensions (extensions.cjs) in the normal windows: added from the Chrome Web
 // Store, their buttons in the toolbar, their items in the page menu.
-const { getDomain } = require("tldts");
+const { getDomain, parse: parseHost } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
 const { join, normalize, sep, parse, resolve } = require("node:path");
@@ -132,9 +132,11 @@ function toUrl(text) {
   if (/^(https?|file):\/\//i.test(t)) return t;
   if (/^(about:blank|view-source:)/i.test(t)) return t;
   if (/^localhost(:\d+)?(\/|$)/i.test(t) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/|$)/.test(t)) return "http://" + t;
-  if (!/\s/.test(t) && /^[^/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t)) return "https://" + t;
+  if (!/\s/.test(t) && /^[^/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t) && realEnding(t)) return "https://" + t;
   return SEARCH + encodeURIComponent(t);
 }
+// a site's ending as Chrome knows it: node.js, index.html are file names, not sites (*.localhost is this PC)
+function realEnding(t) { const h = t.split(/[/?#]/)[0].replace(/:\d+$/, "").replace(/^.*@/, ""); return parseHost(h).isIcann || /\.localhost$/i.test(h); }
 const webby = (url) => /^https?:/i.test(url || "");
 const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
 const originOf = (url) => { try { const o = new URL(url).origin; return o === "null" ? "" : o; } catch { return ""; } };
@@ -2368,7 +2370,7 @@ function testHooks() {
   }
   globalThis.__rove = { get win() { return win; }, get overlay() { return overlay; }, get overlayOn() { return overlayOn; }, get tabs() { return tabs; }, get active() { return active; },
     windows, use, get cur() { return cur; }, createWindow, takeTab, putTab, moveToWindow, tear, inStrip, get privGrants() { return privGrants; }, get privateSes() { return privateSes; }, record,
-    keys, keyAction, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
+    keys, keyAction, newTab, go, toUrl, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
     get asks() { return asks; }, answer, askExtension, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
     makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick, passIdle,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,

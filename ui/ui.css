@@ -414,3 +414,11 @@ body.vertical .pop.tabfind { top: 48px; }
 /* what is on glows a little in its own colour (yoonrobin docs/brand.md V5.1, robin 11-26 glow "B"):
    the kit's switches already do; here the blue icon of a toolbar button that is on */
 .btn.on .rk-ico, .address .star.on .rk-ico { filter: drop-shadow(0 0 5px var(--rk-glow-icon)); }
+
+/* Windows high contrast (forced colors) drops box-shadows and backgrounds: the current tab,
+   the address box and its focus ring would not show at all; real outlines and a border stay */
+@media (forced-colors: active) {
+  .tab[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .address { border: 1px solid CanvasText; }
+  .address:focus-within { outline: 2px solid Highlight; outline-offset: -1px; }
+}

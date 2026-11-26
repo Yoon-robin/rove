@@ -948,6 +948,7 @@ function go(text, tab = active) {
   tab.failed = null;
   tab.url = url;
   tab.crashed = false;
+  if (url !== HOME_PAGE) tab.title = url.replace(/^https?:\/\//, ""); // till the page gives its own, the address asked for (as Chrome), not the last title
   tab.view.webContents.loadURL(url).catch(() => {});
   tab.view.webContents.focus();
   layout();

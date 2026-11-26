@@ -436,7 +436,7 @@ async function drawPass() {
 // ---- suggestions --------------------------------------------------------------------
 function drawSuggest() {
   const kinds = { search: "search", go: "globe", bookmark: "star", history: "clock", tab: "tabs" };
-  root.innerHTML = `<div class="pop suggest" role="listbox">${open.items.map((it, i) => `<a role="option" data-i="${i}" class="${i === open.sel ? "sel" : ""}" aria-selected="${i === open.sel}">${icon(kinds[it.kind])}<b>${esc(it.title)}</b>${it.kind === "bookmark" || it.kind === "history" ? `<small>${esc(host(it.url))}</small>` : it.kind === "search" ? "<small>검색</small>" : it.kind === "tab" ? "<small>탭으로 전환</small>" : ""}</a>`).join("")}</div>`;
+  root.innerHTML = `<div class="pop suggest" role="listbox">${open.items.map((it, i) => `<a role="option" data-i="${i}" class="${i === open.sel ? "sel" : ""}" aria-selected="${i === open.sel}">${it.kind === "history" || it.kind === "tab" ? site(it, kinds[it.kind]) : icon(kinds[it.kind])}<b>${esc(it.title)}</b>${it.kind === "bookmark" || it.kind === "history" ? `<small>${esc(host(it.url))}</small>` : it.kind === "search" ? "<small>검색</small>" : it.kind === "tab" ? "<small>탭으로 전환</small>" : ""}</a>`).join("")}</div>`;
   root.querySelectorAll("a").forEach((a) => a.addEventListener("mousedown", (e) => {
     e.preventDefault();
     const it = open.items[Number(a.dataset.i)];

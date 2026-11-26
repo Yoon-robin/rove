@@ -340,6 +340,8 @@ body.vertical .pop.tabfind { top: 48px; }
 .suggest { inset: 0; padding: 4px; border-radius: var(--rk-r); background: var(--rk-hud); box-shadow: 0 0 0 1px var(--rk-hud-line) inset; animation: none; }
 .suggest a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 6px; color: var(--rk-text); font-size: 13px; text-decoration: none; cursor: default; }
 .suggest a .rk-ico { width: 14px; height: 14px; color: var(--rk-faint); }
+/* a site's own icon at its 16px, its box kept to the marks' 14px so the titles stay in line */
+.suggest a > img.fav { flex: none; width: 16px; height: 16px; margin: 0 -1px; border-radius: 3px; }
 .suggest a b { font-weight: var(--rk-w); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .suggest a small { flex: none; max-width: 45%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; }
 .suggest a.sel, .suggest a:hover { background: var(--rk-chosen); color: var(--rk-head); }

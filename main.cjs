@@ -1044,7 +1044,8 @@ function suggestions(text) {
       const hay = (it.url + " " + (it.title || "")).toLowerCase();
       if (!hay.includes(q)) continue;
       seen.add(it.url);
-      out.push({ kind, url: it.url, title: it.title || it.url, ...(it.tab ? { tab: it.tab } : {}) });
+      // icon: an open tab's own, else the site's kept one (icons.json), shown on history and tab rows
+      out.push({ kind, url: it.url, title: it.title || it.url, icon: "icon" in it ? it.icon : siteIcons[hostOf(it.url)] || null, ...(it.tab ? { tab: it.tab } : {}) });
     }
   };
   // open tabs first, as Chrome's 탭으로 전환 (the page is there already): every window of the
@@ -1052,7 +1053,7 @@ function suggestions(text) {
   for (const w of windows) {
     if (w.gone || !!w.private !== !!cur?.private) continue;
     const front = w === cur ? active : null;
-    take(w.tabs.filter((t) => t !== front && webby(t.url)).reverse().map((t) => ({ url: t.url, title: t.title, tab: t.id })), "tab");
+    take(w.tabs.filter((t) => t !== front && webby(t.url)).reverse().map((t) => ({ url: t.url, title: t.title, tab: t.id, icon: t.favicon || null })), "tab");
   }
   take(bookmarks, "bookmark");
   take(history, "history");

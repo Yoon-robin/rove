@@ -466,12 +466,14 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 function errorPage(url, code, what) {
   let host = url;
   try { host = new URL(url).host || url; } catch { /* as it is */ }
-  const offline = [-106, -105, -21, -109, -118, -130, -137].includes(code);
+  const offline = [-106, -105, -102, -21, -109, -118, -130, -137].includes(code);
   const head = offline ? "연결할 수 없어요" : "이 페이지를 열지 못했어요";
-  const body = code === -105 ? `${host} 주소를 찾지 못했어요.` : code === -106 ? "인터넷 연결이 끊겼어요." : `${host}에서 답이 없어요.`;
+  // what went wrong, said as it is: "no answer" only when there was none (a refusal, a blocked port, a bad certificate are not that)
+  const why = { [-105]: `${host} 주소를 찾지 못했어요.`, [-106]: "인터넷 연결이 끊겼어요.", [-102]: `${host}에서 연결을 거부했어요.`, [-101]: `${host} 연결이 도중에 끊겼어요.`, [-312]: "브라우저가 막아 두는 포트라 열지 않았어요.", [-6]: "파일을 찾지 못했어요." };
+  const body = why[code] || (code <= -200 && code > -300 ? `${host}의 인증서를 믿을 수 없어 열지 않았어요.` : `${host}에서 답이 없어요.`);
   return `<!doctype html><meta charset="utf-8"><title>${esc(host)}</title><meta name="color-scheme" content="dark">
-<style>html,body{margin:0;height:100%;background:#0e1012;color:#e6e7e9;font:450 14px/1.6 "Pretendard Variable",Pretendard,"Segoe UI","Malgun Gothic",sans-serif}
-body{display:grid;place-items:center}.b{max-width:440px;padding:24px}h1{margin:0 0 6px;font-size:18px;font-weight:650;color:#f0f0f0}
+<style>html,body{margin:0;height:100%;background:#0e1012;color:#e6e7e9;font:450 14px/1.6 "Pretendard Variable",Pretendard,"Segoe UI","Malgun Gothic",sans-serif;word-break:keep-all;overflow-wrap:break-word}
+body{display:grid;place-items:center}.b{width:min(440px,100%);box-sizing:border-box;padding:24px;margin-bottom:12vh}h1{margin:0 0 6px;font-size:18px;font-weight:650;color:#f0f0f0}
 p{margin:0;color:#8a8e94}code{display:block;margin:14px 0 18px;font:12px Consolas,monospace;color:#7d8187;word-break:break-all}
 a{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:7px;background:#3d6af0;color:#fff;text-decoration:none;font-weight:550}
 a:hover{background:#4b7dfe}</style><div class="b"><h1>${head}</h1><p>${esc(body)}</p><code>${esc(what)} (${code})</code><a href="${esc(url)}">다시 시도</a></div>`;

@@ -179,8 +179,9 @@ body.overlay { overflow: hidden; background: transparent; user-select: none; }
 .scrim { position: fixed; inset: 0; }
 .pop { position: fixed; animation: in var(--rk-t) var(--rk-ease); }
 @keyframes in { from { opacity: 0; transform: translateY(-4px); } }
-.pop.menu { top: 42px; right: 8px; width: 248px; }
-body.vertical .pop.menu { top: 46px; }
+/* a short window: the menu scrolls instead of running off the bottom (its last rows were out of reach) */
+.pop.menu { top: 42px; right: 8px; width: 248px; max-height: calc(100vh - 50px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rk-scroll) transparent; }
+body.vertical .pop.menu { top: 46px; max-height: calc(100vh - 54px); }
 body.vertical .pop.tabfind { top: 48px; }
 /* a tab group: its name, its colour, and what can be done with it */
 .pop.grpedit { width: 248px; }

@@ -349,6 +349,9 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .drawer .item small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .drawer .item small.alarm { color: var(--rk-alarm-text); }
+/* a site's permissions: every one is said (the drawer has no other place that shows them) */
+.drawer .item.wrap { padding-block: 6px; }
+.drawer .item.wrap small { white-space: normal; }
 .drawer .item .btn { width: 28px; height: 28px; }
 .drawer .item .btn .rk-ico { width: 14px; height: 14px; }
 .drawer .item:not(:hover) .btn.hover { opacity: 0; }

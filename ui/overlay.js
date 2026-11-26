@@ -524,7 +524,7 @@ async function drawDrawer() {
     for (const s of list) {
       if (s.ads === false && !s.origin) { body += `<div class="item">${icon("shield")}<div class="w"><b>${esc(s.host)}</b><small>광고·추적 막기 꺼짐</small></div><button class="btn hover" data-unallow="${esc(s.host)}" aria-label="다시 막기" title="다시 막기">${icon("close")}</button></div>`; continue; }
       const said = Object.keys(WHAT).filter((k) => typeof s[k] === "boolean").map((k) => `${WHAT[k]} ${s[k] ? "허용" : "차단"}`);
-      if (said.length) body += `<div class="item">${icon("lock")}<div class="w"><b>${esc(s.host)}</b><small>${said.join(" · ")}</small></div><button class="btn hover" data-site="${esc(s.origin)}" aria-label="잊기" title="잊기">${icon("close")}</button></div>`;
+      if (said.length) body += `<div class="item wrap">${icon("lock")}<div class="w"><b title="${esc(s.host)}">${esc(s.host)}</b><small>${said.join(" · ")}</small></div><button class="btn hover" data-site="${esc(s.origin)}" aria-label="잊기" title="잊기">${icon("close")}</button></div>`;
     }
   } else if (panel === "extensions") {
     for (const x of list) {

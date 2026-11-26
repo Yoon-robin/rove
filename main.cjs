@@ -832,13 +832,21 @@ function pageMenu(tab, p) {
   const wc = tab.view.webContents;
   const items = [];
   if (p.linkURL && webby(p.linkURL)) {
+    // a new window as Shift+click makes it: private from a private window (so no "private" item there)
+    const priv = !!tab.w?.private;
+    const words = (p.linkText || "").trim();
     items.push({ label: "새 탭에서 링크 열기", click: () => newTab(p.linkURL, { background: true, after: tab }) },
       { label: "옆에 열기", click: () => { const t = newTab(p.linkURL, { background: true, after: tab }); splitWith(t, tab); } },
-      { label: "링크 주소 복사", click: () => clipboard.writeText(p.linkURL) }, { type: "separator" });
+      { label: "새 창에서 링크 열기", click: () => createWindow({ priv, urls: [p.linkURL] }) },
+      ...(priv ? [] : [{ label: "비공개 창에서 링크 열기", click: () => createWindow({ priv: true, urls: [p.linkURL] }) }]),
+      { type: "separator" },
+      { label: "링크 주소 복사", click: () => clipboard.writeText(p.linkURL) },
+      ...(words ? [{ label: "링크 글자 복사", click: () => clipboard.writeText(words) }] : []), { type: "separator" });
   }
   if (p.mediaType === "image" && p.srcURL) {
     items.push({ label: "새 탭에서 그림 열기", click: () => newTab(p.srcURL, { background: true, after: tab }) },
       { label: "그림 저장", click: () => wc.downloadURL(p.srcURL) },
+      { label: "그림 복사", click: () => wc.copyImageAt(p.x, p.y) },
       { label: "그림 주소 복사", click: () => clipboard.writeText(p.srcURL) }, { type: "separator" });
   }
   if (p.mediaType === "video") {
@@ -854,7 +862,7 @@ function pageMenu(tab, p) {
     items.push({ label: "사전에 추가", click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord) }, { type: "separator" });
   }
   if (p.isEditable) {
-    items.push({ label: "실행 취소", role: "undo", enabled: p.editFlags.canUndo }, { type: "separator" },
+    items.push({ label: "실행 취소", role: "undo", enabled: p.editFlags.canUndo }, { label: "다시 실행", role: "redo", enabled: p.editFlags.canRedo }, { type: "separator" },
       { label: "잘라내기", role: "cut", enabled: p.editFlags.canCut }, { label: "복사", role: "copy", enabled: p.editFlags.canCopy },
       { label: "붙여넣기", role: "paste", enabled: p.editFlags.canPaste }, { label: "모두 선택", role: "selectAll" }, { type: "separator" });
   } else if (p.selectionText) {

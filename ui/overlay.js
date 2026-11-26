@@ -527,6 +527,8 @@ function size(n) {
 let importing = null; // the browsers to bring bookmarks from (true: to ask, null: not asked)
 let dropping = null; // the extension whose 지우기 was pressed once (pressed again: gone)
 let importMsg = null;
+// a history or bookmark row: the site's own icon once a normal window has shown it, else ours
+const site = (x, fallback) => (x.icon ? `<img class="fav" alt="" src="${esc(x.icon)}">` : icon(fallback));
 async function drawDrawer() {
   const mine = open;
   let list = [];
@@ -544,7 +546,7 @@ async function drawDrawer() {
     for (const h of list) {
       const d = day(h.at);
       if (d !== last) { body += `<div class="rk-label">${d}</div>`; last = d; }
-      body += `<div class="item" data-url="${esc(h.url)}">${icon("globe")}<div class="w"><b>${esc(h.title || h.url)}</b><small>${esc(host(h.url))} · ${time(h.at)}</small></div><button class="btn hover" data-forget="${esc(h.url)}" aria-label="기록에서 지우기" title="기록에서 지우기">${icon("close")}</button></div>`;
+      body += `<div class="item" data-url="${esc(h.url)}">${site(h, "globe")}<div class="w"><b>${esc(h.title || h.url)}</b><small>${esc(host(h.url))} · ${time(h.at)}</small></div><button class="btn hover" data-forget="${esc(h.url)}" aria-label="기록에서 지우기" title="기록에서 지우기">${icon("close")}</button></div>`;
     }
   } else if (panel === "sites") {
     for (const s of list) {
@@ -563,7 +565,7 @@ async function drawDrawer() {
     for (const s of importing) body += `<div class="item">${icon("download")}<div class="w"><b>${esc(s.name)}</b><small class="rk-num">${s.count}개${s.fresh < s.count ? ` · 새로 ${s.fresh}개` : ""}</small></div><button class="rk-btn rk-btn--small${s.fresh ? " rk-btn--primary" : ""}" data-import="${esc(s.id)}"${s.fresh ? "" : " disabled"}>가져오기</button></div>`;
     if (!importing.length) body += `<div class="rk-empty">${icon("star")}가져올 브라우저가 없어요</div>`;
   } else if (panel === "bookmarks") {
-    for (const b of list) body += `<div class="item" data-url="${esc(b.url)}">${icon("star")}<div class="w"><b>${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
+    for (const b of list) body += `<div class="item" data-url="${esc(b.url)}">${site(b, "star")}<div class="w"><b>${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
   } else {
     for (const d of list) {
       const going = d.state === "progressing";

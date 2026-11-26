@@ -113,6 +113,10 @@ function save(name, value, now) {
 }
 let history = load("history.json", []); // [{ url, title, at }], newest last
 let bookmarks = load("bookmarks.json", []); // [{ url, title, at }]
+// host → its page icon (data:, normal windows only) for the history and bookmark lists; a host in neither goes
+let siteIcons = load("icons.json", {});
+function keepIcons() { const kept = new Set([...history, ...bookmarks].map((x) => hostOf(x.url))); for (const h of Object.keys(siteIcons)) if (!kept.has(h)) delete siteIcons[h]; save("icons.json", siteIcons); }
+const withIcon = (x) => ({ ...x, icon: siteIcons[hostOf(x.url)] || null });
 const HISTORY_MAX = 5000;
 let grants = load("permissions.json", {}); // { origin: { camera: true, location: false, ... } }
 // allow: hosts ads are not stopped on; sleep: tabs not looked at for SLEEP_AFTER
@@ -547,7 +551,7 @@ function wire(tab) {
     if (last && last.url === tab.url) { last.title = title; save("history.json", history); }
     tell();
   });
-  on("page-favicon-updated", (e, icons) => { if (!own()) return; const at = hostOf(tab.url); iconOf(wc.session, icons.find((u) => /^https?:|^data:image\//.test(u)) || null).then((d) => { if (own() && hostOf(tab.url) === at) { tab.favicon = d; tell(); } }); });
+  on("page-favicon-updated", (e, icons) => { if (!own()) return; const at = hostOf(tab.url); iconOf(wc.session, icons.find((u) => /^https?:|^data:image\//.test(u)) || null).then((d) => { if (own() && hostOf(tab.url) === at) { tab.favicon = d; tell(); if (d && !tab.w.private && d.length < 20000 && siteIcons[at] !== d) { siteIcons[at] = d; keepIcons(); } } }); });
   on("did-fail-load", (e, code, what, url, isMainFrame) => {
     if (!own() || !isMainFrame || code === -3 || url.startsWith("data:")) return;
     tab.failed = url;
@@ -1232,8 +1236,8 @@ function messages() {
   on("rove:open", (url, inNew, tabId) => { hideOverlay(); if (!inNew && tabId && toTab(tabId)) return; if (inNew) newTab(String(url)); else go(String(url)); });
   on("rove:devtools", () => active?.view.webContents.toggleDevTools());
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
-  handle("rove:history", (q) => historyDays(q));
-  handle("rove:bookmarks", () => bookmarks.slice().reverse());
+  handle("rove:history", (q) => historyDays(q).map(withIcon));
+  handle("rove:bookmarks", () => bookmarks.slice().reverse().map(withIcon));
   handle("rove:closed", () => closed.filter((u) => !u.urls).slice(-10).reverse().map((u) => u.url));
   handle("rove:import-from", () => importSources().map(({ list, ...x }) => x));
   handle("rove:import", (id) => importFrom(String(id)));
@@ -1251,9 +1255,9 @@ function messages() {
   on("rove:split-ratio", (r) => splitRatio(Number(r)));
   on("rove:unsplit", unsplit);
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
-  on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); });
-  on("rove:forget-all", () => { history = []; save("history.json", history, true); });
-  on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); tell(); });
+  on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
+  on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(); });
+  on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); keepIcons(); tell(); });
   on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.openPath(d.path); });
   on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.showItemInFolder(d.path); });
   on("rove:download-cancel", (id) => { const d = downloads.find((x) => x.id === id); d?.item?.cancel(); });

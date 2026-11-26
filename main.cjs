@@ -1495,6 +1495,17 @@ function passStart() {
   // locked with the screen
   for (const e of ["lock-screen", "suspend"]) powerMonitor.on(e, () => { pass.lock(); peeked = null; tell(); });
 }
+// and after the PC is left alone a while (Bitwarden's vault timeout): whoever sits down at it
+// gets the master password asked, not the vault (the screen lock may be off, or a long way off)
+const PASS_IDLE = 15 * 60; // seconds
+function passIdle() {
+  if (pass?.status().state !== "open" || powerMonitor.getSystemIdleTime() < PASS_IDLE) return false;
+  pass.lock();
+  peeked = null;
+  everywhere(tell);
+  log("RobinPass: 15분 자리 비움 — 잠금");
+  return true;
+}
 function passState() {
   if (!pass) return null;
   const s = pass.status();
@@ -2061,6 +2072,7 @@ app.whenReady().then(async () => {
   bootDone();
 
   setInterval(sleepIdle, Math.min(60e3, SLEEP_AFTER / 2)).unref?.();
+  setInterval(passIdle, 60e3).unref?.();
   if (TEST) testHooks();
   if (updates) {
     // tidy first: it drops leftover *.zip.part, so never while a check downloads one
@@ -2343,7 +2355,7 @@ function testHooks() {
     windows, use, get cur() { return cur; }, createWindow, takeTab, putTab, moveToWindow, tear, inStrip, get privGrants() { return privGrants; }, get privateSes() { return privateSes; }, record,
     keys, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
     get asks() { return asks; }, answer, askExtension, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
-    makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick,
+    makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick, passIdle,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,

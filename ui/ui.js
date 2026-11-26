@@ -40,10 +40,13 @@ function tabEl(t) {
   el.classList.toggle("pinned", !!t.pinned);
   el.classList.toggle("paired", (state.paired || []).includes(t.id));
   const ic = el.querySelector(".ic");
-  const want = t.loading ? "spin" : t.favicon ? "img:" + t.favicon : "globe";
+  el.classList.toggle("crashed", !!t.crashed);
+  // a stopped page shows on its tab, as Chrome's sad tab, so it is seen before it is chosen
+  const want = t.crashed ? "alarm" : t.loading ? "spin" : t.favicon ? "img:" + t.favicon : "globe";
   if (ic.dataset.k !== want) {
     ic.dataset.k = want;
-    if (t.loading) ic.innerHTML = '<span class="spin"></span>';
+    if (t.crashed) ic.innerHTML = icon("alarm");
+    else if (t.loading) ic.innerHTML = '<span class="spin"></span>';
     else if (t.favicon) {
       ic.innerHTML = "";
       const img = new Image(16, 16);
@@ -55,7 +58,7 @@ function tabEl(t) {
   }
   el.querySelector(".t").textContent = t.title || readable(t.url || "");
   const g = (state.groups || []).find((x) => x.id === t.group);
-  el.title = (t.title || readable(t.url || "")) + (t.shown ? ` · ${t.shown}에 보이는 중` : "") + (t.asleep ? " · 자는 중" : "") + (t.pinned ? " · 고정" : "") + (g ? ` · ${g.name || COLORS[g.color]}` : "");
+  el.title = (t.title || readable(t.url || "")) + (t.shown ? ` · ${t.shown}에 보이는 중` : "") + (t.crashed ? " · 멈춤" : "") + (t.asleep ? " · 자는 중" : "") + (t.pinned ? " · 고정" : "") + (g ? ` · ${g.name || COLORS[g.color]}` : "");
   el.setAttribute("aria-selected", String(t.id === state.active));
   return el;
 }

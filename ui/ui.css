@@ -181,7 +181,10 @@ body.full .side { display: none; }
 .find .count.none { color: var(--rk-alarm-text); }
 
 /* ---- a page whose renderer died (its view is taken away, this shows) */
-.gone { position: fixed; inset: 84px 0 0 0; display: grid; place-content: center; justify-items: center; gap: 14px; background: var(--rk-page); color: var(--rk-head); font-size: 15px; }
+/* the same column as the page Rove could not open (main.cjs errorPage): words from one left edge, a little above the middle */
+.gone { position: fixed; inset: 84px 0 0 0; display: grid; grid-template-columns: min(440px, 100%); place-content: center; justify-items: start; gap: 16px; box-sizing: border-box; padding: 24px 24px calc(24px + 12vh); background: var(--rk-page); color: var(--rk-head); }
+.gone b { font-size: 18px; font-weight: 650; line-height: 1.4; }
+.tab.crashed .ic { color: var(--rk-soft); }
 .gone[hidden] { display: none; }
 
 /* ---- the overlay: see-through, only what is open is drawn */

@@ -33,5 +33,13 @@ export default [
   { js: `R.createWindow({ priv: true }); await sleep(1500); const p = R.windows.find((w) => w.private && !w.gone); const t = p.tabs[0]; R.use(p);
     await LOAD(t, A + "/again"); ASK(t); await sleep(600); const asks = MINE(t).length; const page = await GOT(t); p.win.close(); await sleep(800);
     return CHECK("a private window takes a normal window's no without asking", asks === 0 && page === "denied", { asks, page });` },
-  { js: `R.use(R.windows[0]); SRV.close(); return undefined;` },
+  // 이번만 허용 (Chrome's): the bar's own button; yes for this tab while it stays on the site, kept nowhere
+  { js: `R.use(R.windows[0]); const q = R.newTab(B + "/once"); await sleep(1000); ASK(q); await sleep(700);
+    const shown = await R.win.webContents.executeJavaScript("(() => { const b = document.getElementById('askOnce'); return !b.hidden && b.getBoundingClientRect().width > 0 && b.textContent; })()");
+    await R.win.webContents.executeJavaScript("document.getElementById('askOnce').click()"); await sleep(500); const page = await GOT(q);
+    await LOAD(q, B + "/once2"); ASK(q); await sleep(600); const again = MINE(q).length, page2 = await GOT(q);
+    await LOAD(q, "about:blank"); await LOAD(q, B + "/once3"); ASK(q); await sleep(600); const back = MINE(q).length; MINE(q).forEach((a) => R.answer(a.id, false, false));
+    const got = { shown, page, again, page2, back, saved: SAVED()[B] || null, kept: R.grants[B] || null };
+    return CHECK("이번만 허용: granted, not asked again on the site, asked again after leaving it, kept nowhere", shown === "이번만 허용" && page === "granted" && again === 0 && page2 === "granted" && back === 1 && !got.saved && !got.kept, got);` },
+  { js: `SRV.close(); return undefined;` },
 ];

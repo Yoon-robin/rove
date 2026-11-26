@@ -539,7 +539,7 @@ function wire(tab) {
     if (d.initiator) passSent(tab);
     else forgetTyped(tab);
     // a new page: the old one's questions and count go with it
-    if (originOf(d.url) !== originOf(tab.url)) dropAsks(tab);
+    if (originOf(d.url) !== originOf(tab.url)) { dropAsks(tab); tab.once = null; }
     blocked.delete(wc.id);
     // the reading page is ours (a data: address); anything else ends it
     tab.reader = !!tab.readerUrl && d.url === tab.readerUrl;
@@ -1814,6 +1814,10 @@ function answer(id, yes, keep = true) {
       g[a.origin] = { ...g[a.origin] };
       for (const k of a.what) g[a.origin][k === "external" ? "external:" + a.scheme : k] = !!yes;
       if (g === grants) save("permissions.json", grants);
+    } else if (yes && a.what[0] !== "external" && a.tab) {
+      // 이번만 허용 (Chrome's): this tab, while it stays on that site; never kept, asked again after
+      const had = a.tab.once?.origin === a.origin ? a.tab.once.keys : [];
+      a.tab.once = { origin: a.origin, keys: [...new Set([...had, ...a.what])] };
     }
     for (const f of a.done) f(!!yes);
   }
@@ -1865,7 +1869,8 @@ function permissions(ses, priv = false) {
     if (!tab || !origin || !want?.length) return done(false);
     const had = G()[origin] || {};
     if (want.some((k) => had[k] === false)) return done(false);
-    if (want.every((k) => had[k] === true)) return done(true);
+    const once = tab.once?.origin === origin ? tab.once.keys : [];
+    if (want.every((k) => had[k] === true || once.includes(k))) return done(true);
     const same = asks.find((a) => a.tab === tab && a.origin === origin && a.what.join() === want.join());
     if (same) { same.done.push(done); return; }
     asks.push({ id: nextId++, kind: "site", tab, origin, host: hostOf(origin) || origin, what: want, done: [done] });
@@ -1877,8 +1882,8 @@ function permissions(ses, priv = false) {
     if (theirs.has(what) && extension(details.requestingUrl || origin)) return true;
     const key = what === "media" ? { video: "camera", audio: "microphone" }[details.mediaType] : keysFor(what, details)?.[0];
     if (!key) return false;
-    const o = originOf(details.requestingUrl || origin);
-    return G()[o]?.[key] === true;
+    const o = originOf(details.requestingUrl || origin), t = tabOf(wc);
+    return G()[o]?.[key] === true || (t?.once?.origin === o && t.once.keys.includes(key));
   });
 }
 function forgetSite(origin, key) {

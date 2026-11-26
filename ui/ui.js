@@ -326,6 +326,8 @@ function drawAsk() {
   const key = JSON.stringify(a);
   if (askShown === key) return;
   askShown = key;
+  // 이번만 허용: a site's own question only (not a download, a link to another app, an extension, RobinPass)
+  $("askOnce").hidden = a.kind !== "site" || once(a);
   if (a.kind === "extension") {
     // a blocker (declarativeNetRequest) installs but would block nothing: said before it is added
     $("ask").classList.toggle("warn", !!a.wontBlock);
@@ -369,6 +371,7 @@ $("askYes").addEventListener("click", () => state.ask && rove.send("rove:answer"
 $("askNo").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, false, !once(state.ask)));
 $("askAlways").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, true, true));
 $("askShut").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, false, false));
+$("askOnce").addEventListener("click", () => state.ask && rove.send("rove:answer", state.ask.id, true, false));
 
 rove.on("rove:state", (s) => { state = s; drawTabs(); drawTools(); });
 rove.ask("rove:state").then((s) => { if (s) { state = s; drawTabs(); drawTools(); } });

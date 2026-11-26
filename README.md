@@ -58,7 +58,7 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 | `test/pass-account.cjs` | 시험용 Vaultwarden(https://localhost)에 임시 계정과 항목 둘 만들기(`codes`면 인증 코드 시험용 셋 더) |
 
 - 페이지는 `persist:rove` 세션, 샌드박스. preload는 두 확장 라이브러리의 것뿐이에요(확장의 쪽과 콘텐츠 스크립트에 chrome.* API, chromewebstore.google.com에만 설치 API). `rove://`는 기본 세션에만 있어서 페이지에서는 못 열어요.
-- 확장 프로그램이 못 하는 것: Rove의 광고 막기가 Electron의 `webRequest`를 써서 확장의 `chrome.webRequest`는 불리지 않고, `declarativeNetRequest`도 없어요. 그래서 광고 막기 확장은 듣지 않고 Rove 자체 막기가 그 일을 해요. 웹 스토어의 "Chrome으로 전환" 안내는 그대로 떠요(추가는 돼요). `ui/index.html` CSP의 `sha256-…`은 확장 단추 부품의 `<style>`이라, electron-chrome-extensions를 올리면 릴리스 스크립트가 맞는지 봐요.
+- 확장 프로그램이 못 하는 것: Rove의 광고 막기가 Electron의 `webRequest`를 써서 확장의 `chrome.webRequest`는 불리지 않고, `declarativeNetRequest`도 없어요. 그래서 광고 막기 확장은 듣지 않고 Rove 자체 막기가 그 일을 해요. 웹 스토어의 "Chrome으로 전환" 안내(항목 위 띠, Google 막대의 말풍선)는 스토어에서만 CSS로 숨겨요: 스토어 서버는 Chrome만 만들 수 있는 헤더로 진짜 Chrome을 가려서, Rove가 추가할 수 있다고 알려 줄 길이 없어요. `ui/index.html` CSP의 `sha256-…`은 확장 단추 부품의 `<style>`이라, electron-chrome-extensions를 올리면 릴리스 스크립트가 맞는지 봐요.
 - 페이지가 보내는 메시지는 없고, `ipcMain`은 보낸 쪽이 우리 두 뷰인지 확인해요.
 - 사용자 에이전트에서 `Electron/`·`Rove/`를 빼요(구글 로그인 같은 곳이 막지 않게).
 - 권한은 전체 화면·클립보드 쓰기·포인터 잠금·창 배치만 바로 허용, 카메라·마이크·위치·알림·클립보드 읽기·MIDI는 묻기 띠로 묻고(`permissions.json`), 화면 공유는 고르기 창이 권한 물음(`display-capture`, `shareAsked()`)에 답하고, 고른 것을 공유 처리기(`sharing()`, `desktopCapturer`·탭은 `mainFrame`)에 넘겨요. 주소창 자물쇠의 사이트 정보는 `siteInfo`·`setSite`·`clearSite`. "창을 내려도 계속"은 `settings.awake`(사이트 = `tldts` getDomain)·`setAwake`·`keepGoing`: 그 쪽의 `setBackgroundThrottling(false)`, `webContents.debugger`로 `Emulation.setFocusEmulationEnabled`와 새 문서마다 먼저 도는 `SEEN`(보임·포커스 값 고정, visibilitychange·창 blur 막음), 쪽이 연 창은 `popupGoing`.

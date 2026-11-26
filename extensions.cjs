@@ -20,6 +20,16 @@ const { ElectronChromeExtensions } = require("electron-chrome-extensions");
 const webStore = require("electron-chrome-web-store");
 
 const STORE = "https://chromewebstore.google.com/";
+// The store (and Google's bar over it) asks to switch to Chrome: "Chrome으로
+// 전환하여 확장 프로그램 및 테마 설치" over every item and a "Chrome으로
+// 전환하시겠습니까?" bubble. Its server tells real Chrome apart by a header only
+// Chrome can make, so the page can't be told Rove adds; those two are hidden
+// on the store instead (the store's other notices stay). Rove에 추가 works the same.
+const NO_SWITCH = [
+  '[jscontroller="o2G9me"]:has([jslog^="276336"])', // the notice with "Chrome 설치하기"
+  'div:has(> iframe[name="callout"])', // the bar's bubble
+].join(",") + "{display:none!important}";
+const onStore = (url) => { try { return new URL(url).origin === new URL(STORE).origin; } catch { return false; } };
 
 // ses: the session the pages are in; dir: where installed extensions are kept;
 // impl: Rove's tabs and windows for chrome.tabs / chrome.windows (see main.cjs);
@@ -44,10 +54,16 @@ function start({ ses, dir, impl, confirm, actionsPreload, log }) {
   }).then(() => log(`확장 프로그램 ${(ses.extensions || ses).getAllExtensions().length}개`), (e) => log(`확장 프로그램을 못 불러옴: ${e.message}`));
 
   const exts = () => (ses.extensions || ses).getAllExtensions();
+  const watched = new WeakSet();
+  const noSwitch = (wc) => {
+    if (watched.has(wc)) return;
+    watched.add(wc);
+    wc.on("dom-ready", () => { if (onStore(wc.getURL())) wc.insertCSS(NO_SWITCH).catch(() => {}); });
+  };
   return {
     ready,
     // a page's view: told to the extensions as a tab of `bw` (a private one is not theirs)
-    add(wc, bw) { if (wc.session === ses && !wc.isDestroyed()) api.addTab(wc, bw); },
+    add(wc, bw) { if (wc.session === ses && !wc.isDestroyed()) { api.addTab(wc, bw); noSwitch(wc); } },
     select(wc) { if (wc.session === ses && !wc.isDestroyed()) api.selectTab(wc); },
     // moved to another window: chrome.tabs sees it go and come (impl.removeTab is told not to close it)
     moved(wc, bw) { if (wc.session !== ses || wc.isDestroyed()) return; api.removeTab(wc); api.addTab(wc, bw); },

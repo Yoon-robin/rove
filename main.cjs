@@ -52,7 +52,7 @@
 // extensions (extensions.cjs) in the normal windows: added from the Chrome Web
 // Store, their buttons in the toolbar, their items in the page menu.
 const { getDomain, parse: parseHost } = require("tldts");
-const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
+const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, dialog, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
 const { join, normalize, sep, parse, resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -981,6 +981,29 @@ function keepZoom(tab) {
   const wc = tab.view.webContents;
   if (z && Math.abs(wc.getZoomFactor() - z) > 0.001) wc.setZoomFactor(z);
 }
+
+// ---- save the page (Ctrl+S): as in Chrome, the whole page with its files, or one .mhtml file;
+// and a PDF straight away, without the print window's PDF printer
+const SAVE_KINDS = [{ name: "웹 페이지, 전체", extensions: ["html", "htm"] }, { name: "웹 페이지, 단일 파일", extensions: ["mhtml"] }, { name: "PDF", extensions: ["pdf"] }];
+async function savePageAs(tab = active) {
+  if (!tab || !/^(https?|file):/i.test(tab.url || "")) return;
+  const name = (tab.title || hostOf(tab.url) || "page").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").trim().slice(0, 120) || "page";
+  const r = await dialog.showSaveDialog(win, { defaultPath: join(app.getPath("downloads"), name + ".html"), filters: SAVE_KINDS });
+  if (!r.canceled && r.filePath) await savePageTo(tab, r.filePath);
+}
+// the file's ending picks the kind (the dialog puts the chosen kind's ending on the name)
+async function savePageTo(tab, file) {
+  const wc = tab.view.webContents, ext = parse(file).ext.toLowerCase();
+  try {
+    if (ext === ".pdf") writeFileSync(file, await wc.printToPDF({}));
+    else await wc.savePage(file, ext === ".mhtml" ? "MHTML" : "HTMLComplete");
+    return true;
+  } catch (e) {
+    log("페이지 저장 실패: " + e.message);
+    if (!TEST) dialog.showMessageBox(win, { type: "warning", message: "페이지를 저장하지 못했어요", detail: e.message });
+    return false;
+  }
+}
 function star() {
   if (!active) return;
   const url = active.failed || active.url;
@@ -1155,6 +1178,7 @@ function keyAction(input, fromBar = false) {
   if (input.alt && k === "Home") return run(() => go(HOME_PAGE));
   if (input.alt && !c && k === "f") return run(() => showOverlay({ kind: "menu", keyed: true }));
   if (c && k === "p") return run(() => active?.view.webContents.print());
+  if (c && !input.shift && k === "s") return run(() => savePageAs());
   if (c && (k === "=" || k === "+")) return run(() => zoom(1));
   if (c && k === "-") return run(() => zoom(-1));
   if (c && k === "0") return run(() => zoom(0));
@@ -1258,6 +1282,7 @@ function messages() {
   on("rove:tab-menu", (id) => tabMenu(tabs.find((t) => t.id === id)));
   on("rove:move", (id, to) => { const t = tabs.find((x) => x.id === id); if (t && Number.isInteger(to)) moveTab(t, to); });
   on("rove:print", () => { hideOverlay(); active?.view.webContents.print(); });
+  on("rove:save-page", () => { hideOverlay(); savePageAs(); });
   on("rove:focus-page", () => active?.view.webContents.focus());
   on("rove:suggest", (text, rect, fill) => {
     const typed = String(text || ""), inline = fill ? completion(typed) : "";
@@ -2476,7 +2501,7 @@ function testHooks() {
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
-    setAwake, keepGoing, awakeFor, siteOf,
+    setAwake, keepGoing, awakeFor, siteOf, savePageTo,
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
     get exts() { return exts; } };
 }

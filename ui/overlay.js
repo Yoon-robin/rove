@@ -478,6 +478,7 @@ function drawMenu() {
     </div>
     <button class="rk-menu__item" data-do="find" role="menuitem">${icon("search")}페이지에서 찾기${shortcut("Ctrl+F")}</button>
     <button class="rk-menu__item" data-do="print" role="menuitem">${icon("print")}인쇄${shortcut("Ctrl+P")}</button>
+    <button class="rk-menu__item" data-do="save-page" role="menuitem">${icon("download")}페이지 저장${shortcut("Ctrl+S")}</button>
     <button class="rk-menu__item" data-do="full" role="menuitem">${icon("target")}전체 화면${shortcut("F11")}</button>
     <button class="rk-menu__item" data-do="devtools" role="menuitem">${icon("terminal")}개발자 도구${shortcut("F12")}</button>
     <hr>
@@ -502,6 +503,7 @@ function drawMenu() {
     else if (d === "zoom-out") rove.send("rove:zoom", -1);
     else if (d === "find") { shut(); rove.send("rove:find-open", true); }
     else if (d === "print") rove.send("rove:print");
+    else if (d === "save-page") rove.send("rove:save-page");
     else if (d === "full") { shut(); rove.send("rove:full"); }
     else if (d === "devtools") { shut(); rove.send("rove:devtools"); }
     else if (d === "relaunch") rove.send("rove:relaunch");

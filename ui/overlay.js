@@ -595,7 +595,9 @@ async function drawDrawer() {
       body += `<div class="item" data-dl="${d.id}">${icon(mark)}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
     }
   }
-  const empty = { history: "기록이 없어요", bookmarks: "즐겨찾기가 없어요", downloads: "내려받은 파일이 없어요", sites: "정해 둔 사이트가 없어요", extensions: "확장 프로그램이 없어요" }[panel];
+  // a search that found nothing says so (as tab find and RobinPass do), not that there is nothing at all
+  const searched = query && (panel === "history" || panel === "bookmarks");
+  const empty = searched ? (panel === "history" ? "찾은 기록이 없어요" : "찾은 즐겨찾기가 없어요") : { history: "기록이 없어요", bookmarks: "즐겨찾기가 없어요", downloads: "내려받은 파일이 없어요", sites: "정해 둔 사이트가 없어요", extensions: "확장 프로그램이 없어요" }[panel];
   const foot = panel === "history" && list.length && !query
     ? (sure ? `<footer><span>기록을 전부 지울까요?</span><button class="rk-btn rk-btn--small" data-no>그만두기</button><button class="rk-btn rk-btn--small rk-btn--danger-fill" data-yes>지우기</button></footer>`
       : `<footer><button class="rk-btn rk-btn--small rk-btn--danger" data-all>기록 모두 지우기</button></footer>`)
@@ -606,7 +608,7 @@ async function drawDrawer() {
     <header><div class="rk-tabs" role="tablist">${Object.keys(NAMES).map((k) => `<button class="rk-tab" role="tab" data-panel="${k}" aria-selected="${k === panel}"${TAB[k] !== NAMES[k] ? ` aria-label="${NAMES[k]}"` : ""}>${TAB[k]}</button>`).join("")}</div>
       <button class="btn" data-shut aria-label="닫기" title="닫기">${icon("close")}</button></header>
     ${panel === "history" || (panel === "bookmarks" && !importing) ? `<div class="search"><input class="rk-input" id="q" type="search" placeholder="${panel === "history" ? "기록" : "즐겨찾기"} 찾기" value="${esc(query)}" spellcheck="false"></div>` : ""}
-    <div class="list">${body || `<div class="rk-empty">${icon(panel === "downloads" ? "download" : panel === "bookmarks" ? "star" : panel === "sites" ? "lock" : panel === "extensions" ? "spark" : "clock")}${empty}</div>`}</div>
+    <div class="list">${body || `<div class="rk-empty">${icon(searched ? "search" : panel === "downloads" ? "download" : panel === "bookmarks" ? "star" : panel === "sites" ? "lock" : panel === "extensions" ? "spark" : "clock")}${empty}</div>`}</div>
     ${foot}</aside>`;
   root.querySelectorAll("[data-p]").forEach((i) => { i.style.width = i.dataset.p + "%"; });
   root.querySelector(".scrim").addEventListener("mousedown", shut);

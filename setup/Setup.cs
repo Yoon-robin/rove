@@ -1,5 +1,6 @@
 // RoveSetup.exe: puts Rove on this PC the way install.cmd does, in a window of its own.
-// GitHub release (Yoon-robin/rove) latest.json -> the zip, sha256 checked while it comes in ->
+// GitHub release (Yoon-robin/rove) latest.json, signed by a release key (Ed25519.cs, the keys of
+// config.cjs) -> the zip, sha256 checked while it comes in ->
 // %LOCALAPPDATA%\Rove\app-<version> -> the junction current -> shortcuts. From then on Rove
 // updates itself (update.cjs, which also checks the release key's signature).
 // No admin rights: the manifest says asInvoker (a name with "setup" in it would otherwise
@@ -285,7 +286,13 @@ static class Setup
             size = Convert.ToInt64(d["size"]);
             if (version == null || file == null || sha256 == null || !Safe.IsMatch(version) || !Safe.IsMatch(file) || !Hex64.IsMatch(sha256) || size <= 0)
                 throw new InvalidDataException();
+            // signed by a release key, the lines update.cjs checks (signed()): the sha256 above is only as good as this
+            if (!d.ContainsKey("build")) throw new InvalidDataException();
+            var build = Convert.ToInt64(d["build"]).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var lines = string.Join("\n", "rove-update", version, build, file, sha256, size.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (!Ed25519.SignedByAny(ReleaseKeys.All, lines, d.ContainsKey("sig") ? d["sig"] as string : null)) throw new UnsignedException();
         }
+        catch (UnsignedException) { version = null; Say("latest.json의 서명이 맞지 않아요", null, true); Again(); return; }
         catch (InvalidDataException) { version = null; Say("latest.json이 이상해요", null, true); Again(); return; }
         catch (Exception) { version = null; Say("GitHub에 닿지 않아요", null, true); Again(); return; }
 
@@ -711,3 +718,6 @@ static class Setup
         using (var f = File.Create(png)) enc.Save(f);
     }
 }
+
+// latest.json not signed by any release key: said apart from a broken one
+class UnsignedException : Exception { }

@@ -11,6 +11,7 @@ Rove 자체는 GPL-3.0이에요([LICENSE](LICENSE)). 아래 것들은 각자의 
 | [tldts](https://github.com/remusao/tldts) 7.4.21 | RobinPass 사이트 맞추기, `vault.cjs`에 묶음 | MIT |
 | [hash-wasm](https://github.com/Daninet/hash-wasm) 4.13.0 | RobinPass 키 만들기(Argon2id), `vault.cjs`에 묶음 | MIT |
 | [Pretendard](https://github.com/orioncactus/pretendard) | 화면 글꼴 `ui/fonts/` | SIL OFL 1.1([ui/fonts/LICENSE.txt](ui/fonts/LICENSE.txt)) |
+| [Pretendard](https://github.com/orioncactus/pretendard) | 설치 창 글꼴 `setup/fonts/`(450·550·650 굵기, 쓰는 글자만, `setup/font.py`) | SIL OFL 1.1([ui/fonts/LICENSE.txt](ui/fonts/LICENSE.txt)) |
 
 만들 때만 쓰는 것(릴리스에 안 들어감): [@electron/packager](https://github.com/electron/packager)(BSD-2-Clause), [@electron/fuses](https://github.com/electron/fuses)(MIT), [esbuild](https://github.com/evanw/esbuild)(MIT).
 

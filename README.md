@@ -15,7 +15,7 @@ A browser by Robin. Windows용 데스크톱 브라우저예요(Electron 45, Chro
 
 ## 설치
 
-[릴리스](https://github.com/Yoon-robin/rove/releases/latest)의 `install.cmd`(이 저장소의 [install.cmd](install.cmd))를 받아 두 번 눌러요. 최신 zip을 받아 sha256을 맞춰 보고 `%LOCALAPPDATA%\Rove\app-<버전>`에 풀어, 바탕화면·시작 메뉴에 `Rove.lnk`를 만들어요. 그다음부터는 켤 때 20초 뒤와 6시간마다 새 버전을 찾아요. `latest.json`의 서명이 `config.cjs`의 키와 맞고 zip의 sha256이 맞을 때만 받아요. 받은 버전은 다음에 켤 때 바뀌어요.
+[릴리스](https://github.com/Yoon-robin/rove/releases/latest)의 `RoveSetup.exe`([setup/](setup/))를 받아 열어요. 바로가기(바탕화면·시작 메뉴)와 끝나면 켜기를 고르고 설치를 누르면, 최신 zip을 받으며 sha256을 맞춰 보고 `%LOCALAPPDATA%\Rove\app-<버전>`에 풀어, 바탕화면·시작 메뉴에 `Rove.lnk`를 만들어요. 그다음부터는 켤 때 20초 뒤와 6시간마다 새 버전을 찾아요. `latest.json`의 서명이 `config.cjs`의 키와 맞고 zip의 sha256이 맞을 때만 받아요. 받은 버전은 다음에 켤 때 바뀌어요.
 
 ## 저장소에서 켜기·묶기
 
@@ -47,7 +47,8 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 | `ui/overlay.html`·`overlay.js` | 페이지 위 투명한 층: 메뉴(광고 막기 스위치), 주소 추천, 서랍(방문 기록·즐겨찾기·내려받기·사이트 권한), RobinPass, 사이트 정보, 화면 공유 고르기 |
 | `ui/robin-ui.css`·`icons.svg` | robin 브랜드 키트(V5)의 CSS와 아이콘 |
 | `ui/fonts/` | Pretendard(SIL OFL 1.1, `LICENSE.txt`) |
-| `install.cmd` | 설치: 최신 GitHub 릴리스를 받아 `%LOCALAPPDATA%\Rove`에 넣고 바로가기를 만듦 |
+| `setup/` | 설치 창 `RoveSetup.exe`(C# WPF, Windows에 들어 있는 .NET Framework 4 컴파일러로 `node setup/build.cjs`, 글꼴은 `python setup/font.py`): 최신 GitHub 릴리스를 받아 `%LOCALAPPDATA%\Rove`에 넣고 바로가기를 만듦, 관리자 권한 없음 |
+| `install.cmd` | 같은 설치를 창 없이(명령 창) |
 | `test/drive.mjs` | 시험 드라이버 |
 | `test/pass-account.cjs` | 시험용 Vaultwarden(https://localhost)에 임시 계정과 항목 둘 만들기(`codes`면 인증 코드 시험용 셋 더) |
 

@@ -1024,14 +1024,31 @@ function suggestions(text) {
       const hay = (it.url + " " + (it.title || "")).toLowerCase();
       if (!hay.includes(q)) continue;
       seen.add(it.url);
-      out.push({ kind, url: it.url, title: it.title || it.url });
+      out.push({ kind, url: it.url, title: it.title || it.url, ...(it.tab ? { tab: it.tab } : {}) });
     }
   };
+  // open tabs first, as Chrome's 탭으로 전환 (the page is there already): every window of the
+  // same kind (a private window sees only private ones), not the tab in front of this one
+  for (const w of windows) {
+    if (w.gone || !!w.private !== !!cur?.private) continue;
+    const front = w === cur ? active : null;
+    take(w.tabs.filter((t) => t !== front && webby(t.url)).reverse().map((t) => ({ url: t.url, title: t.title, tab: t.id })), "tab");
+  }
   take(bookmarks, "bookmark");
   take(history, "history");
   const direct = toUrl(text);
   const first = direct && !direct.startsWith(SEARCH) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: SEARCH + encodeURIComponent(text.trim()), title: text.trim() };
-  return [first, ...out.filter((o) => o.url !== first.url)].slice(0, 8);
+  return [first, ...out.filter((o) => o.kind === "tab" || o.url !== first.url)].slice(0, 8);
+}
+
+// 탭으로 전환: that tab in front, in its own window (false: it is gone)
+function toTab(id) {
+  const w = windows.find((x) => !x.gone && x.tabs.some((t) => t.id === id));
+  const t = w?.tabs.find((x) => x.id === id);
+  if (!t) return false;
+  if (w === cur) select(t);
+  else { within(w, () => select(t)); if (w.win.isMinimized()) w.win.restore(); w.win.focus(); tell(); }
+  return true;
 }
 
 function historyDays(q) {
@@ -1204,7 +1221,7 @@ function messages() {
   });
   on("rove:suggest-sel", (sel) => { if (overlayOn?.kind === "suggest") { overlayOn.sel = sel; overlay.webContents.send("rove:overlay", overlayOn); } });
   on("rove:overlay", (what) => { if (what) showOverlay(what); else hideOverlay(); });
-  on("rove:open", (url, inNew) => { hideOverlay(); if (inNew) newTab(String(url)); else go(String(url)); });
+  on("rove:open", (url, inNew, tabId) => { hideOverlay(); if (!inNew && tabId && toTab(tabId)) return; if (inNew) newTab(String(url)); else go(String(url)); });
   on("rove:devtools", () => active?.view.webContents.toggleDevTools());
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   handle("rove:history", (q) => historyDays(q));

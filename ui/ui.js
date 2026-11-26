@@ -396,7 +396,7 @@ $("address").addEventListener("submit", (e) => {
   const pick = suggestShown && items[sel];
   editing = false;
   close();
-  if (pick && pick.kind !== "search" && pick.kind !== "go") rove.send("rove:open", pick.url, false);
+  if (pick && pick.kind !== "search" && pick.kind !== "go") rove.send("rove:open", pick.url, false, pick.tab);
   else if (url.value.trim()) rove.send("rove:go", url.value);
 });
 function close() { if (suggestShown) { suggestShown = false; rove.send("rove:overlay", null); } }

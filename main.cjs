@@ -547,7 +547,7 @@ function wire(tab) {
     if (last && last.url === tab.url) { last.title = title; save("history.json", history); }
     tell();
   });
-  on("page-favicon-updated", (e, icons) => { if (!own()) return; tab.favicon = icons.find((u) => /^https?:|^data:image\//.test(u)) || null; tell(); });
+  on("page-favicon-updated", (e, icons) => { if (!own()) return; const at = hostOf(tab.url); iconOf(wc.session, icons.find((u) => /^https?:|^data:image\//.test(u)) || null).then((d) => { if (own() && hostOf(tab.url) === at) { tab.favicon = d; tell(); } }); });
   on("did-fail-load", (e, code, what, url, isMainFrame) => {
     if (!own() || !isMainFrame || code === -3 || url.startsWith("data:")) return;
     tab.failed = url;
@@ -1595,6 +1595,17 @@ function passQuick() {
   else win.webContents.send("rove:pass-open", true);
 }
 
+// a page's icon comes through the page's session (Sec-GPC, the blocker, Chrome's name; a private
+// window's stays in memory) and reaches the bar as data: — an <img> there would ask through the
+// bar's own session, kept on disk
+async function iconOf(ses, url) {
+  if (!url || url.startsWith("data:")) return url;
+  try {
+    const r = await ses.fetch(url), b = Buffer.from(await r.arrayBuffer()), h = b.subarray(0, 64).toString("latin1");
+    const type = /^image\/[\w.+-]+/.exec(r.headers.get("content-type") || "")?.[0] || (h.startsWith("\0\0\x01\0") ? "image/x-icon" : h.startsWith("\x89PNG") ? "image/png" : /<svg/i.test(h) ? "image/svg+xml" : "");
+    return r.ok && type && b.length <= 200000 ? `data:${type};base64,${b.toString("base64")}` : null;
+  } catch { return null; }
+}
 function cleanAgent(ses) {
   // the plain Chrome name: some sites (Google's sign-in first) turn away a
   // name with "Electron" or an app in it

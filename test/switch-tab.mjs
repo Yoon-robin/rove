@@ -26,14 +26,15 @@ export default [
     await R.win.webContents.executeJavaScript("(() => { const u = document.getElementById('url'); for (let k = 0; k < " + i + "; k++) u.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); document.getElementById('address').requestSubmit(); return 1; })()"); await sleep(600);
     const got = { front: Q(R.active), tabs: R.tabs.length, beta: Q(B) };
     return CHECK("Enter on it: that tab in front, nothing loaded", got.front === "alpha" && got.tabs === n && got.beta === "beta", got);` },
-  { js: `R.createWindow({ urls: [u("delta")] }); await sleep(1500); const w1 = R.windows[1]; w1.win.minimize(); await sleep(400); R.use(R.windows[0]); await sleep(200);
-    // Windows does not let a test in the background take the front: what was asked of the window is checked
-    let asked = 0; const was = w1.win.focus.bind(w1.win); w1.win.focus = () => { asked++; return was(); };
+  { js: `R.createWindow({ urls: [u("delta")] }); await sleep(1500); const w1 = R.windows[1]; R.use(R.windows[0]); await sleep(200);
+    // what is asked of the window is checked, not done: a test takes no focus from the person at the PC
+    // (rove.md 1.5), and Windows would not let it anyway. It stands minimized.
+    let asked = 0, restored = 0; w1.win.focus = () => { asked++; }; w1.win.isMinimized = () => !restored; w1.win.restore = () => { restored++; };
     const items = await TYPE("delta"); const i = items.findIndex((x) => x.kind === "tab");
     if (i >= 0) await R.overlay.webContents.executeJavaScript("document.querySelector('[data-i=\\"" + i + "\\"]').dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true })), 1"); await sleep(600);
-    const got = { found: i >= 0, front: Q(w1.active), asked, minimized: w1.win.isMinimized(), here: Q(R.windows[0].active || R.active) };
+    const got = { found: i >= 0, front: Q(w1.active), asked, restored, here: Q(R.windows[0].active || R.active) };
     w1.win.close(); await sleep(600); R.use(R.windows[0]);
-    return CHECK("a tab of another window: found, that window in front with it", got.found && got.front === "delta" && got.asked === 1 && !got.minimized && got.here === "alpha", got);` },
+    return CHECK("a tab of another window: found, that window in front with it", got.found && got.front === "delta" && got.asked === 1 && got.restored === 1 && got.here === "alpha", got);` },
   { js: `R.createWindow({ priv: true }); await sleep(1200); const pw = R.windows[R.windows.length - 1]; R.use(pw); await sleep(200);
     const items = await TYPE("beta"); pw.win.close(); await sleep(600); R.use(R.windows[0]);
     return CHECK("a private window: not the other windows' tabs", TABS(items).length === 0, items.map((i) => i.kind));` },

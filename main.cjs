@@ -1015,8 +1015,10 @@ function showOverlay(what) {
   overlayOn = what;
   overlay.setVisible(true);
   layout();
-  overlay.webContents.send("rove:overlay", what);
-  if (what.kind !== "suggest") overlay.webContents.focus();
+  // a key pressed the moment a window opens: its pop-over page is still loading and would miss it
+  const wc = overlay.webContents, show = () => { wc.send("rove:overlay", what); if (what.kind !== "suggest") wc.focus(); };
+  if (wc.isLoading()) wc.once("did-finish-load", () => { if (overlayOn === what) show(); });
+  else show();
 }
 function hideOverlay() {
   if (!overlayOn) return;

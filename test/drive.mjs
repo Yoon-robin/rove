@@ -35,7 +35,7 @@ const run = async (js) => {
   if (r.result?.exceptionDetails) return "ERR " + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text);
   return r.result?.result?.value;
 };
-for (let i = 0; i < 60; i++) { if (await run("return !!(R && R.win && R.active)") === true) break; await sleep(250); }
+for (let i = 0; i < 60; i++) { if (await run("return !!(R && R.win && R.active && !R.overlay.webContents.isLoading())") === true) break; await sleep(250); }
 for (const s of steps) {
   if (s.wait) await sleep(s.wait);
   if (s.js) { const v = await run(s.js); if (v !== undefined) console.log(typeof v === "string" ? v : JSON.stringify(v)); }

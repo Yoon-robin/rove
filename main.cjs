@@ -789,6 +789,24 @@ function popup(items) {
   if (TEST) { lastMenu = all; return; }
   Menu.buildFromTemplate(all).popup({ window: win });
 }
+// the address bar and the find box, right-clicked: the editing menu, and for the address bar
+// 붙여넣고 이동 (Edge's paste and go; its Ctrl+Shift+L is RobinPass's here, so the menu only)
+async function barMenu(p) {
+  const w = cur;
+  const id = await w.win.webContents.executeJavaScript("document.activeElement?.id || ''").catch(() => "");
+  if (w.gone) return;
+  use(w);
+  const f = p.editFlags || {};
+  const items = [{ label: "실행 취소", role: "undo", enabled: !!f.canUndo }, { type: "separator" },
+    { label: "잘라내기", role: "cut", enabled: !!f.canCut }, { label: "복사", role: "copy", enabled: !!f.canCopy },
+    { label: "붙여넣기", role: "paste", enabled: !!f.canPaste }];
+  if (id === "url") {
+    const text = String((await clipboard.readText()) || "").trim(); // a promise in Electron 45
+    items.push({ label: "붙여넣고 이동", enabled: !!text, click: () => { hideOverlay(); go(text); } });
+  }
+  items.push({ type: "separator" }, { label: "모두 선택", role: "selectAll" });
+  popup(items);
+}
 // a video: picture in picture. The video under the pointer (the top page),
 // else the one playing that source, else the biggest one in that frame.
 const PIP = (x, y, src) => `(() => {
@@ -2062,6 +2080,7 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   titleBar();
   const here = (f) => (...a) => { if (!w.gone) { use(w); return f(...a); } };
   win.webContents.on("before-input-event", here((e, input) => { if (keys(input, true)) e.preventDefault(); }));
+  win.webContents.on("context-menu", here((e, p) => { if (p.isEditable) barMenu(p); }));
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   bw.on("page-title-updated", (e) => e.preventDefault()); // ours, not the screen's <title>

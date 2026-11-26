@@ -184,11 +184,19 @@ function drawTabs() {
     // when it changes, not on every redraw: a strip scrolled by hand stays
     if (state.active !== shownActive) showChosen();
     shownActive = state.active;
+    markEdges();
   });
 }
+// tabs past an edge of the strip (it scrolls with no bar): that edge fades, so they are seen to be there
+function markEdges() {
+  const across = !state.vertical, x = tabsEl.scrollLeft;
+  tabsEl.classList.toggle("more-left", across && x > 0);
+  tabsEl.classList.toggle("more-right", across && x + tabsEl.clientWidth < tabsEl.scrollWidth - 1);
+}
+tabsEl.addEventListener("scroll", markEdges, { passive: true });
 // and when the strip narrows (the window made smaller)
 let stripWidth = 0;
-new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); stripWidth = tabsEl.clientWidth; }).observe(tabsEl);
+new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); stripWidth = tabsEl.clientWidth; markEdges(); }).observe(tabsEl);
 // a plain wheel over the strip moves it sideways
 tabsEl.addEventListener("wheel", (e) => { if (state.vertical || !e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; tabsEl.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
 $("sideNew").addEventListener("click", () => rove.send("rove:new-tab"));

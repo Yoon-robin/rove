@@ -208,6 +208,9 @@ for (const kind of ["copy", "cut"]) url.addEventListener(kind, (e) => {
 });
 function drawTools() {
   const t = state.tabs.find((x) => x.id === state.active);
+  // extensions: the normal windows only; their buttons show what they say for the tab in front
+  $("actions").hidden = !!state.private;
+  if (state.page != null && $("actions").getAttribute("tab") !== String(state.page)) $("actions").setAttribute("tab", String(state.page));
   $("back").disabled = !state.canBack;
   $("forward").disabled = !state.canForward;
   const loading = !!t?.loading;
@@ -277,7 +280,7 @@ $("read").addEventListener("click", () => rove.send("rove:read"));
 // ---- the ask bar: a site's question, or a program coming down ----------------------
 const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기" };
 const RUNS = { program: "실행 파일", script: "스크립트", disk: "디스크 이미지" };
-const once = (a) => a?.kind === "site" && a.what[0] === "external";
+const once = (a) => (a?.kind === "site" && a.what[0] === "external") || a?.kind === "extension";
 let askShown = null;
 function drawAsk() {
   const a = state.ask;
@@ -286,6 +289,17 @@ function drawAsk() {
   const key = JSON.stringify(a);
   if (askShown === key) return;
   askShown = key;
+  if (a.kind === "extension") {
+    $("ask").classList.remove("warn");
+    $("askIcon").innerHTML = `<use href="icons.svg#rk-i-plus"/>`;
+    $("askWho").textContent = a.name;
+    $("askWhat").textContent = a.allSites ? "확장 프로그램 · 모든 사이트의 내용을 읽고 바꿀 수 있음" : "확장 프로그램";
+    $("askNo").textContent = "취소";
+    $("askNo").classList.remove("rk-btn--danger");
+    $("askYes").textContent = "추가";
+    $("askShut").hidden = true;
+    return;
+  }
   const download = a.kind === "download";
   $("ask").classList.toggle("warn", download);
   $("askIcon").innerHTML = `<use href="icons.svg#rk-i-${download ? "alarm" : once(a) ? "out" : "lock"}"/>`;

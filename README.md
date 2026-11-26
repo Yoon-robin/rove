@@ -11,6 +11,7 @@ A browser by Robin. Windows용 데스크톱 브라우저예요(Electron 45, Chro
 - 사이트마다 "창을 내려도 계속": 창을 내리거나 다른 탭을 앞에 둬도 그 사이트의 쪽(쪽이 연 창도)은 보이고 포커스가 있는 채로, 타이머도 그대로 (온라인 강의의 수강 시간)
 - 다른 브라우저(Chrome·Edge·Brave·Vivaldi·Opera·Firefox·Zen·LibreWolf)에서 즐겨찾기 가져오기
 - RobinPass: Vaultwarden(Bitwarden 호환) 서버의 비밀번호를 채우기·저장하기, 인증 코드(TOTP) 목록
+- Chrome 확장 프로그램: Chrome 웹 스토어에서 바로 추가, 도구 줄의 확장 단추와 팝업, 확장 메뉴 항목, 옵션·지우기(서랍의 확장 칸), 저절로 업데이트. 보통 창만(비공개 창에는 없음)
 - 기본 브라우저 등록, 서명을 확인하는 자동 업데이트
 
 ## 설치
@@ -41,6 +42,8 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 | `update.cjs` | 설치 버전 업데이트: `latest.json`의 서명(Ed25519)과 zip의 sha256을 맞춰 본 뒤 옆 폴더에 풀고 `current`를 옮김 |
 | `blocker.cjs` | 광고·추적 막기: `lists.bin`을 읽어 `persist:rove`의 요청을 맞춰 봄 |
 | `vault.cjs` | RobinPass 금고: 로그인(2단계)·잠금 해제·동기화·저장, 키 만들기와 풀기, 사이트 맞추기, TOTP. 메인 프로세스에서만. 릴리스 때 `tldts`·`hash-wasm`과 함께 한 파일로 묶어요 |
+| `extensions.cjs` | Chrome 확장 프로그램: [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions)(chrome.* API, 도구 줄의 `<browser-action-list>`)와 [electron-chrome-web-store](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-web-store)(웹 스토어에서 추가·업데이트, 켤 때 불러오기). 설치한 것은 `%LOCALAPPDATA%\Rove\Extensions`. `chrome.tabs`·`chrome.windows`는 `main.cjs`의 `startExtensions()`가 Rove의 탭·창으로 이어요. 릴리스 때 한 파일로 묶고, 두 라이브러리의 preload는 그 옆에 |
+| `tools/actions-preload.cjs` | 도구 줄 확장 단추의 preload(`actions.preload.cjs`)를 esbuild로 한 파일로(우리 preload는 샌드박스라 `electron`밖에 못 불러요). 저장소에서 켜면 `main.cjs`가 켤 때 만들고, 릴리스는 묶으면서 |
 | `reader.cjs` | 읽기 모드: Readability를 페이지의 따로 떨어진 스크립트 세계(1003)에서 돌려 본문을 받고, 스크립트 없는 `data:` 페이지로 만듦. 릴리스에는 `readability/`에 `Readability.js`·`Readability-readerable.js`·`LICENSE.md` |
 | `defaults.cjs` | 기본 브라우저 등록(HKCU, `reg.exe`), 지금 기본인지 |
 | `tools/lists.cjs` | 광고·추적 목록 → `lists.bin` (저장소에서 시험하려면 `node tools/lists.cjs` 한 번) |
@@ -54,7 +57,8 @@ npm run build          # out/Rove-win32-x64/Rove.exe (약 360MB)
 | `test/drive.mjs` | 시험 드라이버 |
 | `test/pass-account.cjs` | 시험용 Vaultwarden(https://localhost)에 임시 계정과 항목 둘 만들기(`codes`면 인증 코드 시험용 셋 더) |
 
-- 페이지는 `persist:rove` 세션, 샌드박스, preload 없음. `rove://`는 기본 세션에만 있어서 페이지에서는 못 열어요.
+- 페이지는 `persist:rove` 세션, 샌드박스. preload는 두 확장 라이브러리의 것뿐이에요(확장의 쪽과 콘텐츠 스크립트에 chrome.* API, chromewebstore.google.com에만 설치 API). `rove://`는 기본 세션에만 있어서 페이지에서는 못 열어요.
+- 확장 프로그램이 못 하는 것: Rove의 광고 막기가 Electron의 `webRequest`를 써서 확장의 `chrome.webRequest`는 불리지 않고, `declarativeNetRequest`도 없어요. 그래서 광고 막기 확장은 듣지 않고 Rove 자체 막기가 그 일을 해요. 웹 스토어의 "Chrome으로 전환" 안내는 그대로 떠요(추가는 돼요). `ui/index.html` CSP의 `sha256-…`은 확장 단추 부품의 `<style>`이라, electron-chrome-extensions를 올리면 릴리스 스크립트가 맞는지 봐요.
 - 페이지가 보내는 메시지는 없고, `ipcMain`은 보낸 쪽이 우리 두 뷰인지 확인해요.
 - 사용자 에이전트에서 `Electron/`·`Rove/`를 빼요(구글 로그인 같은 곳이 막지 않게).
 - 권한은 전체 화면·클립보드 쓰기·포인터 잠금·창 배치만 바로 허용, 카메라·마이크·위치·알림·클립보드 읽기·MIDI는 묻기 띠로 묻고(`permissions.json`), 화면 공유는 고르기 창이 권한 물음(`display-capture`, `shareAsked()`)에 답하고, 고른 것을 공유 처리기(`sharing()`, `desktopCapturer`·탭은 `mainFrame`)에 넘겨요. 주소창 자물쇠의 사이트 정보는 `siteInfo`·`setSite`·`clearSite`. "창을 내려도 계속"은 `settings.awake`(사이트 = `tldts` getDomain)·`setAwake`·`keepGoing`: 그 쪽의 `setBackgroundThrottling(false)`, `webContents.debugger`로 `Emulation.setFocusEmulationEnabled`와 새 문서마다 먼저 도는 `SEEN`(보임·포커스 값 고정, visibilitychange·창 blur 막음), 쪽이 연 창은 `popupGoing`.

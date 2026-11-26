@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: http: data:; style-src 'self'; font-src 'self'; script-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: http: data: crx:; style-src 'self' 'sha256-EcmZWsVOOb/2FKPnrt1taNtRFqbR3tL7BMlKMu1vsmQ='; font-src 'self'; script-src 'self'">
 <title>Rove</title>
 <link rel="stylesheet" href="fonts/pretendard.css">
 <link rel="stylesheet" href="robin-ui.css">
@@ -30,6 +30,7 @@
     </form>
     <button class="newver rk-hud rk-hud--pill" id="newver" type="button" data-tone="on" hidden>새 버전</button>
     <button class="btn" id="downloads" type="button" aria-label="내려받기" title="내려받기" hidden><svg class="rk-ico"><use href="icons.svg#rk-i-download"/></svg><i class="tick" id="dltick"></i></button>
+    <browser-action-list class="actions" id="actions" partition="persist:rove" alignment="bottom left"></browser-action-list>
     <button class="btn" id="menu" type="button" aria-label="메뉴" title="메뉴"><svg class="rk-ico"><use href="icons.svg#rk-i-menu"/></svg></button>
   </div>
   <nav class="side" id="side" aria-label="탭" hidden>

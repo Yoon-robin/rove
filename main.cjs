@@ -4,8 +4,9 @@
 // drawers (history, bookmarks, downloads) are drawn by a see-through view
 // laid over the window only while one is open (ui/overlay.html).
 //
-// Pages get nothing of ours: their own sandboxed renderer, no preload, the
-// session "persist:rove" (rove:// is not even known there). Only our two
+// Pages get nothing of ours: their own sandboxed renderer, the session
+// "persist:rove" (rove:// is not even known there), no preload of ours (1.2: the
+// extension libraries' two, see extensions.cjs). Only our two
 // views have the preload, and every message is checked to come from one of
 // them.
 //   ROVE_HOME        settings, history, bookmarks (default %LOCALAPPDATA%\Rove)
@@ -46,6 +47,10 @@
 // 1.0: more than one window (a tab dragged out of the strip makes one, or goes
 // into another window's strip), and private windows (a session in memory: no
 // history, no answers kept, no downloads listed, all gone with the last one).
+//
+// 1.2 (robin 2026-11-26 "chrome 확장기능 rove에서 쓸수있게해줘야지 왜안돼"): Chrome
+// extensions (extensions.cjs) in the normal windows: added from the Chrome Web
+// Store, their buttons in the toolbar, their items in the page menu.
 const { getDomain } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
@@ -243,6 +248,7 @@ function snapshot() {
     narrow: !!settings.narrow,
     frame: frame(),
     private: !!cur?.private,
+    page: active && !cur?.private ? active.view.webContents.id : null, // the extension buttons' tab
   };
 }
 let pending = null;
@@ -282,6 +288,8 @@ function saveTabs(now) {
 
 // ---- tabs -------------------------------------------------------------------------
 const rove = () => session.fromPartition("persist:rove");
+let exts = null; // Chrome extensions (extensions.cjs), set at start
+let movingWc = null; // a page going to another window: not closed by chrome.tabs' removeTab
 
 // asleep: a tab that comes in sleeping (the tabs of the last run but the one in
 // front) loads nothing until it is looked at
@@ -321,6 +329,7 @@ function select(tab) {
   if (g?.collapsed) g.collapsed = false;
   active = tab;
   wake(tab);
+  exts?.select(tab.view.webContents);
   layout();
   tell();
 }
@@ -434,6 +443,7 @@ a:hover{background:#4b7dfe}</style><div class="b"><h1>${head}</h1><p>${esc(body)
 
 function wire(tab) {
   const wc = tab.view.webContents;
+  exts?.add(wc, tab.w.win);
   const mine = () => tabs.includes(tab);
   // every event: the tab's window in use first (the tab may have moved to another)
   const here = () => { if (tab.w && !tab.w.gone) use(tab.w); };
@@ -803,6 +813,8 @@ function pageMenu(tab, p) {
     if (tab.readable || tab.reader) items.push({ label: tab.reader ? "읽기 모드 끝내기" : "읽기 모드", click: () => read(tab) });
     items.push({ type: "separator" });
   }
+  const theirs = exts?.menu(wc, p) || [];
+  if (theirs.length) items.push(...theirs, { type: "separator" });
   items.push({ label: "검사", click: () => wc.inspectElement(p.x, p.y) });
   popup(items);
 }
@@ -1072,6 +1084,9 @@ function messages() {
   on("rove:awake", (on) => setAwake(!!on));
   on("rove:share", (id, pick, audio) => shareAnswer(Number(id), pick && typeof pick === "object" ? { kind: String(pick.kind), id: pick.kind === "tab" ? Number(pick.id) : String(pick.id) } : null, !!audio));
   handle("rove:site", () => siteInfo());
+  handle("rove:extensions", () => exts?.list() || []);
+  handle("rove:extension-remove", (id) => exts?.remove(String(id)).catch((e) => { log(`확장 프로그램을 못 지움: ${e.message}`); return false; }) ?? false);
+  on("rove:extension-options", (id) => { const u = exts?.options(String(id)); if (u) { hideOverlay(); newTab(u); } });
   on("rove:site-set", (origin, key, value) => setSite(String(origin), String(key), String(value)));
   handle("rove:site-clear", () => clearSite());
   on("rove:default", () => { hideOverlay(); makeDefault().then(checkDefault); });
@@ -1427,7 +1442,7 @@ let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
 const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "" });
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -1442,6 +1457,7 @@ function answer(id, yes, keep = true) {
   if (!a) return;
   asks = asks.filter((x) => x !== a);
   if (a.kind === "download") keepDownload(a.d, !!yes);
+  else if (a.kind === "extension") for (const f of a.done) f(!!yes);
   else {
     if (keep) {
       const g = a.tab?.w?.private ? privGrants : grants;
@@ -1464,9 +1480,13 @@ function keysFor(what, details) {
 }
 function permissions(ses, priv = false) {
   const yes = new Set(["fullscreen", "clipboard-sanitized-write", "pointerLock", "window-management"]);
+  // an extension's own pages (its background, its popup): what it was given when it was added
+  const theirs = new Set(["notifications", "clipboard-read", "unlimitedStorage"]);
+  const extension = (u) => /^chrome-extension:\/\//.test(u || "");
   const G = () => (priv ? privGrants : grants);
   ses.setPermissionRequestHandler((wc, what, done, details = {}) => {
     if (yes.has(what)) return done(true);
+    if (theirs.has(what) && extension(details.requestingUrl || wc?.getURL())) return done(true);
     const tab = tabOf(wc);
     if (tab) use(tab.w);
     // the screen: the picker answers (shareAsked(), below)
@@ -1492,6 +1512,7 @@ function permissions(ses, priv = false) {
   });
   ses.setPermissionCheckHandler((wc, what, origin, details = {}) => {
     if (yes.has(what)) return true;
+    if (theirs.has(what) && extension(details.requestingUrl || origin)) return true;
     const key = what === "media" ? { video: "camera", audio: "microphone" }[details.mediaType] : keysFor(what, details)?.[0];
     if (!key) return false;
     const o = originOf(details.requestingUrl || origin);
@@ -1783,7 +1804,9 @@ async function makeDefault() {
   return ok;
 }
 
-app.whenReady().then(() => {
+let bootDone;
+const booted = new Promise((r) => { bootDone = r; }); // the first windows are up
+app.whenReady().then(async () => {
   serveUi();
   const ses = rove();
   cleanAgent(ses);
@@ -1793,6 +1816,10 @@ app.whenReady().then(() => {
   passStart();
   downloadsTo(ses);
   spelling(ses);
+  // a broken extension part must not keep the windows from coming (Rove without extensions)
+  try { exts = startExtensions(ses); } catch (e) { log(`확장 프로그램 못 켬: ${e.message}`); exts = null; }
+  // the installed ones in before the first pages load, so their content scripts are in them (3 s at most)
+  if (exts) await Promise.race([exts.ready, new Promise((r) => setTimeout(r, 3000))]);
   rmSync(join(home, "held"), { recursive: true, force: true }); // never answered: gone with the last run
   downloads = load("downloads.json", []).map(({ asking, ...d }) => (d.state === "progressing" ? { ...d, state: "interrupted" } : d));
   checkDefault();
@@ -1807,6 +1834,7 @@ app.whenReady().then(() => {
   else createWindow({});
   use(windows[0]);
   for (const u of opened(process.argv.slice(1))) newTab(u);
+  bootDone();
 
   setInterval(sleepIdle, Math.min(60e3, SLEEP_AFTER / 2)).unref?.();
   if (TEST) testHooks();
@@ -1818,6 +1846,49 @@ app.whenReady().then(() => {
     setInterval(() => updates.check(), 6 * 3600e3).unref?.();
   }
 });
+
+// ---- Chrome extensions (extensions.cjs) -------------------------------------------------
+// chrome.tabs and chrome.windows act on Rove's own tabs and windows (the normal ones)
+function startExtensions(ses) {
+  const actions = join(__dirname, "actions.preload.cjs");
+  if (!app.isPackaged) require("./tools/actions-preload.cjs").build(actions); // a release has it built in
+  const normal = (w) => w && !w.gone && !w.private;
+  const windowFor = (id) => windows.find((w) => normal(w) && w.win.id === id) || (normal(lastNormal) ? lastNormal : windows.find(normal));
+  return require("./extensions.cjs").start({
+    ses, dir: join(home, "Extensions"), actionsPreload: actions, log, confirm: askExtension,
+    impl: {
+      createTab(details) {
+        const w = windowFor(details.windowId);
+        if (!w) { const n = createWindow({ urls: [details.url || HOME_PAGE] }); return [n.tabs[0].view.webContents, n.win]; }
+        const t = within(w, () => newTab(details.url || HOME_PAGE, { background: details.active === false }));
+        return [t.view.webContents, w.win];
+      },
+      selectTab(wc) { const t = tabOf(wc); if (t && !t.w.gone) { use(t.w); select(t); } },
+      // also told when a page's view goes (closed, asleep, its window shut): then nothing to do
+      removeTab(wc) {
+        const t = tabOf(wc);
+        if (!t || t.w.gone || wc === movingWc || t.closing === wc || wc.isDestroyed()) return;
+        within(t.w, () => closeTab(t));
+      },
+      createWindow(details) { return createWindow({ urls: [].concat(details.url || []).filter((u) => typeof u === "string") }).win; },
+      // also told when a window has closed (then it is gone already)
+      removeWindow(bw) { if (!bw.isDestroyed() && windows.some((w) => w.win === bw && !w.gone)) bw.close(); },
+      assignTabDetails(details, wc) { const t = tabOf(wc); if (t) Object.assign(details, { pinned: !!t.pinned, discarded: !!t.asleep }); },
+    },
+  });
+}
+// the web store's "Chrome에 추가": asked in that tab's ask bar, every time
+function askExtension({ name, allSites, wc }) {
+  return new Promise((done) => {
+    const tab = tabOf(wc);
+    if (!tab || tab.w.gone) return done(false);
+    use(tab.w);
+    asks.push({ id: nextId++, kind: "extension", tab, origin: "", host: "chromewebstore.google.com", what: [], name, allSites, done: [done] });
+    if (tab !== active) select(tab);
+    layout();
+    tell();
+  });
+}
 
 // ---- windows ------------------------------------------------------------------------
 // priv: a private window; restore: one of the last run's windows ({ urls, ..., bounds });
@@ -1953,6 +2024,8 @@ function putTab(tab, w, at = null) {
     overlayOnTop();
     select(tab);
   });
+  movingWc = tab.view.webContents;
+  try { exts?.moved(movingWc, w.win); } finally { movingWc = null; }
 }
 function moveToWindow(tab, w, at = null) {
   const from = tab.w;
@@ -2038,10 +2111,11 @@ function testHooks() {
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf,
-    get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame };
+    get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
+    get exts() { return exts; } };
 }
 
-app.on("second-instance", (e, argv) => {
+app.on("second-instance", (e, argv) => booted.then(() => {
   const w = lastNormal && !lastNormal.gone ? lastNormal : windows.find((x) => !x.private && !x.gone);
   if (!w) { createWindow({ urls: opened(argv.slice(1)) }); return; }
   use(w);
@@ -2049,7 +2123,7 @@ app.on("second-instance", (e, argv) => {
   win.focus();
   const urls = opened(argv.slice(1));
   if (urls.length) urls.forEach((u) => newTab(u)); else newTab(HOME_PAGE);
-});
+}));
 app.on("web-contents-created", (e, wc) => {
   // nothing of ours opens a page, and no page gets a <webview>
   wc.on("will-attach-webview", (ev) => ev.preventDefault());

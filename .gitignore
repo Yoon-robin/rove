@@ -2,3 +2,4 @@ node_modules/
 out/
 lists.bin
 adblock.cjs
+actions.preload.cjs

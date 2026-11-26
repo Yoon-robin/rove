@@ -10,6 +10,10 @@ Rove 자체는 GPL-3.0이에요([LICENSE](LICENSE)). 아래 것들은 각자의 
 | [@mozilla/readability](https://github.com/mozilla/readability) 0.6.0 | 읽기 모드, 릴리스의 `readability/`(그 `LICENSE.md` 포함) | Apache-2.0 |
 | [tldts](https://github.com/remusao/tldts) 7.4.21 | RobinPass 사이트 맞추기, `vault.cjs`에 묶음 | MIT |
 | [hash-wasm](https://github.com/Daninet/hash-wasm) 4.13.0 | RobinPass 키 만들기(Argon2id), `vault.cjs`에 묶음 | MIT |
+| [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell) 4.10.0 | Chrome 확장 프로그램 API·도구 줄 단추, `extensions.cjs`에 묶음, `chrome-extension-api.preload.js`·`actions.preload.cjs` | MIT |
+| [electron-chrome-web-store](https://github.com/samuelmaddock/electron-browser-shell) 0.13.0 | 웹 스토어에서 추가·업데이트, `extensions.cjs`에 묶음, `chrome-web-store.preload.js` | MIT |
+| 그 둘이 쓰는 [adm-zip](https://github.com/cthackers/adm-zip) 0.5.18, [debug](https://github.com/debug-js/debug) 4.4.3, [ms](https://github.com/vercel/ms) 2.1.3, [resolve-protobuf-schema](https://github.com/mafintosh/resolve-protobuf-schema) 2.1.0, [protocol-buffers-schema](https://github.com/mafintosh/protocol-buffers-schema) 3.6.1 | `extensions.cjs`에 묶음 | MIT |
+| [pbf](https://github.com/mapbox/pbf) 4.0.2 | 웹 스토어의 확장 파일(CRX3) 읽기, `extensions.cjs`에 묶음 | BSD-3-Clause |
 | [Pretendard](https://github.com/orioncactus/pretendard) | 화면 글꼴 `ui/fonts/` | SIL OFL 1.1([ui/fonts/LICENSE.txt](ui/fonts/LICENSE.txt)) |
 | [Pretendard](https://github.com/orioncactus/pretendard) | 설치 창 글꼴 `setup/fonts/`(450·550·650 굵기, 쓰는 글자만, `setup/font.py`) | SIL OFL 1.1([ui/fonts/LICENSE.txt](ui/fonts/LICENSE.txt)) |
 

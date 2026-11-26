@@ -429,6 +429,7 @@ function drawMenu() {
     <button class="rk-menu__item" data-do="bookmarks" role="menuitem">${icon("star")}즐겨찾기</button>
     <button class="rk-menu__item" data-do="downloads" role="menuitem">${icon("download")}내려받기</button>
     <button class="rk-menu__item" data-do="sites" role="menuitem">${icon("lock")}사이트 권한</button>
+    ${state.private ? "" : `<button class="rk-menu__item" data-do="extensions" role="menuitem">${icon("spark")}확장 프로그램</button>`}
     <button class="rk-menu__item" data-do="tabs" role="menuitem">${icon("tabs")}탭 찾기</button>
     <div class="switchrow">${icon("moon")}<span>안 쓰는 탭 재우기</span><button class="rk-switch" role="switch" data-sleep aria-checked="${!!state.sleep}" aria-label="안 쓰는 탭 재우기"></button></div>
     <div class="switchrow">${icon("sidebar")}<span>세로 탭</span><button class="rk-switch" role="switch" data-vertical aria-checked="${!!state.vertical}" aria-label="세로 탭"></button></div>
@@ -460,7 +461,7 @@ function drawMenu() {
     if (d === "new") rove.send("rove:new-tab");
     else if (d === "window") rove.send("rove:new-window");
     else if (d === "private") rove.send("rove:new-private");
-    else if (d === "history" || d === "bookmarks" || d === "downloads" || d === "sites") rove.send("rove:overlay", { kind: "drawer", panel: d });
+    else if (d === "history" || d === "bookmarks" || d === "downloads" || d === "sites" || d === "extensions") rove.send("rove:overlay", { kind: "drawer", panel: d });
     else if (d === "default") rove.send("rove:default");
     else if (d === "tabs") rove.send("rove:overlay", { kind: "tabs" });
     else if (d === "zoom-in") rove.send("rove:zoom", 1);
@@ -475,7 +476,9 @@ function drawMenu() {
 }
 
 // ---- drawers --------------------------------------------------------------------------
-const NAMES = { history: "방문 기록", bookmarks: "즐겨찾기", downloads: "내려받기", sites: "사이트 권한" };
+const NAMES = { history: "방문 기록", bookmarks: "즐겨찾기", downloads: "내려받기", sites: "사이트 권한", extensions: "확장 프로그램" };
+const STORE = "https://chromewebstore.google.com/";
+const TAB = { ...NAMES, extensions: "확장" }; // the drawer's tab row (five do not fit in full)
 const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기" };
 function day(at) {
   const d = new Date(at);
@@ -496,6 +499,7 @@ function size(n) {
 }
 
 let importing = null; // the browsers to bring bookmarks from (true: to ask, null: not asked)
+let dropping = null; // the extension whose 지우기 was pressed once (pressed again: gone)
 let importMsg = null;
 async function drawDrawer() {
   const mine = open;
@@ -505,6 +509,7 @@ async function drawDrawer() {
   if (panel === "bookmarks") list = (await rove.ask("rove:bookmarks")) || [];
   if (panel === "downloads") list = (state.downloads || []).slice().reverse();
   if (panel === "sites") list = (await rove.ask("rove:sites")) || [];
+  if (panel === "extensions") list = (await rove.ask("rove:extensions")) || [];
   if (open !== mine) return;
   const keepFocus = document.activeElement?.id === "q";
   let body = "";
@@ -520,6 +525,12 @@ async function drawDrawer() {
       if (s.ads === false && !s.origin) { body += `<div class="item">${icon("shield")}<div class="w"><b>${esc(s.host)}</b><small>광고·추적 막기 꺼짐</small></div><button class="btn hover" data-unallow="${esc(s.host)}" aria-label="다시 막기" title="다시 막기">${icon("close")}</button></div>`; continue; }
       const said = Object.keys(WHAT).filter((k) => typeof s[k] === "boolean").map((k) => `${WHAT[k]} ${s[k] ? "허용" : "차단"}`);
       if (said.length) body += `<div class="item">${icon("lock")}<div class="w"><b>${esc(s.host)}</b><small>${said.join(" · ")}</small></div><button class="btn hover" data-site="${esc(s.origin)}" aria-label="잊기" title="잊기">${icon("close")}</button></div>`;
+    }
+  } else if (panel === "extensions") {
+    for (const x of list) {
+      const pic = x.icon ? `<img class="ext" src="${esc(x.icon)}" alt="">` : icon("spark");
+      const sure = dropping === x.id;
+      body += `<div class="item">${pic}<div class="w"><b>${esc(x.name)}</b><small class="rk-num">${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}</div>`;
     }
   } else if (panel === "bookmarks" && importing) {
     body += `<div class="rk-label">가져오기</div>`;
@@ -537,22 +548,23 @@ async function drawDrawer() {
       body += `<div class="item" data-dl="${d.id}">${icon("download")}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>` : `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>`}</div>`;
     }
   }
-  const empty = { history: "기록이 없어요", bookmarks: "즐겨찾기가 없어요", downloads: "내려받은 파일이 없어요", sites: "정해 둔 사이트가 없어요" }[panel];
+  const empty = { history: "기록이 없어요", bookmarks: "즐겨찾기가 없어요", downloads: "내려받은 파일이 없어요", sites: "정해 둔 사이트가 없어요", extensions: "확장 프로그램이 없어요" }[panel];
   const foot = panel === "history" && list.length && !query
     ? (sure ? `<footer><span>기록을 전부 지울까요?</span><button class="rk-btn rk-btn--small" data-no>그만두기</button><button class="rk-btn rk-btn--small rk-btn--danger-fill" data-yes>지우기</button></footer>`
       : `<footer><button class="rk-btn rk-btn--small rk-btn--danger" data-all>기록 모두 지우기</button></footer>`)
     : panel === "downloads" && list.some((d) => d.state !== "progressing") ? `<footer><button class="rk-btn rk-btn--small" data-clear>목록 비우기</button></footer>`
+    : panel === "extensions" ? `<footer><button class="rk-btn rk-btn--small" data-store>Chrome 웹 스토어</button></footer>`
     : panel === "bookmarks" ? `<footer>${importMsg ? `<span role="status">${esc(importMsg)}</span>` : ""}${importing ? `<button class="rk-btn rk-btn--small" data-import-done>돌아가기</button>` : `<button class="rk-btn rk-btn--small" data-import-ask>다른 브라우저에서 가져오기</button>`}</footer>` : "";
   root.innerHTML = `<div class="scrim"></div><aside class="pop drawer" aria-label="${NAMES[panel]}">
-    <header><div class="rk-tabs" role="tablist">${Object.keys(NAMES).map((k) => `<button class="rk-tab" role="tab" data-panel="${k}" aria-selected="${k === panel}">${NAMES[k]}</button>`).join("")}</div>
+    <header><div class="rk-tabs" role="tablist">${Object.keys(NAMES).map((k) => `<button class="rk-tab" role="tab" data-panel="${k}" aria-selected="${k === panel}"${TAB[k] !== NAMES[k] ? ` aria-label="${NAMES[k]}"` : ""}>${TAB[k]}</button>`).join("")}</div>
       <button class="btn" data-shut aria-label="닫기" title="닫기">${icon("close")}</button></header>
     ${panel === "history" ? `<div class="search"><input class="rk-input" id="q" type="search" placeholder="기록 찾기" value="${esc(query)}" spellcheck="false"></div>` : ""}
-    <div class="list">${body || `<div class="rk-empty">${icon(panel === "downloads" ? "download" : panel === "bookmarks" ? "star" : panel === "sites" ? "lock" : "clock")}${empty}</div>`}</div>
+    <div class="list">${body || `<div class="rk-empty">${icon(panel === "downloads" ? "download" : panel === "bookmarks" ? "star" : panel === "sites" ? "lock" : panel === "extensions" ? "spark" : "clock")}${empty}</div>`}</div>
     ${foot}</aside>`;
   root.querySelectorAll("[data-p]").forEach((i) => { i.style.width = i.dataset.p + "%"; });
   root.querySelector(".scrim").addEventListener("mousedown", shut);
   root.querySelector("[data-shut]").addEventListener("click", shut);
-  root.querySelectorAll("[data-panel]").forEach((b) => b.addEventListener("click", () => { panel = b.dataset.panel; query = ""; sure = false; importing = null; importMsg = null; draw(); }));
+  root.querySelectorAll("[data-panel]").forEach((b) => b.addEventListener("click", () => { panel = b.dataset.panel; query = ""; sure = false; importing = null; importMsg = null; dropping = null; draw(); }));
   const q = root.querySelector("#q");
   if (q) {
     q.addEventListener("input", () => { query = q.value; draw(); });
@@ -573,6 +585,15 @@ async function drawDrawer() {
   root.querySelector("[data-no]")?.addEventListener("click", () => { sure = false; draw(); });
   root.querySelector("[data-yes]")?.addEventListener("click", () => { sure = false; rove.send("rove:forget-all"); setTimeout(draw, 50); });
   root.querySelector("[data-clear]")?.addEventListener("click", () => rove.send("rove:downloads-clear"));
+  root.querySelector("[data-store]")?.addEventListener("click", () => rove.send("rove:open", STORE, true));
+  root.querySelectorAll("[data-ext-options]").forEach((b) => b.addEventListener("click", () => rove.send("rove:extension-options", b.dataset.extOptions)));
+  root.querySelectorAll("[data-ext-drop]").forEach((b) => b.addEventListener("click", async () => {
+    if (dropping !== b.dataset.extDrop) { dropping = b.dataset.extDrop; draw(); return; }
+    dropping = null;
+    b.disabled = true;
+    await rove.ask("rove:extension-remove", b.dataset.extDrop);
+    draw();
+  }));
   root.querySelector("[data-import-ask]")?.addEventListener("click", () => { importing = true; importMsg = null; draw(); });
   root.querySelector("[data-import-done]")?.addEventListener("click", () => { importing = null; importMsg = null; draw(); });
   root.querySelectorAll("[data-import]").forEach((b) => b.addEventListener("click", async () => {

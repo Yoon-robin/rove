@@ -1,7 +1,7 @@
 {
   "name": "rove",
   "productName": "Rove",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "private": true,
   "description": "Rove: a browser by Robin (Electron)",
   "main": "main.cjs",
@@ -25,6 +25,8 @@
   "dependencies": {
     "@ghostery/adblocker": "2.20.3",
     "@mozilla/readability": "0.6.0",
+    "electron-chrome-extensions": "4.10.0",
+    "electron-chrome-web-store": "0.13.0",
     "hash-wasm": "4.13.0",
     "tldts": "7.4.21"
   }

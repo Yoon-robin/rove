@@ -1004,6 +1004,19 @@ async function savePageTo(tab, file) {
     return false;
   }
 }
+// ---- open a file (Ctrl+O): one in this tab, more each in a new tab after it, as in Chrome
+async function openFiles() {
+  const r = await dialog.showOpenDialog(win, { properties: ["openFile", "multiSelections"], filters: [
+    { name: "웹 페이지·PDF·그림", extensions: ["html", "htm", "mhtml", "xhtml", "pdf", "svg", "png", "jpg", "jpeg", "gif", "webp", "txt"] }, { name: "모든 파일", extensions: ["*"] }] });
+  if (!r.canceled) openPaths(r.filePaths);
+}
+function openPaths(paths, tab = active) {
+  const urls = paths.map((p) => pathToFileURL(p).toString());
+  if (!urls.length) return;
+  if (tab) go(urls.shift(), tab);
+  let after = tab;
+  for (const u of urls) after = newTab(u, { after });
+}
 function star() {
   if (!active) return;
   const url = active.failed || active.url;
@@ -1179,6 +1192,7 @@ function keyAction(input, fromBar = false) {
   if (input.alt && !c && k === "f") return run(() => showOverlay({ kind: "menu", keyed: true }));
   if (c && k === "p") return run(() => active?.view.webContents.print());
   if (c && !input.shift && k === "s") return run(() => savePageAs());
+  if (c && !input.shift && k === "o") return run(openFiles);
   if (c && (k === "=" || k === "+")) return run(() => zoom(1));
   if (c && k === "-") return run(() => zoom(-1));
   if (c && k === "0") return run(() => zoom(0));
@@ -2506,7 +2520,7 @@ function testHooks() {
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
-    setAwake, keepGoing, awakeFor, siteOf, savePageTo,
+    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths,
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
     get exts() { return exts; } };
 }

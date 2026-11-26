@@ -405,3 +405,7 @@ body.vertical .pop.tabfind { top: 48px; }
   .btn:active:not(:disabled) { transform: none; }
   .pop { animation: rk-fade-in 150ms ease-out; }
 }
+
+/* what is on glows a little in its own colour (yoonrobin docs/brand.md V5.1, robin 11-26 glow "B"):
+   the kit's switches already do; here the blue icon of a toolbar button that is on */
+.btn.on .rk-ico, .address .star.on .rk-ico { filter: drop-shadow(0 0 5px var(--rk-glow-icon)); }

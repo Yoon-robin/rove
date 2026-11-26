@@ -555,6 +555,8 @@ static class Setup
     static void Look()
     {
         var go = Part<Button>("Go");
+        // the window opens on 닫기, the safe one (지우기 is not the default button either)
+        Part<Button>("Cancel").Focus();
         Part<TextBlock>("Title").Text = "Rove 지우기";
         if (!IsRove(home)) { Say("여기에는 Rove가 없어요", null, true); go.IsEnabled = false; if (goNow) { Environment.ExitCode = 1; Quit(); } return; }
         var cur = Current();

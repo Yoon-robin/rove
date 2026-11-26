@@ -263,7 +263,7 @@
               <TextBlock x:Name="Title" Text="Rove" FontSize="15" FontWeight="650" Foreground="{StaticResource Head}" VerticalAlignment="Center"/>
               <TextBlock x:Name="Build" FontSize="12.5" FontWeight="450" Foreground="{StaticResource Faint}" Margin="10,1,0,0" VerticalAlignment="Center"/>
             </StackPanel>
-            <Button x:Name="Close" Style="{StaticResource Round}" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="닫기"/>
+            <Button x:Name="Close" KeyboardNavigation.TabIndex="1" AutomationProperties.Name="창 닫기" Style="{StaticResource Round}" HorizontalAlignment="Right" VerticalAlignment="Center" ToolTip="닫기"/>
           </Grid>
         </Border>
 
@@ -286,8 +286,8 @@
               </Grid>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-              <Button x:Name="Cancel" Style="{StaticResource Btn}" Content="닫기" Margin="0,0,8,0"/>
-              <Button x:Name="Go" Style="{StaticResource Lead}" Content="설치" MinWidth="88" IsDefault="True"/>
+              <Button x:Name="Cancel" KeyboardNavigation.TabIndex="6" Style="{StaticResource Btn}" Content="닫기" Margin="0,0,8,0"/>
+              <Button x:Name="Go" KeyboardNavigation.TabIndex="7" Style="{StaticResource Lead}" Content="설치" MinWidth="88" IsDefault="True"/>
             </StackPanel>
           </Grid>
         </Border>
@@ -313,12 +313,12 @@
             <StackPanel>
               <Grid Style="{StaticResource Row}">
                 <TextBlock Text="바탕화면" Style="{StaticResource RowName}"/>
-                <ToggleButton x:Name="Desk" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="바탕화면 바로가기"/>
+                <ToggleButton x:Name="Desk" KeyboardNavigation.TabIndex="2" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="바탕화면 바로가기"/>
               </Grid>
               <Border Height="1" Background="{StaticResource Line}" Margin="9,0"/>
               <Grid Style="{StaticResource Row}">
                 <TextBlock Text="시작 메뉴" Style="{StaticResource RowName}"/>
-                <ToggleButton x:Name="Menu" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="시작 메뉴 바로가기"/>
+                <ToggleButton x:Name="Menu" KeyboardNavigation.TabIndex="3" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="시작 메뉴 바로가기"/>
               </Grid>
             </StackPanel>
           </Border>
@@ -327,7 +327,7 @@
           <Border Style="{StaticResource CardBox}">
             <Grid Style="{StaticResource Row}">
               <TextBlock Text="Rove 켜기" Style="{StaticResource RowName}"/>
-              <ToggleButton x:Name="Open" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="끝나면 Rove 켜기"/>
+              <ToggleButton x:Name="Open" KeyboardNavigation.TabIndex="4" Style="{StaticResource Switch}" IsChecked="True" AutomationProperties.Name="끝나면 Rove 켜기"/>
             </Grid>
           </Border>
         </StackPanel>
@@ -358,7 +358,7 @@
           <Border Style="{StaticResource CardBox}">
             <Grid Style="{StaticResource Row}">
               <TextBlock Text="방문 기록·즐겨찾기·로그인" Style="{StaticResource RowName}"/>
-              <ToggleButton x:Name="Mine" Style="{StaticResource Switch}" IsChecked="False" AutomationProperties.Name="방문 기록·즐겨찾기·로그인도 지우기"/>
+              <ToggleButton x:Name="Mine" KeyboardNavigation.TabIndex="5" Style="{StaticResource Switch}" IsChecked="False" AutomationProperties.Name="방문 기록·즐겨찾기·로그인도 지우기"/>
             </Grid>
           </Border>
         </StackPanel>

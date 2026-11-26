@@ -444,6 +444,12 @@ function drawSuggest() {
   }));
 }
 
+// a download's mark by what the file is, as Chrome shows the file's kind (the kit's own marks, one colour)
+const KINDS = [["image", /\.(png|jpe?g|gif|webp|avif|bmp|svg|heic|ico|tiff?)$/i], ["film", /\.(mp4|mkv|mov|webm|avi|m4v|wmv)$/i],
+  ["music", /\.(mp3|wav|flac|m4a|ogg|opus|aac|wma)$/i], ["read", /\.(pdf|txt|md|docx?|hwpx?|odt|rtf|epub|pptx?|xlsx?|csv)$/i],
+  ["window", /\.(exe|msi|msix|appx|bat|cmd)$/i]];
+const kindOf = (name) => (KINDS.find(([, re]) => re.test(name || "")) || ["download"])[0];
+
 // ---- the menu -----------------------------------------------------------------------
 // each row's shortcut on its right, as in Chrome (the keys are main.cjs keyAction's)
 const shortcut = (k) => `<small class="key" aria-hidden="true">${k}</small>`;
@@ -581,7 +587,7 @@ async function drawDrawer() {
       const meter = going && d.total && !d.asking ? `<span class="rk-meter"><i data-p="${Math.round((d.received / d.total) * 100)}"></i></span>` : "";
       // only a finished one has a file to show; a cancelled or stopped one says so by its mark
       const done = d.state === "completed";
-      const mark = going || done ? "download" : d.state === "cancelled" ? "close" : "alarm";
+      const mark = going || done ? kindOf(d.name) : d.state === "cancelled" ? "close" : "alarm";
       // one waiting for a yes: the same 버리기·받기 as the ask bar, which this drawer covers
       const act = typeof d.asking === "number" ? `<button class="rk-btn rk-btn--small rk-btn--danger" data-keep="${d.asking}" data-yes="0">버리기</button><button class="rk-btn rk-btn--small rk-btn--primary" data-keep="${d.asking}" data-yes="1">받기</button>`
         : going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`

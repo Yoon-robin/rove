@@ -64,6 +64,7 @@ static class Setup
     static long size;
     static CancellationTokenSource stop;
     static bool busy, done;
+    static bool quitting, closed;   // quitting: the window was closed while installing
     static readonly List<Step> steps = new List<Step>();
 
     // the side column's rows: each step of the install, lit while it runs
@@ -176,7 +177,15 @@ static class Setup
         // removing has no stop: once it runs, Esc does nothing and the window stays until it is done
         // (closing it half-way left current, app-* and the installed apps entry behind)
         win.KeyDown += delegate(object o, KeyEventArgs e) { if (e.Key != Key.Escape) return; if (!busy) Quit(); else if (!removing) stop.Cancel(); };
-        win.Closing += delegate(object o, System.ComponentModel.CancelEventArgs e) { if (removing && busy) e.Cancel = true; };
+        // installing: closing stops it first (as 멈추기 does) and the window goes once Go() has
+        // cleaned up; closing at once left the half-fetched <version>.zip.part behind
+        win.Closing += delegate(object o, System.ComponentModel.CancelEventArgs e)
+        {
+            if (!busy) return;
+            e.Cancel = true;
+            if (!removing) { quitting = true; stop.Cancel(); }
+        };
+        win.Closed += delegate { closed = true; };
 
         foreach (var n in new[] { "Desk", "Menu", "Open", "Mine" })
         {
@@ -339,7 +348,8 @@ static class Setup
             Progress(1);
             done = true; busy = false;
             Part<Button>("Cancel").Content = "닫기";
-            if (goNow && Part<ToggleButton>("Open").IsChecked != true) { Quit(); return; }
+            // closed while unpacking (that part can't stop): it is in, but Rove is not started
+            if (quitting || (goNow && Part<ToggleButton>("Open").IsChecked != true)) { Quit(); return; }
             if (Part<ToggleButton>("Open").IsChecked == true)
             {
                 Say("다 됐어요. Rove를 켜요", null);
@@ -356,6 +366,7 @@ static class Setup
         catch (HttpRequestException) { Mark(at, true); Say("받지 못했어요", null, true); Again(); }
         catch (IOException) { Mark(at, true); Say(at == 2 ? "풀지 못했어요" : "넣지 못했어요", null, true); Again(); }
         catch (Exception) { Mark(at, true); Say("넣지 못했어요", null, true); Again(); }
+        if (quitting) Quit();
     }
 
     // the zip, hashed as it comes in; on a stop or a bad hash the part file goes
@@ -437,6 +448,7 @@ static class Setup
 
     static void Quit()
     {
+        if (closed) return;
         if (stop != null) stop.Cancel();
         win.Close();
     }

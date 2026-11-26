@@ -122,7 +122,8 @@ let grants = load("permissions.json", {}); // { origin: { camera: true, location
 // allow: hosts ads are not stopped on; sleep: tabs not looked at for SLEEP_AFTER
 // are put to sleep; zoom: { host: factor } (not 1); awake: sites (edup.co.kr)
 // whose pages keep going with the window down (keepGoing, below)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], ...load("settings.json", {}) };
+// start: "last" (the last run's tabs) or "home" (one home tab)
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], start: "last", ...load("settings.json", {}) };
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
@@ -247,6 +248,7 @@ function snapshot() {
     isDefault,
     pass: passState(),
     sleep: !!settings.sleep,
+    startLast: settings.start !== "home",
     split: splitShown() ? { a: split.a.id, b: split.b.id, ratio: split.ratio } : null,
     paired: split ? [split.a.id, split.b.id] : [],
     groups: groups.map((g) => ({ ...g })),
@@ -311,6 +313,12 @@ function navOk(h) {
   const index = entries.indexOf(shown);
   if (index < 0) return null;
   return { entries: entries.map((e) => ({ url: e.url, title: typeof e.title === "string" ? e.title : "", ...(typeof e.pageState === "string" ? { pageState: e.pageState } : {}) })), index };
+}
+// how Rove starts (≡ 지난 탭으로 시작, as Chrome's 시작 시): the last run's windows, or one home tab —
+// then the last run's windows are the newest closed things, and Ctrl+Shift+T brings them back
+function startWindows(list) {
+  if (list.length && settings.start !== "home") for (const r of list) createWindow({ restore: r });
+  else { createWindow({}); closedTabs.push(...list.slice(-25)); }
 }
 // Ctrl+Shift+T and the tab menu: the newest closed thing — a tab, or a whole window
 function reopenClosed() {
@@ -1331,6 +1339,7 @@ function messages() {
   on("rove:split-ratio", (r) => splitRatio(Number(r)));
   on("rove:unsplit", unsplit);
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
+  on("rove:start", (last) => { settings.start = last ? "last" : "home"; save("settings.json", settings); tell(); });
   on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
   on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });
   on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); keepIcons(); tell(); });
@@ -2224,8 +2233,7 @@ app.whenReady().then(async () => {
   const last = load("tabs.json", null);
   const list = Array.isArray(last?.windows) ? last.windows.filter((x) => x?.urls?.length) : last?.urls?.length ? [last] : [];
   if (start) createWindow({ urls: [start] });
-  else if (list.length) for (const r of list) createWindow({ restore: r });
-  else createWindow({});
+  else startWindows(list);
   use(windows[0]);
   for (const u of opened(process.argv.slice(1))) newTab(u);
   bootDone();
@@ -2520,7 +2528,7 @@ function testHooks() {
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
-    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths,
+    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows,
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
     get exts() { return exts; } };
 }

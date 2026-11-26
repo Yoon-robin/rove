@@ -467,6 +467,7 @@ function drawMenu() {
     <button class="rk-menu__item" data-do="tabs" role="menuitem">${icon("tabs")}탭 찾기${shortcut("Ctrl+Shift+A")}</button>
     <div class="switchrow">${icon("moon")}<span>안 쓰는 탭 재우기</span><button class="rk-switch" role="switch" data-sleep aria-checked="${!!state.sleep}" aria-label="안 쓰는 탭 재우기"></button></div>
     <div class="switchrow">${icon("sidebar")}<span>세로 탭</span><button class="rk-switch" role="switch" data-vertical aria-checked="${!!state.vertical}" aria-label="세로 탭"></button></div>
+    ${state.private ? "" : `<div class="switchrow">${icon("refresh")}<span>지난 탭으로 시작</span><button class="rk-switch" role="switch" data-start aria-checked="${!!state.startLast}" aria-label="지난 탭으로 시작"></button></div>`}
     <hr>
     ${state.block?.ready ? `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><button class="rk-switch" role="switch" data-block aria-checked="${!!state.block.on}" aria-label="광고·추적 막기"></button></div>
     ${state.block.on && state.block.site ? `<div class="switchrow site"><span>${esc(state.block.site)}</span><small class="rk-num">${state.block.siteOn ? `${state.block.count}개 막음` : "꺼짐"}</small><button class="rk-switch" role="switch" data-block-site aria-checked="${!!state.block.siteOn}" aria-label="${esc(state.block.site)}에서 막기"></button></div>` : ""}
@@ -491,6 +492,7 @@ function drawMenu() {
   root.querySelector("[data-block-site]")?.addEventListener("click", () => rove.send("rove:block", !state.block.siteOn, true));
   root.querySelector("[data-sleep]").addEventListener("click", () => rove.send("rove:sleep", !state.sleep));
   root.querySelector("[data-vertical]").addEventListener("click", () => rove.send("rove:vertical", !state.vertical));
+  root.querySelector("[data-start]")?.addEventListener("click", () => rove.send("rove:start", !state.startLast));
   root.querySelectorAll("[data-do]").forEach((b) => b.addEventListener("click", () => {
     const d = b.dataset.do;
     if (d === "new") rove.send("rove:new-tab");

@@ -17,10 +17,10 @@ button { font: inherit; }
 .strip { display: flex; align-items: flex-end; gap: 4px; height: 40px; padding: 0 140px 0 8px; -webkit-app-region: drag; }
 .strip > * { -webkit-app-region: no-drag; }
 .strip .drag { flex: 1; align-self: stretch; -webkit-app-region: drag; }
-.mark { width: 24px; height: 24px; margin: 0 6px 8px 2px; font-size: 12.5px; -webkit-app-region: drag; }
+.mark { width: 24px; height: 24px; margin: 0 6px 8px 2px; font-size: 12px; -webkit-app-region: drag; }
 .tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; height: 100%; flex: 0 1 auto; overflow: hidden; }
 .tabs-home .tabs { flex: 1 1 auto; }
-.tab { position: relative; display: flex; align-items: center; gap: 8px; flex: 0 1 220px; width: 220px; min-width: 44px; height: 32px; padding: 0 6px 0 10px; border-radius: var(--rk-r) var(--rk-r) 0 0; color: var(--rk-soft); font-size: 12.5px; cursor: default; transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
+.tab { position: relative; display: flex; align-items: center; gap: 8px; flex: 0 1 220px; width: 220px; min-width: 44px; height: 32px; padding: 0 6px 0 10px; border-radius: var(--rk-r) var(--rk-r) 0 0; color: var(--rk-soft); font-size: 12px; cursor: default; transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
 .tab:hover { background: var(--rk-hover); color: var(--rk-text); }
 .tab[aria-selected="true"] { background: var(--rk-page); color: var(--rk-head); box-shadow: inset 0 1px 0 var(--rk-line), inset 1px 0 0 var(--rk-line), inset -1px 0 0 var(--rk-line); }
 .tab + .tab:not([aria-selected="true"]):not(:hover)::before { content: ''; position: absolute; left: -1px; top: 9px; bottom: 9px; width: 1px; background: var(--rk-line); }
@@ -85,7 +85,7 @@ body.vertical .tools > * { -webkit-app-region: no-drag; }
 body.vertical .ask, body.vertical .find { margin-left: var(--side); }
 .side { position: fixed; top: 44px; left: 0; bottom: 0; display: flex; flex-direction: column; width: var(--side); background: var(--rk-side); box-shadow: inset -1px 0 0 var(--rk-line-side); }
 body.full .side { display: none; }
-.sidenew { display: flex; align-items: center; gap: 10px; flex: none; height: 34px; margin: 8px 6px 6px; padding: 0 10px; border: 0; border-radius: var(--rk-r); background: none; color: var(--rk-soft); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
+.sidenew { display: flex; align-items: center; gap: 10px; flex: none; height: 34px; margin: 8px 6px 6px; padding: 0 10px; border: 0; border-radius: var(--rk-r); background: none; color: var(--rk-soft); font: inherit; font-size: 12px; cursor: pointer; transition: background-color var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
 .sidenew:hover { background: var(--rk-hover); color: var(--rk-head); }
 .sidenew .rk-ico { width: 15px; height: 15px; }
 .sidelist { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rk-scroll) transparent; }
@@ -122,7 +122,7 @@ body.full .side { display: none; }
 .address { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; height: 32px; margin: 0 6px; padding: 0 2px 0 11px; border-radius: var(--rk-r); background: var(--rk-control); box-shadow: inset 0 0 0 1px var(--rk-control-line); transition: box-shadow var(--rk-t-fast) ease-out; }
 .address:hover { box-shadow: inset 0 0 0 1px var(--rk-control-line-hover); }
 .address:focus-within { box-shadow: inset 0 0 0 1px var(--rk-ring); }
-.address input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--rk-head); font: inherit; font-size: 13.5px; outline: 0; user-select: text; }
+.address input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--rk-head); font: inherit; font-size: 13px; outline: 0; user-select: text; }
 .address input::placeholder { color: var(--rk-faint); }
 .address input::selection { background: rgb(75 125 254 / 35%); }
 .address .star { width: 28px; height: 28px; }
@@ -130,7 +130,7 @@ body.full .side { display: none; }
 .address .star.on .rk-ico { fill: var(--rk-accent); }
 #pass.on { color: var(--rk-accent); }
 #pass.on .rk-ico { fill: none; }
-.newver { min-height: 28px; margin: 0 6px 0 2px; padding: 0 12px 0 15px; border: 0; font: inherit; font-size: 12.5px; font-weight: var(--rk-w-strong); cursor: pointer; transition: background-color var(--rk-t-fast) ease-out; }
+.newver { min-height: 28px; margin: 0 6px 0 2px; padding: 0 12px 0 15px; border: 0; font: inherit; font-size: 12px; font-weight: var(--rk-w-strong); cursor: pointer; transition: background-color var(--rk-t-fast) ease-out; }
 .newver:hover { background: var(--rk-control-hover); }
 #downloads { position: relative; }
 #downloads .tick { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--rk-track); overflow: hidden; }
@@ -156,7 +156,7 @@ body.full .side { display: none; }
 .find > .rk-ico { width: 14px; height: 14px; color: var(--rk-faint); }
 .find input { width: min(360px, 50vw); height: 30px; margin-left: 6px; padding: 0 10px; border: 0; border-radius: var(--rk-r); background: var(--rk-control); box-shadow: inset 0 0 0 1px var(--rk-control-line); color: var(--rk-head); font: inherit; font-size: 13px; outline: 0; user-select: text; }
 .find input:focus { box-shadow: inset 0 0 0 1px var(--rk-ring); }
-.find .count { min-width: 56px; padding: 0 8px; color: var(--rk-soft); font-size: 12.5px; }
+.find .count { min-width: 56px; padding: 0 8px; color: var(--rk-soft); font-size: 12px; }
 .find .count.none { color: var(--rk-alarm-text); }
 
 /* ---- a page whose renderer died (its view is taken away, this shows) */
@@ -179,15 +179,15 @@ body.vertical .pop.tabfind { top: 48px; }
 .grpedit .sw { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: var(--g); cursor: pointer; box-shadow: 0 0 0 2px var(--rk-hud); transition: box-shadow var(--rk-t-fast) ease-out; }
 .grpedit .sw[aria-checked="true"] { box-shadow: 0 0 0 2px var(--rk-hud), 0 0 0 3.5px var(--g); }
 .grpedit .sw:focus-visible { outline: 0; box-shadow: 0 0 0 2px var(--rk-hud), 0 0 0 3.5px var(--rk-ring); }
-.zoomrow { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 4px 0 10px; font-size: 13.5px; color: var(--rk-text); }
+.zoomrow { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 4px 0 10px; font-size: 13px; color: var(--rk-text); }
 .zoomrow span:first-child { margin-right: auto; }
 .zoomrow .rk-num { min-width: 44px; text-align: center; color: var(--rk-head); }
 .zoomrow .btn { width: 28px; height: 28px; }
 .menu .fact { padding: 6px 10px 4px; color: var(--rk-faint); font-size: 12px; }
-.switchrow { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; color: var(--rk-text); font-size: 13.5px; }
+.switchrow { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; color: var(--rk-text); font-size: 13px; }
 .switchrow > .rk-ico { flex: none; }
 .switchrow span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.switchrow.site { min-height: 30px; padding-left: 36px; color: var(--rk-soft); font-size: 12.5px; }
+.switchrow.site { min-height: 30px; padding-left: 36px; color: var(--rk-soft); font-size: 12px; }
 .switchrow.site small { flex: none; color: var(--rk-faint); font-size: 12px; }
 
 /* open tabs found by name (Ctrl+Shift+A): under the tab strip at the left */
@@ -202,7 +202,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .tabfind .item > img.fav { flex: none; width: 16px; height: 16px; border-radius: 3px; }
 .tabfind .item.asleep > img.fav, .tabfind .item.asleep > .rk-ico { opacity: .45; }
 .tabfind .item .w { flex: 1; min-width: 0; }
-.tabfind .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13.5px; line-height: 18px; }
+.tabfind .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .tabfind .item small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .tabfind .item .btn { width: 28px; height: 28px; }
 .tabfind .item .btn .rk-ico { width: 14px; height: 14px; }
@@ -224,7 +224,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .pop.pass { width: 340px; padding: 0; }
 .pass header { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px 0 14px; border-bottom: 1px solid var(--rk-hud-line); }
 .pass header > .rk-ico { width: 15px; height: 15px; color: var(--rk-accent); }
-.pass header b { color: var(--rk-head); font-size: 13.5px; font-weight: var(--rk-w-strong); }
+.pass header b { color: var(--rk-head); font-size: 13px; font-weight: var(--rk-w-strong); }
 .pass header small { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; }
 .pass header .btn { width: 28px; height: 28px; }
 .pass header .btn .rk-ico { width: 14px; height: 14px; }
@@ -244,7 +244,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .pass .item > .rk-ico { flex: none; width: 15px; height: 15px; color: var(--rk-faint); }
 .pass .item.fill > .rk-ico { color: var(--rk-accent); }
 .pass .item .w, .pass .save .w { flex: 1; min-width: 0; }
-.pass .item b, .pass .save b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13.5px; line-height: 18px; }
+.pass .item b, .pass .save b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .pass .item small, .pass .save small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .pass .item .btn { width: 28px; height: 28px; }
 .pass .item .btn .rk-ico { width: 14px; height: 14px; }
@@ -258,17 +258,17 @@ body.vertical .pop.tabfind { top: 48px; }
 .site header { display: flex; align-items: center; gap: 10px; padding: 6px 8px 8px 10px; }
 .site header > .rk-ico { flex: none; width: 15px; height: 15px; color: var(--rk-accent); }
 .site header .w { min-width: 0; }
-.site header b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-head); font-size: 13.5px; font-weight: var(--rk-w-strong); line-height: 18px; }
+.site header b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-head); font-size: 13px; font-weight: var(--rk-w-strong); line-height: 18px; }
 .site header small { display: block; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .site header small.alarm { color: var(--rk-alarm-text); }
 .site.plain header > .rk-ico { color: var(--rk-alarm-text); }
 .site .rk-label { margin: 4px 0 2px; padding: 0 10px; }
-.site .perm { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 6px 0 10px; color: var(--rk-text); font-size: 13.5px; }
+.site .perm { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 6px 0 10px; color: var(--rk-text); font-size: 13px; }
 .site .perm > .rk-ico { flex: none; width: 13px; height: 13px; color: var(--rk-faint); stroke-width: 2.2; }
 .site .perm span { flex: 1; min-width: 0; }
 .site .perm .rk-select--row { width: 84px; }
 .site .switchrow small { flex: none; color: var(--rk-faint); font-size: 12px; }
-.site .confirm { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 4px 0 10px; color: var(--rk-text); font-size: 12.5px; }
+.site .confirm { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 4px 0 10px; color: var(--rk-text); font-size: 12px; }
 .site .confirm span { flex: 1; min-width: 0; }
 .site .msg { margin: 4px 0 2px; padding: 0 10px; color: var(--rk-soft); font-size: 12px; }
 .site .msg.alarm { color: var(--rk-alarm-text); }
@@ -285,7 +285,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .share header { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px 0; }
 .share header > .rk-ico { align-self: center; width: 15px; height: 15px; color: var(--rk-accent); }
 .share header b { color: var(--rk-head); font-size: 14px; font-weight: var(--rk-w-strong); }
-.share header small { color: var(--rk-faint); font-size: 12.5px; }
+.share header small { color: var(--rk-faint); font-size: 12px; }
 .share .from { padding: 12px 16px 4px; }
 .share .from .rk-tab .rk-num { margin-left: 4px; color: var(--rk-faint); font-weight: var(--rk-w); }
 .share .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); align-content: start; gap: 10px; padding: 10px 16px 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rk-scroll) transparent; }
@@ -298,8 +298,8 @@ body.vertical .pop.tabfind { top: 48px; }
 .share .pic img { width: 100%; height: 100%; object-fit: contain; }
 .share .pic img.fav { width: 28px; height: 28px; border-radius: 5px; }
 .share .pic .rk-ico { width: 24px; height: 24px; color: var(--rk-faint); }
-.share .nm { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 2px; font-size: 12.5px; line-height: 16px; }
-.share .src small { margin-top: -4px; padding: 0 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 11.5px; line-height: 14px; }
+.share .nm { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 2px; font-size: 12px; line-height: 16px; }
+.share .src small { margin-top: -4px; padding: 0 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 11px; line-height: 14px; }
 .share footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--rk-hud-line); }
 .share .sound { display: flex; align-items: center; gap: 8px; margin-right: auto; color: var(--rk-text); font-size: 13px; cursor: pointer; }
 /* comes in once: the window dims, the picker rises 6px into place; the
@@ -314,7 +314,7 @@ body.vertical .pop.tabfind { top: 48px; }
 
 /* the address suggestions: the overlay is only as big as the list */
 .suggest { inset: 0; padding: 4px; border-radius: var(--rk-r); background: var(--rk-hud); box-shadow: 0 0 0 1px var(--rk-hud-line) inset; animation: none; }
-.suggest a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 6px; color: var(--rk-text); font-size: 13.5px; text-decoration: none; cursor: default; }
+.suggest a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 6px; color: var(--rk-text); font-size: 13px; text-decoration: none; cursor: default; }
 .suggest a .rk-ico { width: 14px; height: 14px; color: var(--rk-faint); }
 .suggest a b { font-weight: var(--rk-w); min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .suggest a small { flex: none; max-width: 45%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; }
@@ -335,7 +335,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item:hover { background: var(--rk-hover); color: var(--rk-head); }
 .drawer .item > .rk-ico { width: 15px; height: 15px; color: var(--rk-faint); }
 .drawer .item .w { flex: 1; min-width: 0; }
-.drawer .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13.5px; line-height: 18px; }
+.drawer .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .drawer .item small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .drawer .item small.alarm { color: var(--rk-alarm-text); }
 .drawer .item .btn { width: 28px; height: 28px; }
@@ -356,13 +356,13 @@ body.vertical .pop.tabfind { top: 48px; }
    turns salmon for the last seven (as the web vault's does). A press copies the code. */
 .pass .views { padding: 10px 10px 0; }
 .pass .views .rk-tabs { display: grid; width: 100%; }
-.pass .views .rk-tab { min-height: 26px; font-size: 12.5px; }
+.pass .views .rk-tab { min-height: 26px; font-size: 12px; }
 .pass .code { display: flex; align-items: center; gap: 10px; width: calc(100% - 12px); min-height: 50px; margin: 0 6px; padding: 0 8px 0 12px; border: 0; border-radius: var(--rk-r); background: none; color: var(--rk-text); font: inherit; text-align: left; cursor: pointer; }
 .pass .code:hover:not(:disabled), .pass .code:focus-visible { background: var(--rk-hover); color: var(--rk-head); outline: 0; }
 .pass .code:focus-visible { box-shadow: inset 0 0 0 1px var(--rk-accent); }
 .pass .code:disabled { cursor: default; }
 .pass .code .w { flex: 1; min-width: 0; }
-.pass .code b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13.5px; line-height: 18px; }
+.pass .code b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .pass .code small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .pass .code .v { display: inline-flex; flex: none; gap: 0.4em; font: 500 18px/1 var(--rk-mono); letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: var(--rk-head); }
 .pass .code:disabled .v { color: var(--rk-faint); }

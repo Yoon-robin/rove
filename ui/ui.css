@@ -125,6 +125,12 @@ body.full .side { display: none; }
 .address:focus-within { box-shadow: inset 0 0 0 1px var(--rk-ring); }
 .address input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--rk-head); font: inherit; font-size: 13px; outline: 0; user-select: text; }
 .address input::placeholder { color: var(--rk-faint); }
+/* not being typed in: the site's name reads brighter than the rest (as in Chrome and Firefox), drawn by .shown over the input's own (then clear) words */
+.address .field { position: relative; display: flex; flex: 1; min-width: 0; height: 100%; }
+.address .shown { position: absolute; inset: 0; display: none; align-items: center; overflow: hidden; white-space: pre; color: var(--rk-soft); font-size: 13px; pointer-events: none; }
+.address .shown b { color: var(--rk-head); font-weight: inherit; }
+.address.showing .shown { display: flex; }
+.address.showing input { color: transparent; }
 /* the box draws the ring (.address:focus-within, .find input:focus): the kit's .rk :focus-visible outline would be a second one */
 .address input:focus-visible, .find input:focus-visible { outline: 0; }
 .address input::selection { background: rgb(75 125 254 / 35%); }
@@ -426,6 +432,8 @@ body.vertical .pop.tabfind { top: 48px; }
   .tab[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   .address { border: 1px solid CanvasText; }
   .address:focus-within { outline: 2px solid Highlight; outline-offset: -1px; }
+  /* one colour for all words here: the input shows the address itself, nothing over it */
+  .address.showing .shown { display: none; }
   /* the kit's switch is all background: forced colors blanked it, on or off. Drawn here in
      system colours (forced-color-adjust: none keeps the knob's background) */
   .rk-switch { forced-color-adjust: none; background: Canvas; border: 1px solid CanvasText; }

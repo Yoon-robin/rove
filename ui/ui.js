@@ -222,6 +222,15 @@ for (const kind of ["copy", "cut"]) url.addEventListener(kind, (e) => {
   e.clipboardData.setData("text/plain", t.url);
   if (kind === "cut") url.value = "";
 });
+// the address as it reads when not typed in: scheme and path quieter, the host in full
+function paintShown() {
+  const m = !editing && /^(https?:\/\/)([^/?#]+)(.*)$/i.exec(url.value);
+  $("address").classList.toggle("showing", !!m);
+  if (!m) { $("shown").replaceChildren(); return; }
+  const host = document.createElement("b");
+  host.textContent = m[2];
+  $("shown").replaceChildren(m[1], host, m[3]);
+}
 function drawTools() {
   const t = state.tabs.find((x) => x.id === state.active);
   // extensions: the normal windows only; their buttons show what they say for the tab in front
@@ -235,6 +244,7 @@ function drawTools() {
   $("reload").title = loading ? "멈추기" : "새로 고침";
   if (document.activeElement !== url) editing = false;
   if (!editing) url.value = shown(t?.url);
+  paintShown();
   const u = t?.url || "";
   const secure = /^https:/.test(u);
   const plain = /^http:/.test(u) && !/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(u);
@@ -364,8 +374,8 @@ function suggest() {
   sel = 0;
   rove.send("rove:suggest", url.value, { x: r.left, y: r.bottom + 4, width: r.width });
 }
-url.addEventListener("focus", () => { editing = true; requestAnimationFrame(() => url.select()); });
-url.addEventListener("input", () => { editing = true; if (url.value.trim()) suggest(); else close(); });
+url.addEventListener("focus", () => { editing = true; paintShown(); requestAnimationFrame(() => url.select()); });
+url.addEventListener("input", () => { editing = true; paintShown(); if (url.value.trim()) suggest(); else close(); });
 url.addEventListener("blur", () => { setTimeout(() => { editing = false; close(); drawTools(); }, 150); });
 url.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {

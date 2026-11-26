@@ -2095,6 +2095,12 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   if (!priv) lastNormal = w;
 
   bw.on("resize", here(() => { hideOverlay(); layout(); }));
+  // the mouse's back and forward buttons (Windows' app commands), as Alt+Left and Alt+Right
+  bw.on("app-command", here((e, cmd) => {
+    const h = active?.view.webContents.navigationHistory;
+    if (cmd === "browser-backward") h?.goBack();
+    else if (cmd === "browser-forward") h?.goForward();
+  }));
   bw.on("enter-full-screen", here(() => { layout(); tell(); }));
   bw.on("leave-full-screen", here(() => { fullTab = null; layout(); tell(); }));
   bw.on("blur", here(() => { if (overlayOn?.kind === "suggest") hideOverlay(); }));

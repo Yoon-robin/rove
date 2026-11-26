@@ -970,6 +970,11 @@ function starAll() {
   save("bookmarks.json", bookmarks);
   tell();
 }
+// F3 and Ctrl+G, as in Chrome: the next (or last) match of the find box, opened if it was not
+function findAgain(forward) {
+  if (!findOpen || !cur?.findWords) return setFind(true);
+  active?.view.webContents.findInPage(cur.findWords, { forward, findNext: true });
+}
 function setFind(open) {
   findOpen = open;
   if (!open) for (const t of tabs) t.view.webContents.stopFindInPage("clearSelection");
@@ -1052,7 +1057,11 @@ function keyAction(input, fromBar = false) {
   // Ctrl+Shift+W: the whole window, as in Chrome (Ctrl+Shift+T brings it back while another stays)
   if (c && input.shift && k === "w") return run(() => win.close());
   if (c && k === "w") return run(() => active && closeTab(active));
-  if (c && k === "Tab") return run(() => { const i = tabs.indexOf(active); select(tabs[(i + (input.shift ? -1 : 1) + tabs.length) % tabs.length]); });
+  const step = (d) => () => { const i = tabs.indexOf(active); select(tabs[(i + d + tabs.length) % tabs.length]); };
+  if (c && k === "Tab") return run(step(input.shift ? -1 : 1));
+  if (c && !input.shift && (k === "PageDown" || k === "PageUp")) return run(step(k === "PageDown" ? 1 : -1));
+  if (c && input.shift && (k === "PageDown" || k === "PageUp")) return run(() => active && moveTab(active, tabs.indexOf(active) + (k === "PageDown" ? 1 : -1)));
+  if (c && k === "F4") return run(() => active && closeTab(active));
   if (c && /^[1-9]$/.test(k)) return run(() => select(k === "9" ? tabs[tabs.length - 1] : tabs[Number(k) - 1]));
   if (c && input.shift && k === "l") return run(passQuick);
   // F6 goes back and forth between the address bar and the page, as in Chrome
@@ -1070,6 +1079,10 @@ function keyAction(input, fromBar = false) {
   if (c && input.shift && k === "a") return run(() => showOverlay({ kind: "tabs", keyed: true }));
   if (k === "F9") return run(() => read());
   if (c && k === "f") return run(() => setFind(true));
+  if (k === "F3" || (c && k === "g")) return run(() => findAgain(!input.shift));
+  if (c && k === "u") return run(() => webby(active?.url) && newTab("view-source:" + active.url, { after: active }));
+  if (input.alt && k === "Home") return run(() => go(HOME_PAGE));
+  if (input.alt && !c && k === "f") return run(() => showOverlay({ kind: "menu", keyed: true }));
   if (c && k === "p") return run(() => active?.view.webContents.print());
   if (c && (k === "=" || k === "+")) return run(() => zoom(1));
   if (c && k === "-") return run(() => zoom(-1));
@@ -1078,6 +1091,7 @@ function keyAction(input, fromBar = false) {
   if (k === "F12" || (c && input.shift && k === "i")) return run(() => active?.view.webContents.toggleDevTools());
   if (k === "Escape" && overlayOn) return run(hideOverlay);
   if (k === "Escape" && findOpen) return run(() => setFind(false));
+  if (k === "Escape" && !fromBar && active?.view.webContents.isLoading()) return run(() => active.view.webContents.stop());
   return null;
 }
 
@@ -1110,7 +1124,7 @@ function reserved(input) {
   const c = input.control || input.meta;
   const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
   // and the ways out a page must not stop: full screen (F11) and the developer tools
-  return (c && (k === "t" || k === "n" || k === "w" || k === "Tab" || (input.shift && (k === "l" || k === "i")))) || k === "F11" || k === "F12";
+  return (c && (k === "t" || k === "n" || k === "w" || k === "Tab" || k === "F4" || (!input.shift && (k === "PageUp" || k === "PageDown")) || (input.shift && (k === "l" || k === "i")))) || k === "F11" || k === "F12";
 }
 function pageKey(tab, e, input) {
   const f = keyAction(input);
@@ -1163,6 +1177,7 @@ function messages() {
   on("rove:zoom", (step) => zoom(Number(step) || 0));
   on("rove:find", (text, forward, next) => {
     if (!active) return;
+    cur.findWords = String(text || "");
     if (!text) { active.view.webContents.stopFindInPage("clearSelection"); win.webContents.send("rove:found", { at: 0, of: 0 }); return; }
     active.view.webContents.findInPage(String(text), { forward: forward !== false, findNext: !!next });
   });

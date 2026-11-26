@@ -1555,7 +1555,7 @@ let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
 const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites });
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -2004,12 +2004,12 @@ function startExtensions(ses) {
   });
 }
 // the web store's "Chrome에 추가": asked in that tab's ask bar, every time
-function askExtension({ name, allSites, wc }) {
+function askExtension({ name, allSites, wontBlock, wc }) {
   return new Promise((done) => {
     const tab = tabOf(wc);
     if (!tab || tab.w.gone) return done(false);
     use(tab.w);
-    asks.push({ id: nextId++, kind: "extension", tab, origin: "", host: "chromewebstore.google.com", what: [], name, allSites, done: [done] });
+    asks.push({ id: nextId++, kind: "extension", tab, origin: "", host: "chromewebstore.google.com", what: [], name, allSites, wontBlock, done: [done] });
     if (tab !== active) select(tab);
     layout();
     tell();
@@ -2237,7 +2237,7 @@ function testHooks() {
   globalThis.__rove = { get win() { return win; }, get overlay() { return overlay; }, get overlayOn() { return overlayOn; }, get tabs() { return tabs; }, get active() { return active; },
     windows, use, get cur() { return cur; }, createWindow, takeTab, putTab, moveToWindow, tear, inStrip, get privGrants() { return privGrants; }, get privateSes() { return privateSes; }, record,
     keys, newTab, go, select, closeTab, showOverlay, hideOverlay, snapshot, shot, star, setFind, get history() { return history; }, get bookmarks() { return bookmarks; }, get downloads() { return downloads; },
-    get asks() { return asks; }, answer, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
+    get asks() { return asks; }, answer, askExtension, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
     makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,

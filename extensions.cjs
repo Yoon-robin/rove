@@ -13,6 +13,7 @@
 // Electron's own webRequest (our ad blocking, blocker.cjs) takes the place of
 // an extension's chrome.webRequest, and declarativeNetRequest is not there:
 // an ad blocking extension does nothing here, Rove's own blocking does that.
+// So the ask before such an install says so (blocksRequests).
 const { nativeImage, session, webContents } = require("electron");
 const { existsSync } = require("node:fs");
 const { join } = require("node:path");
@@ -33,7 +34,7 @@ const onStore = (url) => { try { return new URL(url).origin === new URL(STORE).o
 
 // ses: the session the pages are in; dir: where installed extensions are kept;
 // impl: Rove's tabs and windows for chrome.tabs / chrome.windows (see main.cjs);
-// confirm({ name, id, allSites, wc }) → Promise<boolean>: asked before an install;
+// confirm({ name, id, allSites, wontBlock, wc }) → Promise<boolean>: asked before an install;
 // actionsPreload: the file that gives our toolbar <browser-action-list>
 function start({ ses, dir, impl, confirm, actionsPreload, log }) {
   const api = new ElectronChromeExtensions({ session: ses, ...impl });
@@ -47,7 +48,7 @@ function start({ ses, dir, impl, confirm, actionsPreload, log }) {
     extensionsPath: dir,
     autoUpdate: true,
     beforeInstall: async ({ id, localizedName, manifest, frame }) => {
-      const yes = await confirm({ id, name: localizedName || manifest?.name || id, allSites: allSites(manifest), wc: (frame && webContents.fromFrame(frame)) || null }).catch(() => false);
+      const yes = await confirm({ id, name: localizedName || manifest?.name || id, allSites: allSites(manifest), wontBlock: blocksRequests(manifest), wc: (frame && webContents.fromFrame(frame)) || null }).catch(() => false);
       log(`확장 프로그램 ${yes ? "추가" : "안 함"}: ${localizedName || id}`);
       return { action: yes ? "allow" : "deny" };
     },
@@ -86,6 +87,11 @@ function allSites(m = {}) {
   const any = (list) => (list || []).some((p) => p === "<all_urls>" || /^(\*|https?):\/\/\*\//.test(p));
   return any(m.host_permissions) || any(m.permissions) || (m.content_scripts || []).some((c) => any(c.matches));
 }
+// an extension that blocks or changes requests (uBlock Origin Lite, AdGuard, ...): it would do nothing here
+function blocksRequests(m = {}) {
+  const all = [...(m.permissions || []), ...(m.optional_permissions || [])];
+  return all.some((p) => typeof p === "string" && (p.startsWith("declarativeNetRequest") || p === "webRequestBlocking"));
+}
 function optionsOf(e) {
   if (!e) return null;
   const page = e.manifest.options_ui?.page || e.manifest.options_page;
@@ -103,4 +109,4 @@ function icon(e) {
   return null;
 }
 
-module.exports = { start, STORE };
+module.exports = { start, STORE, blocksRequests };

@@ -43,6 +43,7 @@ function draw() {
   if (!open) { root.innerHTML = ""; return; }
   if (open.kind === "suggest") return drawSuggest();
   if (open.kind === "menu") return drawMenu();
+  if (open.kind === "keys") return drawKeys();
   if (open.kind === "drawer") return drawDrawer();
   if (open.kind === "pass") return drawPass();
   if (open.kind === "site") return drawSite();
@@ -482,6 +483,7 @@ function drawMenu() {
     <button class="rk-menu__item" data-do="save-page" role="menuitem">${icon("download")}페이지 저장${shortcut("Ctrl+S")}</button>
     <button class="rk-menu__item" data-do="full" role="menuitem">${icon("target")}전체 화면${shortcut("F11")}</button>
     <button class="rk-menu__item" data-do="devtools" role="menuitem">${icon("terminal")}개발자 도구${shortcut("F12")}</button>
+    <button class="rk-menu__item" data-do="keys" role="menuitem">${icon("keys")}단축키</button>
     <hr>
     ${state.isDefault ? "" : `<button class="rk-menu__item" data-do="default" role="menuitem">${icon("globe")}기본 브라우저로</button>`}
     ${state.update?.ready ? `<button class="rk-menu__item" data-do="relaunch" role="menuitem">${icon("refresh")}다시 켜서 새 버전으로</button>` : ""}
@@ -501,6 +503,7 @@ function drawMenu() {
     else if (d === "history" || d === "bookmarks" || d === "downloads" || d === "sites" || d === "extensions") rove.send("rove:overlay", { kind: "drawer", panel: d });
     else if (d === "default") rove.send("rove:default");
     else if (d === "tabs") rove.send("rove:overlay", { kind: "tabs" });
+    else if (d === "keys") rove.send("rove:overlay", { kind: "keys" });
     else if (d === "zoom-in") rove.send("rove:zoom", 1);
     else if (d === "zoom-out") rove.send("rove:zoom", -1);
     else if (d === "find") { shut(); rove.send("rove:find-open", true); }
@@ -511,6 +514,24 @@ function drawMenu() {
     else if (d === "relaunch") rove.send("rove:relaunch");
   }));
   root.querySelector(".rk-menu__item")?.focus();
+}
+
+// ---- the shortcuts (≡ 단축키): every one is main.cjs keyAction's (test/shortcut-list.mjs checks) ----
+const KEYS = [
+  ["탭과 창", [["새 탭", "Ctrl+T"], ["닫은 탭 다시 열기", "Ctrl+Shift+T"], ["탭 닫기", "Ctrl+W"], ["다음 탭", "Ctrl+Tab"], ["이전 탭", "Ctrl+Shift+Tab"],
+    ["1~8번째 탭", "Ctrl+1"], ["마지막 탭", "Ctrl+9"], ["탭 찾기", "Ctrl+Shift+A"], ["새 창", "Ctrl+N"], ["새 비공개 창", "Ctrl+Shift+N"], ["창 닫기", "Ctrl+Shift+W"]]],
+  ["페이지", [["뒤로", "Alt+←"], ["앞으로", "Alt+→"], ["새로 고침", "F5"], ["캐시 없이 새로 고침", "Ctrl+Shift+R"], ["홈", "Alt+Home"],
+    ["페이지에서 찾기", "Ctrl+F"], ["다음 찾기", "F3"], ["읽기 모드", "F9"], ["확대", "Ctrl+="], ["축소", "Ctrl+-"], ["원래 크기", "Ctrl+0"],
+    ["인쇄", "Ctrl+P"], ["페이지 저장", "Ctrl+S"], ["소스 보기", "Ctrl+U"], ["전체 화면", "F11"], ["개발자 도구", "F12"]]],
+  ["주소창과 목록", [["주소창", "Ctrl+L"], ["즐겨찾기에 넣기", "Ctrl+D"], ["모든 탭 즐겨찾기", "Ctrl+Shift+D"], ["방문 기록", "Ctrl+H"], ["내려받기", "Ctrl+J"],
+    ["즐겨찾기", "Ctrl+Shift+O"], ["파일 열기", "Ctrl+O"], ["RobinPass", "Ctrl+Shift+L"], ["메뉴", "Alt+F"]]],
+];
+function drawKeys() {
+  root.innerHTML = `<div class="scrim"></div><div class="pop menu keys rk-menu" role="dialog" aria-label="단축키" tabindex="-1">
+    ${KEYS.map(([group, rows]) => `<div class="rk-label">${group}</div>${rows.map(([name, k]) => `<div class="keyrow"><span>${name}</span><kbd class="key">${k === "Ctrl+1" ? "Ctrl+1~8" : k}</kbd></div>`).join("")}`).join("")}
+  </div>`;
+  root.querySelector(".scrim").addEventListener("mousedown", shut);
+  root.querySelector(".pop").focus();
 }
 
 // ---- drawers --------------------------------------------------------------------------

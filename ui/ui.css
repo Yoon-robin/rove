@@ -210,6 +210,10 @@ body.vertical .pop.tabfind { top: 48px; }
 .zoomrow .rk-num { min-width: 44px; text-align: center; color: var(--rk-head); }
 .zoomrow .btn { width: 28px; height: 28px; }
 .menu .key { margin-left: auto; padding-left: 12px; color: var(--rk-faint); font-size: 12px; white-space: nowrap; }
+.pop.keys { width: 280px; outline: 0; }
+.keys .rk-label:first-child { margin-top: 4px; }
+.keyrow { display: flex; align-items: center; min-height: 28px; padding: 0 10px; color: var(--rk-text); font-size: 13px; }
+.keyrow kbd { font: inherit; }
 .menu .fact { padding: 6px 10px 4px; color: var(--rk-faint); font-size: 12px; }
 .switchrow { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; color: var(--rk-text); font-size: 13px; }
 .switchrow > .rk-ico { flex: none; }

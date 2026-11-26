@@ -1378,8 +1378,10 @@ function freePath(dir, name) {
 }
 // files that run when opened: they come down into Rove's own folder and wait
 // in the ask bar; only a yes puts them in Downloads
-const RUNS = { program: /\.(exe|msi|msix|msixbundle|appx|appxbundle|com|scr|pif|cpl|dll|sys|jar|application|appref-ms|msp|msc|gadget)$/i,
-  script: /\.(bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|reg|lnk|url|scf|inf|chm)$/i, disk: /\.(iso|img|vhd|vhdx)$/i };
+const RUNS = { program: /\.(exe|msi|msix|msixbundle|appx|appxbundle|appinstaller|com|scr|pif|cpl|dll|sys|xll|jar|jnlp|application|appref-ms|msp|msc|gadget|diagcab)$/i,
+  // the shell's own files run too: a settings or search shortcut, a scriptlet, a PowerShell type file
+  script: /\.(bat|cmd|ps1|psm1|psd1|ps1xml|ps2xml|psc1|psc2|msh|msh1|msh2|mshxml|msh1xml|msh2xml|vbs|vbe|js|jse|ws|wsf|wsh|wsc|sct|hta|reg|lnk|url|scf|inf|chm|settingcontent-ms|search-ms|searchconnector-ms|library-ms)$/i,
+  disk: /\.(iso|img|vhd|vhdx)$/i };
 const runs = (name) => Object.keys(RUNS).find((k) => RUNS[k].test(name)) || null;
 function move(from, to) {
   try { renameSync(from, to); } catch { copyFileSync(from, to); unlinkSync(from); }

@@ -1032,7 +1032,19 @@ function hideOverlay() {
   win?.webContents.send("rove:overlay-closed", was);
 }
 
-function suggestions(text) {
+// the start of a site already visited or kept, typed: the rest of its name (newest first), filled
+// in the address bar as Chrome does ("git" -> "github.com"; www. left off unless typed)
+function completion(text) {
+  const q = text.toLowerCase();
+  if (!q || /[\s/:]/.test(q)) return "";
+  for (const list of [history, bookmarks]) for (let i = list.length - 1; i >= 0; i--) {
+    if (!webby(list[i].url)) continue;
+    const h = q.startsWith("www.") ? new URL(list[i].url).hostname : hostOf(list[i].url);
+    if (h.startsWith(q) && h !== q) return h;
+  }
+  return "";
+}
+function suggestions(text, inline = "") {
   const q = text.trim().toLowerCase();
   if (!q) return [];
   const seen = new Set();
@@ -1057,7 +1069,7 @@ function suggestions(text) {
   }
   take(bookmarks, "bookmark");
   take(history, "history");
-  const direct = toUrl(text);
+  const direct = toUrl(inline || text);
   const first = direct && !direct.startsWith(SEARCH) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: SEARCH + encodeURIComponent(text.trim()), title: text.trim() };
   return [first, ...out.filter((o) => o.kind === "tab" || o.url !== first.url)].slice(0, 8);
 }
@@ -1135,7 +1147,8 @@ function keyAction(input, fromBar = false) {
   if (c && k === "0") return run(() => zoom(0));
   if (k === "F11") return run(() => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   if (k === "F12" || (c && input.shift && k === "i")) return run(() => active?.view.webContents.toggleDevTools());
-  if (k === "Escape" && overlayOn) return run(hideOverlay);
+  // the suggestions under the address bar: its own Esc closes them (and takes back what it filled in)
+  if (k === "Escape" && overlayOn && !(fromBar && overlayOn.kind === "suggest")) return run(hideOverlay);
   if (k === "Escape" && findOpen) return run(() => setFind(false));
   if (k === "Escape" && !fromBar && active?.view.webContents.isLoading()) return run(() => active.view.webContents.stop());
   return null;
@@ -1233,9 +1246,10 @@ function messages() {
   on("rove:move", (id, to) => { const t = tabs.find((x) => x.id === id); if (t && Number.isInteger(to)) moveTab(t, to); });
   on("rove:print", () => { hideOverlay(); active?.view.webContents.print(); });
   on("rove:focus-page", () => active?.view.webContents.focus());
-  on("rove:suggest", (text, rect) => {
-    const items = suggestions(String(text || ""));
-    win.webContents.send("rove:suggested", items);
+  on("rove:suggest", (text, rect, fill) => {
+    const typed = String(text || ""), inline = fill ? completion(typed) : "";
+    const items = suggestions(typed, inline);
+    win.webContents.send("rove:suggested", items, typed, inline);
     if (!items.length) { if (overlayOn?.kind === "suggest") hideOverlay(); return; }
     const height = 8 + items.length * 36;
     showOverlay({ kind: "suggest", items, sel: 0, rect: { x: rect.x, y: rect.y, width: rect.width, height } });

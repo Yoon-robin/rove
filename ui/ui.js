@@ -372,13 +372,25 @@ $("newver").addEventListener("click", () => rove.send("rove:relaunch"));
 
 // ---- the address bar ------------------------------------------------------------
 let items = [];
+let fill = false; // the last edit typed one more letter at the end (not a delete, not Hangul being put together): the rest may be filled
+let filled = ""; // what was typed when the rest was filled in (the filled part is selected after it)
 function suggest() {
   const r = $("address").getBoundingClientRect();
   sel = 0;
-  rove.send("rove:suggest", url.value, { x: r.left, y: r.bottom + 4, width: r.width });
+  rove.send("rove:suggest", url.value, { x: r.left, y: r.bottom + 4, width: r.width }, fill);
+}
+// the filled part taken back (Esc, Shift+Delete): what was typed stays
+function unfill() {
+  if (!filled || url.selectionStart !== filled.length || url.selectionEnd !== url.value.length) return false;
+  url.value = filled; filled = "";
+  return true;
 }
 url.addEventListener("focus", () => { editing = true; paintShown(); requestAnimationFrame(() => url.select()); });
-url.addEventListener("input", () => { editing = true; paintShown(); if (url.value.trim()) suggest(); else close(); });
+url.addEventListener("input", (e) => {
+  editing = true; paintShown(); filled = "";
+  fill = e.inputType === "insertText" && !e.isComposing && url.selectionStart === url.value.length;
+  if (url.value.trim()) suggest(); else close();
+});
 url.addEventListener("blur", () => { setTimeout(() => { editing = false; close(); drawTools(); }, 150); });
 url.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -386,9 +398,15 @@ url.addEventListener("keydown", (e) => {
     e.preventDefault();
     sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
     rove.send("rove:suggest-sel", sel);
+  } else if (e.key === "Delete" && e.shiftKey && suggestShown && items[sel]?.kind === "history") {
+    // Shift+Delete on a history row: that page forgotten, as in Chrome (the row after it stays chosen)
+    e.preventDefault();
+    const at = sel;
+    rove.send("rove:forget", items[sel].url);
+    unfill(); fill = false; suggest(); sel = at;
   } else if (e.key === "Escape") {
     e.preventDefault();
-    if (suggestShown) { close(); return; }
+    if (suggestShown) { unfill(); close(); return; }
     editing = false;
     drawTools();
     rove.send("rove:focus-page");
@@ -403,7 +421,17 @@ $("address").addEventListener("submit", (e) => {
   else if (url.value.trim()) rove.send("rove:go", url.value);
 });
 function close() { if (suggestShown) { suggestShown = false; rove.send("rove:overlay", null); } }
-rove.on("rove:suggested", (list) => { items = list || []; suggestShown = items.length > 0; });
+rove.on("rove:suggested", (list, typed, inline) => {
+  items = list || []; suggestShown = items.length > 0;
+  sel = Math.min(sel, Math.max(0, items.length - 1));
+  if (sel) rove.send("rove:suggest-sel", sel);
+  // still what was typed, the caret at its end: the rest filled in, selected (typing on replaces it)
+  if (inline && url.value === typed && document.activeElement === url && url.selectionStart === typed.length) {
+    url.value = typed + inline.slice(typed.length);
+    url.setSelectionRange(typed.length, url.value.length);
+    filled = typed;
+  }
+});
 rove.on("rove:overlay-closed", (kind) => { if (kind === "suggest") suggestShown = false; });
 rove.on("rove:focus-address", () => { url.focus(); url.select(); });
 

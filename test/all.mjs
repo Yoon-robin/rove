@@ -4,7 +4,7 @@
 // Left out unless asked: tests that write the PC's own clipboard (--clipboard: only with nobody
 // at the PC), and with --offline those whose first lines say they use the network.
 // Not here: setup-*.ps1 (they install and remove Rove for real). Exit code 1 if anything failed.
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,9 @@ const args = process.argv.slice(2);
 const named = args.filter((a) => !a.startsWith("--")).map((a) => a.replace(/\.mjs$/, ""));
 const withClipboard = args.includes("--clipboard"), offline = args.includes("--offline");
 
+// lists.bin is made, not kept in git: without it blocking, GPC and the tracking tails are all off
+// and privacy.mjs and the like fail line after line for that one reason
+if (!existsSync(join(here, "..", "lists.bin"))) console.log("주의: lists.bin이 없어요 — 먼저 node tools/lists.cjs (막기 목록을 받아 만들어요). 없으면 privacy 등이 줄줄이 넘어져요.\n");
 const tests = readdirSync(here).filter((f) => f.endsWith(".mjs") && f !== "drive.mjs" && f !== "all.mjs")
   .filter((f) => !named.length || named.includes(f.replace(/\.mjs$/, "")));
 const failed = [], skipped = [];

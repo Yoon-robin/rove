@@ -552,6 +552,7 @@ function wire(tab) {
     tab.url = url;
     tab.favicon = null;
     tab.awake = false;
+    tab.title = wc.getTitle(); // a page with no title of its own: its address, not the page before's
     record(url, wc.getTitle());
     if (moved || settings.zoom[hostOf(url)]) keepZoom(tab);
     tab.landed = true;
@@ -563,7 +564,7 @@ function wire(tab) {
     if (!own()) return;
     tab.title = title || tab.title;
     const last = history[history.length - 1];
-    if (last && last.url === tab.url) { last.title = title; save("history.json", history); }
+    if (last && last.url === tab.url && !tab.w?.private) { last.title = title; save("history.json", history); }
     tell();
   });
   on("page-favicon-updated", (e, icons) => { if (!own()) return; const at = hostOf(tab.url); iconOf(wc.session, icons.find((u) => /^https?:|^data:image\//.test(u)) || null).then((d) => { if (own() && hostOf(tab.url) === at) { tab.favicon = d; tell(); if (d && !tab.w.private && d.length < 20000 && siteIcons[at] !== d) { siteIcons[at] = d; keepIcons(); } } }); });

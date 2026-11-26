@@ -1299,7 +1299,7 @@ function messages() {
   });
   on("rove:win", (what) => { if (what === "min") win.minimize(); else if (what === "max") (win.isMaximized() ? win.unmaximize() : win.maximize()); else if (what === "close") win.close(); });
 }
-const plain = (d) => ({ id: d.id, name: d.name, path: d.path, url: d.url, received: d.received, total: d.total, state: d.state, at: d.at, ...(d.asking ? { asking: true } : {}) });
+const plain = (d) => ({ id: d.id, name: d.name, path: d.path, url: d.url, received: d.received, total: d.total, state: d.state, at: d.at, ...(d.asking ? { asking: asks.find((a) => a.d === d)?.id || true } : {}) }); // asking: its ask's id, answered from the downloads list too
 
 // ---- bookmarks from another browser --------------------------------------------------
 // The Chromium ones keep theirs in <User Data>/<profile>/Bookmarks (JSON); a

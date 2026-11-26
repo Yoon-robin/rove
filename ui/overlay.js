@@ -576,7 +576,9 @@ async function drawDrawer() {
       // only a finished one has a file to show; a cancelled or stopped one says so by its mark
       const done = d.state === "completed";
       const mark = going || done ? "download" : d.state === "cancelled" ? "close" : "alarm";
-      const act = going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`
+      // one waiting for a yes: the same 버리기·받기 as the ask bar, which this drawer covers
+      const act = typeof d.asking === "number" ? `<button class="rk-btn rk-btn--small rk-btn--danger" data-keep="${d.asking}" data-yes="0">버리기</button><button class="rk-btn rk-btn--small rk-btn--primary" data-keep="${d.asking}" data-yes="1">받기</button>`
+        : going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`
         : done ? `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>` : "";
       body += `<div class="item" data-dl="${d.id}">${icon(mark)}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
     }
@@ -611,6 +613,7 @@ async function drawDrawer() {
   root.querySelectorAll("[data-forget]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:forget", b.dataset.forget); draw(); }));
   root.querySelectorAll("[data-unstar]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:unstar", b.dataset.unstar); setTimeout(draw, 50); }));
   root.querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-cancel", Number(b.dataset.cancel))));
+  root.querySelectorAll("[data-keep]").forEach((b) => b.addEventListener("click", () => rove.send("rove:answer", Number(b.dataset.keep), b.dataset.yes === "1")));
   root.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-show", Number(b.dataset.show))));
   root.querySelectorAll("[data-site]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:forget-site", b.dataset.site); setTimeout(draw, 50); }));
   root.querySelectorAll("[data-unallow]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:unallow", b.dataset.unallow); setTimeout(draw, 50); }));

@@ -443,6 +443,7 @@ function closeTab(tab) {
   if (split?.a === tab || split?.b === tab) split = null;
   if (tab.group) groups = groups.filter((g) => tabs.some((t) => t.group === g.id));
   dropAsks(tab);
+  forgetTyped(tab);
   blocked.delete(tab.view.webContents.id);
   win.contentView.removeChildView(tab.view);
   tab.view.webContents.close();
@@ -536,6 +537,7 @@ function wire(tab) {
     // the page itself went on (a form sent): a password typed there may be offered to RobinPass
     tab.landed = false;
     if (d.initiator) passSent(tab);
+    else forgetTyped(tab);
     // a new page: the old one's questions and count go with it
     if (originOf(d.url) !== originOf(tab.url)) dropAsks(tab);
     blocked.delete(wc.id);
@@ -586,6 +588,7 @@ function wire(tab) {
   on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Enter") passTyped(tab); pageKey(tab, e, input); });
   on("before-mouse-event", (e, m) => { if (m.type === "mouseDown") passTyped(tab); });
   on("dom-ready", () => wc.executeJavaScriptInIsolatedWorld(KEY_WORLD, [{ code: KEY_LISTENER }]).catch(() => {}));
+  on("dom-ready", () => { if (!tab.w.private) wc.executeJavaScriptInIsolatedWorld(1001, [{ code: SNAP }]).catch(() => {}); });
   on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
   on("zoom-changed", (e, dir) => zoom(dir === "in" ? 1 : -1));
@@ -1619,6 +1622,24 @@ const PEEK = `(origin) => {
   const before = all.slice(0, all.indexOf(pw)).filter((e) => ["text", "email", "tel", ""].includes(e.type) && e.value);
   return { username: (before.filter((e) => e.form === pw.form).pop() || before.pop())?.value || "", password: pw.value };
 }`;
+// in each page (not a private window's): the login as Enter or a press reaches it, taken before the
+// page's own handlers (capture, on window) — a page may empty the box as it sends (MIKAEL n346).
+// Kept 1.5 s in this world only; TYPED reads it when the box itself is empty by then.
+const SNAP = `(() => {
+  const take = (e) => {
+    if (e.type === "keydown" && e.key !== "Enter") return;
+    const r = (${PEEK})(location.origin);
+    globalThis.__roveTyped = r;
+    if (r) setTimeout(() => { if (globalThis.__roveTyped === r) globalThis.__roveTyped = null; }, 1500);
+  };
+  addEventListener("keydown", take, true);
+  addEventListener("mousedown", take, true);
+})()`;
+const TYPED = `(origin) => {
+  const kept = globalThis.__roveTyped;
+  globalThis.__roveTyped = null;
+  return (${PEEK})(origin) || (kept && location.origin === origin ? kept : null);
+}`;
 const pageOrigin = (url) => { try { const u = new URL(url); return /^https?:$/.test(u.protocol) ? u.origin : ""; } catch { return ""; } };
 async function passFill(id, tab = active, master) {
   const i = pass.item(id);
@@ -1659,18 +1680,31 @@ async function passPeek() {
 // a login or sign-up form sent with a password the vault does not have: offered in the ask bar
 // once the next page is there (Chrome's 비밀번호 저장); not while locked. What was typed is read
 // as Enter or a press goes to the page: by the time the page goes on, the next one has replaced it.
+// A private window's logins are saved by hand (the key popup): nothing there is read or offered.
 function passTyped(tab) {
   const wc = tab.view.webContents, url = wc.getURL(), origin = pageOrigin(url);
-  if (!origin || pass?.status().state !== "open") return;
-  tab.typing = wc.executeJavaScriptInIsolatedWorld(1001, [{ code: `(${PEEK})(${JSON.stringify(origin)})` }])
-    .then((r) => { tab.typed = r?.password ? { url: origin + "/", username: r.username, password: r.password, host: hostOf(url), at: Date.now() } : null; }, () => {});
+  if (!origin || tab.w.private || pass?.status().state !== "open") return;
+  const n = (tab.typedN = (tab.typedN || 0) + 1);
+  tab.typing = wc.executeJavaScriptInIsolatedWorld(1001, [{ code: `(${TYPED})(${JSON.stringify(origin)})` }])
+    .then((r) => {
+      if (tab.typedN !== n) return;
+      clearTimeout(tab.typedTimer);
+      tab.typed = r?.password ? { url: origin + "/", username: r.username, password: r.password, host: hostOf(url) } : null;
+      if (tab.typed) tab.typedTimer = setTimeout(() => forgetTyped(tab), 15e3);
+    }, () => {});
+}
+// what was read is let go 15 s on (unless offered by then), on an address-bar move and with the tab
+function forgetTyped(tab) {
+  clearTimeout(tab.typedTimer);
+  tab.typedN = (tab.typedN || 0) + 1;
+  tab.typed = tab.sent = null;
 }
 async function passSent(tab) {
   tab.sent = null;
   await tab.typing;
   const t = tab.typed;
   tab.typed = null;
-  if (!t || Date.now() - t.at > 15e3 || pass?.status().state !== "open") return;
+  if (!t || pass?.status().state !== "open") return;
   if (pass.forPage(t.url).some((i) => i.username === t.username && i.password === t.password)) return;
   tab.sent = t;
   if (tab.landed) passOffer(tab);

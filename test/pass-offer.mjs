@@ -9,7 +9,13 @@ globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + J
 globalThis.SRV = process.mainModule.require("http").createServer((q, res) => {
   res.setHeader("content-type", "text/html; charset=utf-8");
   if (q.method === "POST") { q.resume(); q.on("end", () => res.end("<title>들어옴</title>welcome")); return; }
-  res.end('<title>로그인</title><form method="post" action="/in"><input name="u" autocomplete="username"><input name="p" type="password"><button>들어가기</button></form>');
+  // pages that empty the password box as they send (the password hashed into a hidden box first):
+  // from the button's onclick, and from the box's own Enter
+  const PAGES = {
+    "/hash": '<title>로그인</title><form method="post" action="/in"><input name="u"><input name="p" type="password"><input type="hidden" name="h"><button type="button" onclick="const f = this.form; f.h.value = f.p.value; f.p.value = String(); f.submit()">들어가기</button></form>',
+    "/enter": '<title>로그인</title><form method="post" action="/in"><input name="u"><input name="p" type="password" onkeydown="if (event.keyCode === 13) { event.preventDefault(); const f = this.form; f.h.value = f.p.value; f.p.value = String(); f.submit(); }"><input type="hidden" name="h"><button>들어가기</button></form>',
+  };
+  res.end(PAGES[q.url] || '<title>로그인</title><form method="post" action="/in"><input name="u" autocomplete="username"><input name="p" type="password"><button>들어가기</button></form>');
 });
 await new Promise((r) => SRV.listen(0, "127.0.0.1", r));
 globalThis.SITE = "http://127.0.0.1:" + SRV.address().port;
@@ -18,8 +24,8 @@ Object.assign(R.pass, { status: () => ({ state: V.state, email: "rove-offer@exam
   forPage: () => V.items, search: () => V.items, syncedAt: () => Date.now(),
   add: async (x) => { if (V.fail) return { error: V.fail }; V.added.push(x); V.items.push({ id: "n" + V.added.length, name: x.name, username: x.username, password: x.password, uris: [{ uri: x.uri, match: null }] }); return { ok: true, id: "n" + V.added.length }; } });
 // typed in, then sent as a person does: Enter in the password box, or a press on the button (real input events, a hidden window)
-globalThis.LOGIN = async (u, p, press = false) => {
-  R.go(SITE + "/login"); await sleep(900);
+globalThis.LOGIN = async (u, p, press = false, page = "/login") => {
+  R.go(SITE + page); await sleep(900);
   const wc = R.active.view.webContents;
   const at = await wc.executeJavaScript("document.querySelector('[name=u]').value = " + JSON.stringify(u) + "; const pw = document.querySelector('[name=p]'); pw.value = " + JSON.stringify(p) + "; pw.focus(); const b = document.querySelector('button').getBoundingClientRect(); [Math.round(b.x + b.width / 2), Math.round(b.y + b.height / 2)]");
   wc.focus();
@@ -40,6 +46,21 @@ export default [
   { js: `await LOGIN("other@test", "s3cret-3", true); const a = OFFER(); await R.win.webContents.executeJavaScript("document.getElementById('askNo').click(), 1"); await sleep(400);
     return CHECK("안 함: nothing kept, the bar gone", !!a && !OFFER() && V.added.length === 1, { asked: !!a, added: V.added.length });` },
   { js: `V.fail = "서버에 닿지 않아요"; await LOGIN("third@test", "s3cret-4"); await R.win.webContents.executeJavaScript("document.getElementById('askYes').click(), 1"); await sleep(500);
-    const bar = await BAR(); V.fail = null; await R.win.webContents.executeJavaScript("document.getElementById('askYes').click(), 1"); await sleep(500); SRV.close();
+    const bar = await BAR(); V.fail = null; await R.win.webContents.executeJavaScript("document.getElementById('askYes').click(), 1"); await sleep(500);
     return CHECK("a failed save: said, 다시 keeps it", bar.shown && bar.what.includes("서버에 닿지 않아요") && bar.yes === "다시" && V.added.some((x) => x.username === "third@test") && !OFFER(), { bar, added: V.added.map((x) => x.username) });` },
+  { js: `globalThis.NO = () => R.win.webContents.executeJavaScript("document.getElementById('askNo').click(), 1");
+    await LOGIN("hash@test", "s3cret-5", true, "/hash"); const a = OFFER(); await NO(); await sleep(300);
+    await LOGIN("enter@test", "s3cret-6", false, "/enter"); const b = OFFER(); await NO(); await sleep(300);
+    return CHECK("the page empties the box as it sends (button onclick, the box's Enter): still offered", a?.name === "hash@test" && b?.name === "enter@test", { press: a?.name, enter: b?.name });` },
+  // typed, then a press that sends nothing: what was read is not kept past an address-bar move, nor past 15 s
+  { js: `globalThis.TYPED = async (u, p) => { R.go(SITE + "/login"); await sleep(900); const wc = R.active.view.webContents;
+      await wc.executeJavaScript("document.querySelector('[name=u]').value = " + JSON.stringify(u) + "; document.querySelector('[name=p]').value = " + JSON.stringify(p) + "; 1");
+      wc.focus(); for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: 300, y: 300, button: "left", clickCount: 1 }); await sleep(400); return !!R.active.typed; };
+    const read = await TYPED("idle@test", "s3cret-7"); R.go(SITE + "/login"); await sleep(1200);
+    const moved = { read, kept: !!R.active.typed || !!R.active.sent, asked: !!OFFER() };
+    const read2 = await TYPED("idle@test", "s3cret-8"); await sleep(15500);
+    const idle = { read: read2, kept: !!R.active.typed || !!R.active.sent };
+    return CHECK("read on a press, then forgotten: on an address-bar move and after 15 s", moved.read && !moved.kept && !moved.asked && idle.read && !idle.kept, { moved, idle });` },
+  { js: `R.createWindow({ priv: true }); await sleep(1500); await LOGIN("private@test", "s3cret-9"); const got = { private: !!R.cur?.private, title: R.active.title, asked: !!OFFER(), read: !!R.active.typed }; SRV.close();
+    return CHECK("a private window: nothing read, nothing asked (its logins are saved by hand)", got.private && got.title === "들어옴" && !got.asked && !got.read, got);` },
 ];

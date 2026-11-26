@@ -545,7 +545,12 @@ async function drawDrawer() {
         : d.state === "completed" ? `${size(d.received)} · ${time(d.at)}`
         : d.state === "cancelled" ? "취소함" : "멈춤";
       const meter = going && d.total && !d.asking ? `<span class="rk-meter"><i data-p="${Math.round((d.received / d.total) * 100)}"></i></span>` : "";
-      body += `<div class="item" data-dl="${d.id}">${icon("download")}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>` : `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>`}</div>`;
+      // only a finished one has a file to show; a cancelled or stopped one says so by its mark
+      const done = d.state === "completed";
+      const mark = going || done ? "download" : d.state === "cancelled" ? "close" : "alarm";
+      const act = going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`
+        : done ? `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>` : "";
+      body += `<div class="item" data-dl="${d.id}">${icon(mark)}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
     }
   }
   const empty = { history: "기록이 없어요", bookmarks: "즐겨찾기가 없어요", downloads: "내려받은 파일이 없어요", sites: "정해 둔 사이트가 없어요", extensions: "확장 프로그램이 없어요" }[panel];

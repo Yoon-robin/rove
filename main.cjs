@@ -1072,7 +1072,7 @@ function messages() {
   on("rove:forget-all", () => { history = []; save("history.json", history, true); });
   on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); tell(); });
   on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.openPath(d.path); });
-  on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d) shell.showItemInFolder(d.path); });
+  on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.showItemInFolder(d.path); });
   on("rove:download-cancel", (id) => { const d = downloads.find((x) => x.id === id); d?.item?.cancel(); });
   on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing"); saveDownloads(); tell(); });
   on("rove:keys", (input) => keys(input || {}));

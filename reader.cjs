@@ -55,7 +55,8 @@ a{color:var(--accent);text-decoration:underline;text-decoration-color:rgb(122 15
 img,video,svg{max-width:100%;height:auto;border-radius:7px}figure{margin:1.6em 0}figcaption{margin-top:8px;color:var(--soft);font-size:14px;line-height:1.6}
 blockquote{margin-left:0;padding-left:18px;border-left:2px solid var(--line);color:var(--soft)}
 pre,code{font:14px/1.6 Consolas,"D2Coding",monospace}pre{padding:14px 16px;border-radius:7px;background:var(--hover);overflow-x:auto}:not(pre)>code{padding:1px 5px;border-radius:5px;background:var(--hover)}
-table{border-collapse:collapse;display:block;overflow-x:auto}td,th{padding:6px 10px;border:1px solid var(--line);text-align:left}
+table{border-collapse:collapse;display:block;overflow-x:auto;font-size:15px;line-height:1.55}td,th{padding:6px 10px;border:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--head);font-weight:600}
+td>:last-child,th>:last-child{margin-bottom:0}td p,td ul,td ol,td figure{margin-top:0;margin-bottom:.5em}td img{border-radius:5px}
 hr{border:0;border-top:1px solid var(--line);margin:2em 0}::selection{background:rgb(75 125 254 / 30%)}
 </style></head><body><main><header><a class="site" href="${esc(url)}">${esc(a.site)} · ${minutes}분</a><h1 class="t">${esc(a.title)}</h1>${a.byline ? `<p class="by">${esc(a.byline)}</p>` : ""}</header>
 <article>${clean(a.content)}</article></main></body></html>`;

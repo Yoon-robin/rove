@@ -448,8 +448,14 @@ function wire(tab) {
   // every event: the tab's window in use first (the tab may have moved to another)
   const here = () => { if (tab.w && !tab.w.gone) use(tab.w); };
   const on = (ev, f) => wc.on(ev, (...a) => { here(); return f(...a); });
-  wc.setWindowOpenHandler(({ url, disposition }) => {
+  wc.setWindowOpenHandler(({ url, disposition, features }) => {
     here();
+    // a link Shift+clicked ("new-window" with no features): a new Rove window with it, as in
+    // Chrome — private from a private window, in the same private session
+    if (disposition === "new-window" && !features) {
+      if (webby(url)) createWindow({ priv: !!tab.w?.private, urls: [url] });
+      return { action: "deny" };
+    }
     // a sign-in window (window.open with a size) stays a real popup: its page
     // talks back to the opener
     if (disposition === "new-window") {

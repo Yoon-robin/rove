@@ -449,7 +449,7 @@ function closeTab(tab) {
     newTab(HOME_PAGE);
     return;
   }
-  if (active === tab) select(tabs[Math.min(i, tabs.length - 1)]); else tell();
+  if (active === tab) select(tabs[Math.min(i, tabs.length - 1)]); else { layout(); tell(); } // the other of two side by side takes the page again
 }
 
 function record(url, title) {
@@ -475,9 +475,13 @@ a{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radiu
 a:hover{background:#4b7dfe}</style><div class="b"><h1>${head}</h1><p>${esc(body)}</p><code>${esc(what)} (${code})</code><a href="${esc(url)}">다시 시도</a></div>`;
 }
 
+// the extensions take every tab they are given as the chosen one and ask Rove to choose it (a tab
+// opened behind, a tab put to sleep came to the front): while Rove gives one, its own choice stays
+let addingTab = false;
 function wire(tab) {
   const wc = tab.view.webContents;
-  exts?.add(wc, tab.w.win);
+  addingTab = true;
+  try { exts?.add(wc, tab.w.win); if (active && active !== tab && active.w === tab.w) exts?.select(active.view.webContents); } finally { addingTab = false; }
   const mine = () => tabs.includes(tab);
   // every event: the tab's window in use first (the tab may have moved to another)
   const here = () => { if (tab.w && !tab.w.gone) use(tab.w); };
@@ -2099,7 +2103,7 @@ function startExtensions(ses) {
         const t = within(w, () => newTab(details.url || HOME_PAGE, { background: details.active === false }));
         return [t.view.webContents, w.win];
       },
-      selectTab(wc) { const t = tabOf(wc); if (t && !t.w.gone) { use(t.w); select(t); } },
+      selectTab(wc) { const t = tabOf(wc); if (t && !t.w.gone && !addingTab) { use(t.w); select(t); } },
       // also told when a page's view goes (closed, asleep, its window shut): then nothing to do
       removeTab(wc) {
         const t = tabOf(wc);

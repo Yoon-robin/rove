@@ -243,6 +243,9 @@ body.vertical .pop.tabfind { top: 48px; }
 .pass .pf { display: grid; gap: 8px; padding: 12px; }
 .pass .pf .rk-input { min-height: 34px; font-size: 13px; }
 .pass .pf .row { display: flex; justify-content: flex-end; gap: 8px; }
+.pass .pf .who { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; color: var(--rk-head); font-size: 13px; }
+.pass .pf .who .rk-ico { flex: none; width: 14px; height: 14px; color: var(--rk-faint); }
+.pass .pf .who b { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w-strong); }
 .pass .msg { margin: 0; padding: 0 2px; color: var(--rk-soft); font-size: 12px; }
 .pass .msg.alarm { color: var(--rk-alarm-text); }
 .pass > .msg { padding: 8px 14px 10px; }

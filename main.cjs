@@ -1096,8 +1096,8 @@ function messages() {
   handle("rove:pass-login", async (email, password, second) => { const r = await pass.login(String(email || ""), String(password || ""), second || null); tell(); return r; });
   handle("rove:pass-unlock", async (password) => { const r = await pass.unlock(String(password || "")); tell(); return r; });
   handle("rove:pass-items", (q) => passItems(q));
-  handle("rove:pass-fill", (id) => passFill(String(id)));
-  handle("rove:pass-copy", (id, what) => passCopy(String(id), String(what)));
+  handle("rove:pass-fill", (id, master) => passFill(String(id), active, master));
+  handle("rove:pass-copy", (id, what, master) => passCopy(String(id), String(what), master));
   handle("rove:pass-codes", (q) => passCodes(String(q || "")));
   handle("rove:pass-peek", () => passPeek());
   handle("rove:pass-save", (name) => passSave(String(name || "")));
@@ -1328,7 +1328,7 @@ function passCodes(q) {
   if (!pass || pass.status().state !== "open") return null;
   return pass.withCodes(q)
     .sort((a, b) => a.name.localeCompare(b.name, "ko") || a.username.localeCompare(b.username, "ko"))
-    .map((i) => { const c = pass.code(i.id); const p = plainItem(i, ""); return { id: p.id, name: p.name, username: p.username, host: p.host, code: c?.code || "", left: c?.left || 0, period: c?.period || 30, bad: !c }; });
+    .map((i) => { const c = pass.code(i.id); const p = plainItem(i, ""); return { id: p.id, name: p.name, username: p.username, host: p.host, code: i.reprompt ? "" : c?.code || "", left: c?.left || 0, period: c?.period || 30, bad: !c, ask: i.reprompt }; });
 }
 // a password or a code on the clipboard goes again after 30 seconds, or when Rove quits
 // (if it is still there: something copied since is left alone)
@@ -1344,10 +1344,18 @@ function copySecret(value) {
   onClip = value;
   setTimeout(() => { if (onClip === value) clearSecret(); }, (TEST && Number(process.env.ROVE_CLIP_MS)) || 30e3).unref?.();
 }
-function passCopy(id, what) {
+// a login marked "ask for the master password again" (Bitwarden's reprompt): its password and
+// code are filled or copied only with the master password typed for that one go
+async function askedAgain(i, master) {
+  if (!i.reprompt || (await pass.verify(String(master || "")))) return null;
+  return { reprompt: true, error: master ? "마스터 비밀번호가 맞지 않아요" : "" };
+}
+async function passCopy(id, what, master) {
   const i = pass.item(id);
   if (!i) return { error: "잠겨 있어요" };
   if (what === "username") { clipboard.writeText(i.username); return { ok: true }; }
+  const no = await askedAgain(i, master);
+  if (no) return no;
   if (what === "password") { copySecret(i.password); return { ok: true }; }
   if (what === "totp") { const c = pass.code(id); if (!c) return { error: "코드가 없어요" }; copySecret(c.code); return { ok: true, left: c.left }; }
   return { error: what };
@@ -1382,9 +1390,11 @@ const PEEK = `(origin) => {
   return { username: (before.filter((e) => e.form === pw.form).pop() || before.pop())?.value || "", password: pw.value };
 }`;
 const pageOrigin = (url) => { try { const u = new URL(url); return /^https?:$/.test(u.protocol) ? u.origin : ""; } catch { return ""; } };
-async function passFill(id, tab = active) {
+async function passFill(id, tab = active, master) {
   const i = pass.item(id);
   if (!i || !tab) return { error: "잠겨 있어요" };
+  const no = await askedAgain(i, master);
+  if (no) return no;
   const wc = tab.view.webContents;
   const url = wc.getURL();
   const origin = pageOrigin(url);
@@ -1426,7 +1436,7 @@ async function passSave(name) {
 function passQuick() {
   const url = active?.view.webContents.getURL() || "";
   const here = pass.status().state === "open" && webby(url) ? pass.forPage(url) : [];
-  if (here.length === 1) passFill(here[0].id);
+  if (here.length === 1 && !here[0].reprompt) passFill(here[0].id);
   else win.webContents.send("rove:pass-open", true);
 }
 

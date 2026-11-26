@@ -28,7 +28,7 @@ rove.on("rove:overlay", (what) => {
   // opened from the keyboard: no motion (ui.css .keyed)
   if (what?.kind !== was) document.body.classList.toggle("keyed", !!what?.keyed);
   if (what?.kind === "drawer") { if (was !== "drawer" || what.panel) panel = what.panel || panel; sure = false; }
-  if (what?.kind === "pass" && was !== "pass") { pq = ""; pmsg = ""; ppeek = undefined; psecond = null; }
+  if (what?.kind === "pass" && was !== "pass") { pq = ""; pmsg = ""; ppeek = undefined; psecond = null; pagain = null; }
   if (what?.kind !== "pass") stopTick();
   if (what?.kind === "site" && was !== "site") { siteSure = false; siteMsg = null; siteKey = ""; }
   if (what?.kind === "tabs" && was !== "tabs") { tq = ""; tsel = 0; }
@@ -246,6 +246,7 @@ let pmsg = ""; // the last answer: { text, bad }
 let ppeek; // what the page has typed (undefined: not looked yet)
 let psecond = null; // the second step: { providers, kdf, email, password }
 let pbusy = false;
+let pagain = null; // a login that asks for the master password again: { id, what: "fill" | "password" | "totp", name }
 let pview = "logins"; // or "codes": the 인증 코드 list (kept between openings)
 let ptick = 0; // the codes' one-second clock while that list is shown
 const say = (text, bad = false) => { pmsg = { text, bad }; };
@@ -316,9 +317,14 @@ async function drawPass() {
     body = `<form class="pf" data-form="unlock">
       <input class="rk-input" id="pp" type="password" placeholder="마스터 비밀번호" autocomplete="off">
       <div class="row"><button class="rk-btn rk-btn--small" type="button" data-logout>로그아웃</button><button class="rk-btn rk-btn--primary"${busy}>${pbusy ? "여는 중" : "잠금 해제"}</button></div>${msg}</form>`;
+  } else if (pagain) {
+    body = `<form class="pf" data-form="again">
+      <p class="who">${icon("lock")}<b>${esc(pagain.name)}</b></p>
+      <input class="rk-input" id="pp" type="password" placeholder="마스터 비밀번호" autocomplete="off" aria-label="${esc(pagain.name)} · 마스터 비밀번호">
+      <div class="row"><button class="rk-btn rk-btn--small" type="button" data-back>취소</button><button class="rk-btn rk-btn--primary"${busy}>${pbusy ? "확인 중" : pagain.what === "fill" ? "채우기" : "복사"}</button></div>${msg}</form>`;
   } else if (pview === "codes") {
     const row = (c) => `<button type="button" class="code${c.left <= 7 && !c.bad ? " soon" : ""}" data-id="${esc(c.id)}"${c.bad ? " disabled" : ` aria-label="${esc(codeLabel(c))}"`}><div class="w"><b>${esc(c.name || c.host)}</b><small>${esc(c.bad ? "인증 키가 올바르지 않아요" : c.username || c.host)}</small></div>
-      <span class="v" data-code="${esc(c.code)}">${otp(c)}</span>
+      <span class="v" data-code="${esc(c.code)}">${c.ask ? icon("lock") : otp(c)}</span>
       ${c.bad ? "" : `<span class="left" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle class="arc" cx="12" cy="12" r="10" pathLength="100" stroke-dashoffset="${arc(c)}"/></svg><i class="secs">${c.left}</i></span>`}</button>`;
     body = `${tabs}<div class="search"><input class="rk-input" id="pq" type="search" placeholder="인증 코드 찾기" spellcheck="false" value="${esc(pq)}"></div>
       <div class="list codes">${codes.length ? codes.map(row).join("") : `<div class="rk-empty">${icon(pq ? "search" : "clock")}${pq ? "찾은 항목이 없어요" : "인증 키가 있는 로그인이 없어요"}</div>`}</div>
@@ -345,7 +351,7 @@ async function drawPass() {
   root.querySelector(".scrim").addEventListener("mousedown", shut);
   root.querySelector("[data-lock]")?.addEventListener("click", () => rove.send("rove:pass-lock"));
   root.querySelector("[data-logout]")?.addEventListener("click", () => rove.send("rove:pass-logout"));
-  root.querySelector("[data-back]")?.addEventListener("click", () => { psecond = null; pmsg = ""; draw(); });
+  root.querySelector("[data-back]")?.addEventListener("click", () => { psecond = null; pagain = null; pmsg = ""; draw(); });
   const form = root.querySelector("form");
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -364,9 +370,14 @@ async function drawPass() {
       } else if (kind === "second") {
         r = await rove.ask("rove:pass-login", psecond.email, psecond.password, { code, provider: psecond.providers.includes(0) ? 0 : psecond.providers[0], kdf: psecond.kdf });
         if (r?.ok) psecond = null;
+      } else if (kind === "again") {
+        const { id, what } = pagain;
+        r = what === "fill" ? await rove.ask("rove:pass-fill", id, pw) : await rove.ask("rove:pass-copy", id, what, pw);
+        if (!r?.error) { pagain = null; if (what !== "fill") r = { said: what === "password" ? "비밀번호를 복사했어요 · 30초 뒤 지워요" : `인증 코드를 복사했어요 · ${r?.left}초 남음` }; }
       } else r = await rove.ask("rove:pass-unlock", pw);
     } finally { pbusy = false; }
     if (r?.error) say(r.error, true);
+    else if (r?.said) say(r.said);
     else if (r?.offline) say("금고를 받지 못했어요", true);
     draw();
   });
@@ -376,20 +387,24 @@ async function drawPass() {
     if (pview === b.dataset.view) return;
     pview = b.dataset.view; pq = ""; pmsg = ""; draw();
   }));
+  // the main side said this login wants the master password first: its form comes up
+  const again = (r, id, what, el) => { if (!r?.reprompt) return false; pagain = { id, what, name: el.querySelector("b")?.textContent || "" }; pmsg = ""; draw(); return true; };
   root.querySelectorAll(".code[data-id]").forEach((b) => b.addEventListener("click", async () => {
     const r = await rove.ask("rove:pass-copy", b.dataset.id, "totp");
+    if (again(r, b.dataset.id, "totp", b)) return;
     say(r?.error || "인증 코드를 복사했어요 · 30초 뒤 지워요", !!r?.error);
     draw();
   }));
   if (p.state === "open" && pview === "codes") startTick();
   root.querySelectorAll(".item[data-id]").forEach((el) => {
-    const fill = async () => { const r = await rove.ask("rove:pass-fill", el.dataset.id); if (r?.error) { say(r.error, true); draw(); } };
+    const fill = async () => { const r = await rove.ask("rove:pass-fill", el.dataset.id); if (again(r, el.dataset.id, "fill", el)) return; if (r?.error) { say(r.error, true); draw(); } };
     if (el.classList.contains("fill")) {
       el.addEventListener("click", (e) => { if (!e.target.closest("button")) fill(); });
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === el) fill(); });
     }
     el.querySelectorAll("[data-c]").forEach((b) => b.addEventListener("click", async () => {
       const r = await rove.ask("rove:pass-copy", el.dataset.id, b.dataset.c);
+      if (again(r, el.dataset.id, b.dataset.c, el)) return;
       say(r?.error || { username: "아이디를 복사했어요", password: "비밀번호를 복사했어요 · 30초 뒤 지워요", totp: `인증 코드를 복사했어요 · ${r?.left}초 남음` }[b.dataset.c], !!r?.error);
       draw();
     }));
@@ -403,7 +418,8 @@ async function drawPass() {
   });
   const back = keepCode && [...root.querySelectorAll(".code[data-id]")].find((b) => b.dataset.id === keepCode);
   if (back) { back.focus(); return; }
-  const focus = root.querySelector(`#${keepFocus}`) || root.querySelector("#pc, #pe:placeholder-shown, #pp, #pq");
+  // an element without an id (a button just pressed, the page body) gives "": "#" alone is no selector and threw
+  const focus = (keepFocus && root.querySelector(`#${keepFocus}`)) || root.querySelector("#pc, #pe:placeholder-shown, #pp, #pq");
   if (focus) { focus.focus(); if (focus.id === "pq") focus.setSelectionRange(focus.value.length, focus.value.length); }
 }
 

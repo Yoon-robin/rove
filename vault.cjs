@@ -289,6 +289,12 @@ function vault({ fetch, file, protect, server: fixed, log = () => {} }) {
       return { ok: true };
     },
 
+    // a login marked "ask for the master password again": the password typed is checked against
+    // the kept key, and nothing else changes
+    async verify(password) {
+      if (!saved?.key || !password) return false;
+      try { openKeys(saved.key, stretch(await masterKey(password, saved.email, saved.kdf)), null, []); return true; } catch { return false; }
+    },
     lock() { if (live) { live = null; log("RobinPass: 잠금"); } },
     logout() { live = null; saved = null; keep(); },
     sync: () => (live ? sync() : Promise.resolve(0)),

@@ -329,6 +329,19 @@ function drawAsk() {
     $("askAlways").hidden = true;
     return;
   }
+  if (a.kind === "pass") {
+    // a login just sent: RobinPass offers to keep it (main has the password, not this page)
+    $("ask").classList.toggle("warn", !!a.error);
+    $("askIcon").innerHTML = `<use href="icons.svg#rk-i-${a.error ? "alarm" : "key"}"/>`;
+    $("askWho").textContent = a.host;
+    $("askWhat").textContent = a.error || `RobinPass에 저장 · ${a.name || "사용자 이름 없음"}`;
+    $("askNo").textContent = "안 함";
+    $("askNo").classList.remove("rk-btn--danger");
+    $("askYes").textContent = a.error ? "다시" : "저장";
+    $("askShut").hidden = true;
+    $("askAlways").hidden = true;
+    return;
+  }
   const download = a.kind === "download";
   $("ask").classList.toggle("warn", download);
   $("askIcon").innerHTML = `<use href="icons.svg#rk-i-${download ? "alarm" : once(a) ? "out" : "lock"}"/>`;

@@ -531,6 +531,9 @@ function wire(tab) {
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url));
+    // the page itself went on (a form sent): a password typed there may be offered to RobinPass
+    tab.landed = false;
+    if (d.initiator) passSent(tab);
     // a new page: the old one's questions and count go with it
     if (originOf(d.url) !== originOf(tab.url)) dropAsks(tab);
     blocked.delete(wc.id);
@@ -547,6 +550,8 @@ function wire(tab) {
     tab.awake = false;
     record(url, wc.getTitle());
     if (moved || settings.zoom[hostOf(url)]) keepZoom(tab);
+    tab.landed = true;
+    passOffer(tab);
     tell();
   });
   on("did-navigate-in-page", (e, url, isMainFrame) => { if (!own() || !isMainFrame) return; tab.url = url; record(url, wc.getTitle()); tell(); });
@@ -576,7 +581,8 @@ function wire(tab) {
   on("enter-html-full-screen", () => { fullTab = tab; win.setFullScreen(true); layout(); tell(); });
   on("leave-html-full-screen", () => { fullTab = null; win.setFullScreen(false); layout(); tell(); });
   on("found-in-page", (e, r) => { if (tab === active) win.webContents.send("rove:found", { at: r.activeMatchOrdinal, of: r.matches }); });
-  on("before-input-event", (e, input) => pageKey(tab, e, input));
+  on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Enter") passTyped(tab); pageKey(tab, e, input); });
+  on("before-mouse-event", (e, m) => { if (m.type === "mouseDown") passTyped(tab); });
   on("dom-ready", () => wc.executeJavaScriptInIsolatedWorld(KEY_WORLD, [{ code: KEY_LISTENER }]).catch(() => {}));
   on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
@@ -1648,6 +1654,38 @@ async function passPeek() {
   const known = pass.forPage(url).some((i) => i.username === r.username && i.password === r.password);
   return { username: r.username, host: hostOf(url), known };
 }
+// a login or sign-up form sent with a password the vault does not have: offered in the ask bar
+// once the next page is there (Chrome's 비밀번호 저장); not while locked. What was typed is read
+// as Enter or a press goes to the page: by the time the page goes on, the next one has replaced it.
+function passTyped(tab) {
+  const wc = tab.view.webContents, url = wc.getURL(), origin = pageOrigin(url);
+  if (!origin || pass?.status().state !== "open") return;
+  tab.typing = wc.executeJavaScriptInIsolatedWorld(1001, [{ code: `(${PEEK})(${JSON.stringify(origin)})` }])
+    .then((r) => { tab.typed = r?.password ? { url: origin + "/", username: r.username, password: r.password, host: hostOf(url), at: Date.now() } : null; }, () => {});
+}
+async function passSent(tab) {
+  tab.sent = null;
+  await tab.typing;
+  const t = tab.typed;
+  tab.typed = null;
+  if (!t || Date.now() - t.at > 15e3 || pass?.status().state !== "open") return;
+  if (pass.forPage(t.url).some((i) => i.username === t.username && i.password === t.password)) return;
+  tab.sent = t;
+  if (tab.landed) passOffer(tab);
+}
+function passOffer(tab) {
+  const s = tab.sent;
+  if (!s || !tab.landed) return;
+  tab.sent = null;
+  asks.push({ id: nextId++, kind: "pass", tab, host: s.host, what: ["save"], name: s.username, login: s, done: [] });
+  if (!tab.w.gone) within(tab.w, () => { layout(); tell(); });
+}
+async function passKeep(a) {
+  const r = await pass.add({ name: a.host, uri: a.login.url, username: a.login.username, password: a.login.password });
+  if (r.ok) { log(`RobinPass: 저장 ${a.host}`); tell(); return; }
+  asks.push({ ...a, id: nextId++, error: r.error || "저장하지 못했어요" });
+  everywhere(layout); tell();
+}
 async function passSave(name) {
   if (!peeked) return { error: "저장할 것이 없어요" };
   const r = await pass.add({ name: name || hostOf(peeked.url), uri: peeked.url, username: peeked.username, password: peeked.password });
@@ -1689,7 +1727,7 @@ const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
 const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
 const keepable = (a) => a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || ""); // another program's link: kept for an https site only, as Chrome
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a) });
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a) });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -1705,6 +1743,7 @@ function answer(id, yes, keep = true) {
   asks = asks.filter((x) => x !== a);
   if (a.kind === "download") keepDownload(a.d, !!yes);
   else if (a.kind === "extension") for (const f of a.done) f(!!yes);
+  else if (a.kind === "pass") { if (yes) passKeep(a); }
   else {
     if (keep && keepable(a)) {
       const g = a.tab?.w?.private ? privGrants : grants;

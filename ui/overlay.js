@@ -28,12 +28,12 @@ rove.on("rove:overlay", (what) => {
   open = what;
   // opened from the keyboard: no motion (ui.css .keyed)
   if (what?.kind !== was) document.body.classList.toggle("keyed", !!what?.keyed);
-  if (what?.kind === "drawer") { if (was !== "drawer" || what.panel) panel = what.panel || panel; sure = false; }
+  if (what?.kind === "drawer") { if ((was !== "drawer" || what.panel) && (what.panel || panel) !== panel) { panel = what.panel; query = ""; } sure = false; }
   if (what?.kind === "pass" && was !== "pass") { pq = ""; pmsg = ""; ppeek = undefined; psecond = null; pagain = null; }
   if (what?.kind !== "pass") stopTick();
   if (what?.kind === "site" && was !== "site") { siteSure = false; siteMsg = null; siteKey = ""; }
   if (what?.kind === "tabs" && was !== "tabs") { tq = ""; tsel = 0; }
-  if (what?.kind === "drawer" && was !== "drawer") { importing = null; importMsg = null; }
+  if (what?.kind === "drawer" && was !== "drawer") { importing = null; importMsg = null; renaming = null; }
   if (what?.kind === "share" && was !== "share") { shareFrom = what.screens.length ? "screens" : "windows"; sharePick = null; shareSound = true; }
   draw();
 });
@@ -527,6 +527,7 @@ function size(n) {
 let importing = null; // the browsers to bring bookmarks from (true: to ask, null: not asked)
 let dropping = null; // the extension whose 지우기 was pressed once (pressed again: gone)
 let importMsg = null;
+let renaming = null, renameText = "", renameNew = false; // the bookmark being renamed, what is typed, just opened (select all)
 // a history or bookmark row: the site's own icon once a normal window has shown it, else ours
 const site = (x, fallback) => (x.icon ? `<img class="fav" alt="" src="${esc(x.icon)}">` : icon(fallback));
 async function drawDrawer() {
@@ -534,12 +535,12 @@ async function drawDrawer() {
   let list = [];
   if (panel === "bookmarks" && importing === true) importing = (await rove.ask("rove:import-from")) || [];
   if (panel === "history") list = (await rove.ask("rove:history", query)) || [];
-  if (panel === "bookmarks") list = (await rove.ask("rove:bookmarks")) || [];
+  if (panel === "bookmarks") list = (await rove.ask("rove:bookmarks", query)) || [];
   if (panel === "downloads") list = (state.downloads || []).slice().reverse();
   if (panel === "sites") list = (await rove.ask("rove:sites")) || [];
   if (panel === "extensions") list = (await rove.ask("rove:extensions")) || [];
   if (open !== mine) return;
-  const keepFocus = document.activeElement?.id === "q";
+  const keepFocus = document.activeElement?.id === "q", keepName = document.activeElement?.id === "bname";
   let body = "";
   if (panel === "history") {
     let last = "";
@@ -565,7 +566,9 @@ async function drawDrawer() {
     for (const s of importing) body += `<div class="item">${icon("download")}<div class="w"><b>${esc(s.name)}</b><small class="rk-num">${s.count}개${s.fresh < s.count ? ` · 새로 ${s.fresh}개` : ""}</small></div><button class="rk-btn rk-btn--small${s.fresh ? " rk-btn--primary" : ""}" data-import="${esc(s.id)}"${s.fresh ? "" : " disabled"}>가져오기</button></div>`;
     if (!importing.length) body += `<div class="rk-empty">${icon("star")}가져올 브라우저가 없어요</div>`;
   } else if (panel === "bookmarks") {
-    for (const b of list) body += `<div class="item" data-url="${esc(b.url)}">${site(b, "star")}<div class="w"><b>${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
+    for (const b of list) body += b.url === renaming
+      ? `<div class="item">${site(b, "star")}<div class="w"><input class="rk-input" id="bname" maxlength="300" aria-label="즐겨찾기 이름" spellcheck="false" value="${esc(renameText)}"><small>${esc(host(b.url))}</small></div><button class="btn" data-rename-ok aria-label="저장" title="저장">${icon("check")}</button></div>`
+      : `<div class="item" data-url="${esc(b.url)}">${site(b, "star")}<div class="w"><b>${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-rename="${esc(b.url)}" aria-label="이름 고치기" title="이름 고치기">${icon("edit")}</button><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
   } else {
     for (const d of list) {
       const going = d.state === "progressing";
@@ -593,13 +596,13 @@ async function drawDrawer() {
   root.innerHTML = `<div class="scrim"></div><aside class="pop drawer" aria-label="${NAMES[panel]}">
     <header><div class="rk-tabs" role="tablist">${Object.keys(NAMES).map((k) => `<button class="rk-tab" role="tab" data-panel="${k}" aria-selected="${k === panel}"${TAB[k] !== NAMES[k] ? ` aria-label="${NAMES[k]}"` : ""}>${TAB[k]}</button>`).join("")}</div>
       <button class="btn" data-shut aria-label="닫기" title="닫기">${icon("close")}</button></header>
-    ${panel === "history" ? `<div class="search"><input class="rk-input" id="q" type="search" placeholder="기록 찾기" value="${esc(query)}" spellcheck="false"></div>` : ""}
+    ${panel === "history" || (panel === "bookmarks" && !importing) ? `<div class="search"><input class="rk-input" id="q" type="search" placeholder="${panel === "history" ? "기록" : "즐겨찾기"} 찾기" value="${esc(query)}" spellcheck="false"></div>` : ""}
     <div class="list">${body || `<div class="rk-empty">${icon(panel === "downloads" ? "download" : panel === "bookmarks" ? "star" : panel === "sites" ? "lock" : panel === "extensions" ? "spark" : "clock")}${empty}</div>`}</div>
     ${foot}</aside>`;
   root.querySelectorAll("[data-p]").forEach((i) => { i.style.width = i.dataset.p + "%"; });
   root.querySelector(".scrim").addEventListener("mousedown", shut);
   root.querySelector("[data-shut]").addEventListener("click", shut);
-  root.querySelectorAll("[data-panel]").forEach((b) => b.addEventListener("click", () => { panel = b.dataset.panel; query = ""; sure = false; importing = null; importMsg = null; dropping = null; draw(); }));
+  root.querySelectorAll("[data-panel]").forEach((b) => b.addEventListener("click", () => { panel = b.dataset.panel; query = ""; sure = false; importing = null; importMsg = null; dropping = null; renaming = null; draw(); }));
   const q = root.querySelector("#q");
   if (q) {
     q.addEventListener("input", () => { query = q.value; draw(); });
@@ -611,6 +614,19 @@ async function drawDrawer() {
   }));
   root.querySelectorAll(".item[data-dl]").forEach((el) => el.addEventListener("click", (e) => { if (!e.target.closest("button")) rove.send("rove:download-open", Number(el.dataset.dl)); }));
   root.querySelectorAll("[data-forget]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:forget", b.dataset.forget); draw(); }));
+  root.querySelectorAll("[data-rename]").forEach((b) => b.addEventListener("click", () => { renaming = b.dataset.rename; renameText = list.find((x) => x.url === renaming)?.title || ""; renameNew = true; draw(); }));
+  const name = root.querySelector("#bname");
+  if (name) {
+    const done = () => { const url = renaming; renaming = null; rove.send("rove:bookmark-rename", url, name.value); setTimeout(draw, 50); };
+    name.addEventListener("input", () => { renameText = name.value; });
+    name.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); done(); }
+      if (e.key === "Escape") { e.stopPropagation(); renaming = null; draw(); }
+    });
+    root.querySelector("[data-rename-ok]").addEventListener("click", done);
+    if (renameNew) { name.focus(); name.select(); } else if (keepName) { name.focus(); name.setSelectionRange(name.value.length, name.value.length); }
+    renameNew = false;
+  }
   root.querySelectorAll("[data-unstar]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:unstar", b.dataset.unstar); setTimeout(draw, 50); }));
   root.querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-cancel", Number(b.dataset.cancel))));
   root.querySelectorAll("[data-keep]").forEach((b) => b.addEventListener("click", () => rove.send("rove:answer", Number(b.dataset.keep), b.dataset.yes === "1")));

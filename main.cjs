@@ -1241,7 +1241,8 @@ function messages() {
   on("rove:devtools", () => active?.view.webContents.toggleDevTools());
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   handle("rove:history", (q) => historyDays(q).map(withIcon));
-  handle("rove:bookmarks", () => bookmarks.slice().reverse().map(withIcon));
+  handle("rove:bookmarks", (q) => { const s = String(q || "").trim().toLowerCase(); return bookmarks.filter((b) => !s || (b.url + " " + b.title).toLowerCase().includes(s)).reverse().map(withIcon); });
+  on("rove:bookmark-rename", (url, title) => { const b = bookmarks.find((x) => x.url === url); if (!b || typeof title !== "string") return; b.title = title.trim().slice(0, 300) || b.url; save("bookmarks.json", bookmarks); tell(); });
   handle("rove:closed", () => closed.filter((u) => !u.urls).slice(-10).reverse().map((u) => u.url));
   handle("rove:import-from", () => importSources().map(({ list, ...x }) => x));
   handle("rove:import", (id) => importFrom(String(id)));
@@ -2176,7 +2177,8 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   overlay.setBackgroundColor("#00000000");
   overlay.setVisible(false);
   overlay.webContents.loadURL("rove://ui/overlay.html");
-  overlay.webContents.on("before-input-event", here((e, input) => { if (keys(input)) e.preventDefault(); }));
+  // Escape is the overlay's own (it closes it, unless a field there takes it first: a bookmark being renamed)
+  overlay.webContents.on("before-input-event", here((e, input) => { if (input.key !== "Escape" && keys(input)) e.preventDefault(); }));
   overlay.webContents.on("will-navigate", (e) => e.preventDefault());
   overlay.webContents.on("blur", here(() => { if (overlayOn && overlayOn.kind !== "suggest") hideOverlay(); }));
   win.contentView.addChildView(overlay);

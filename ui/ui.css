@@ -362,6 +362,8 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .drawer .item small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }
 .drawer .item small.alarm { color: var(--rk-alarm-text); }
+/* a bookmark being renamed: the field takes the name's line (its text where the name was), the row keeps its height */
+.drawer .item .w > .rk-input { display: block; width: calc(100% + 7px); min-height: 0; height: 22px; margin: -2px 0 0 -7px; padding: 0 6px; font-size: 13px; line-height: 18px; }
 /* a site's permissions: every one is said (the drawer has no other place that shows them) */
 .drawer .item.wrap { padding-block: 6px; }
 .drawer .item.wrap small { white-space: normal; }

@@ -25,6 +25,8 @@ rove.ask("rove:state").then((s) => { if (s) state = s; });
 rove.on("rove:overlay", (what) => {
   const was = open?.kind;
   open = what;
+  // opened from the keyboard: no motion (ui.css .keyed)
+  if (what?.kind !== was) document.body.classList.toggle("keyed", !!what?.keyed);
   if (what?.kind === "drawer") { if (was !== "drawer" || what.panel) panel = what.panel || panel; sure = false; }
   if (what?.kind === "pass" && was !== "pass") { pq = ""; pmsg = ""; ppeek = undefined; psecond = null; }
   if (what?.kind !== "pass") stopTick();

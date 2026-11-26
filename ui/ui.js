@@ -313,12 +313,15 @@ $("reload").addEventListener("click", (e) => {
 });
 $("home").addEventListener("click", () => rove.send("rove:home"));
 $("star").addEventListener("click", () => rove.send("rove:star"));
-function openPass() { const r = $("pass").getBoundingClientRect(); rove.send("rove:overlay", { kind: "pass", x: Math.round(r.right), y: Math.round(r.bottom + 6) }); }
+// keyed: opened from the keyboard (Enter or Space on the button: a click with no detail, or the
+// shortcut), the overlay is there at once (docs/brand.md V5.1)
+const keyed = (e) => e === true || e?.detail === 0;
+function openPass(e) { const r = $("pass").getBoundingClientRect(); rove.send("rove:overlay", { kind: "pass", keyed: keyed(e), x: Math.round(r.right), y: Math.round(r.bottom + 6) }); }
 $("pass").addEventListener("click", openPass);
 rove.on("rove:pass-open", openPass);
-$("lead").addEventListener("click", () => { const r = $("lead").getBoundingClientRect(); rove.send("rove:overlay", { kind: "site", x: Math.round(r.left), y: Math.round(r.bottom + 10) }); });
-$("menu").addEventListener("click", () => rove.send("rove:overlay", { kind: "menu" }));
-$("downloads").addEventListener("click", () => rove.send("rove:overlay", { kind: "drawer", panel: "downloads" }));
+$("lead").addEventListener("click", (e) => { const r = $("lead").getBoundingClientRect(); rove.send("rove:overlay", { kind: "site", keyed: keyed(e), x: Math.round(r.left), y: Math.round(r.bottom + 10) }); });
+$("menu").addEventListener("click", (e) => rove.send("rove:overlay", { kind: "menu", keyed: keyed(e) }));
+$("downloads").addEventListener("click", (e) => rove.send("rove:overlay", { kind: "drawer", panel: "downloads", keyed: keyed(e) }));
 $("revive").addEventListener("click", () => rove.send("rove:reload"));
 $("newver").addEventListener("click", () => rove.send("rove:relaunch"));
 

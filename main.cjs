@@ -972,10 +972,11 @@ function keys(input) {
   if (input.alt && k === "ArrowLeft") return run(() => active?.view.webContents.navigationHistory.goBack());
   if (input.alt && k === "ArrowRight") return run(() => active?.view.webContents.navigationHistory.goForward());
   if (c && k === "d") return run(star);
-  if (c && k === "h") return run(() => showOverlay({ kind: "drawer", panel: "history" }));
-  if (c && k === "j") return run(() => showOverlay({ kind: "drawer", panel: "downloads" }));
-  if (c && input.shift && k === "o") return run(() => showOverlay({ kind: "drawer", panel: "bookmarks" }));
-  if (c && input.shift && k === "a") return run(() => showOverlay({ kind: "tabs" }));
+  // keyed: opened from the keyboard, it is there at once (docs/brand.md V5.1)
+  if (c && k === "h") return run(() => showOverlay({ kind: "drawer", panel: "history", keyed: true }));
+  if (c && k === "j") return run(() => showOverlay({ kind: "drawer", panel: "downloads", keyed: true }));
+  if (c && input.shift && k === "o") return run(() => showOverlay({ kind: "drawer", panel: "bookmarks", keyed: true }));
+  if (c && input.shift && k === "a") return run(() => showOverlay({ kind: "tabs", keyed: true }));
   if (k === "F9") return run(() => read());
   if (c && k === "f") return run(() => setFind(true));
   if (c && k === "p") return run(() => active?.view.webContents.print());
@@ -1408,7 +1409,7 @@ function passQuick() {
   const url = active?.view.webContents.getURL() || "";
   const here = pass.status().state === "open" && webby(url) ? pass.forPage(url) : [];
   if (here.length === 1) passFill(here[0].id);
-  else win.webContents.send("rove:pass-open");
+  else win.webContents.send("rove:pass-open", true);
 }
 
 function cleanAgent(ses) {

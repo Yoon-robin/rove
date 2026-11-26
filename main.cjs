@@ -976,7 +976,7 @@ function keys(input) {
   if (c && !input.shift && k === "n") return run(() => createWindow({}));
   if (c && input.shift && k === "n") return run(() => createWindow({ priv: true }));
   if (c && k === "w") return run(() => active && closeTab(active));
-  if (c && k === "tab") return run(() => { const i = tabs.indexOf(active); select(tabs[(i + (input.shift ? -1 : 1) + tabs.length) % tabs.length]); });
+  if (c && k === "Tab") return run(() => { const i = tabs.indexOf(active); select(tabs[(i + (input.shift ? -1 : 1) + tabs.length) % tabs.length]); });
   if (c && /^[1-9]$/.test(k)) return run(() => select(k === "9" ? tabs[tabs.length - 1] : tabs[Number(k) - 1]));
   if (c && input.shift && k === "l") return run(passQuick);
   if ((c && k === "l") || (input.alt && k === "d") || k === "F6") return run(focusAddress);

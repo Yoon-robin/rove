@@ -406,7 +406,8 @@ a.rk-row:hover, button.rk-row:hover { color: var(--rk-head); }
    V5.1: THE FEEL (docs/brand.md "V5.1", 2026-11-26)
    The faces, colours and corners above stay. What changes is how a part answers a hand:
    - light is height: a floating face has a 1px light along its top edge inside, a card's
-     top line is a shade brighter than its sides (no new colour, no glow);
+     top line is a shade brighter than its sides (no new colour);
+   - what is on glows a little in its own colour, and only that (below the tokens);
    - a pressed part gives to 0.97 in 160ms and comes back; a row gives 1%;
    - a hover band comes on in 90ms and goes in 160ms (measured from the game menu);
    - a menu grows from the side it opened on, 0.97 to 1 with its opacity, 150ms; it leaves
@@ -422,11 +423,29 @@ a.rk-row:hover, button.rk-row:hover { color: var(--rk-head); }
   --rk-t-out: 160ms;
   --rk-lift: rgb(255 255 255 / 5%);
   --rk-card-top: #212428;
+  --rk-glow: rgb(75 125 254 / 45%);
+  --rk-glow-strong: rgb(75 125 254 / 70%);
+  --rk-glow-icon: rgb(75 125 254 / 80%);
+  --rk-glow-tick: 8px;
 }
 [data-theme="light"] {
   --rk-lift: rgb(255 255 255 / 80%);
   --rk-card-top: #e3e6eb;
+  --rk-glow: rgb(53 102 232 / 24%);
+  --rk-glow-strong: rgb(53 102 232 / 38%);
+  --rk-glow-icon: rgb(53 102 232 / 35%);
+  --rk-glow-tick: 5px;
 }
+
+/* what is on glows a little, in its own colour (robin 11-26, glow "B"): an on switch or box,
+   a slider's knob, a coloured tick, the chosen row's icon. Nothing else glows. */
+.rk-switch[aria-checked="true"], .rk-check:checked { box-shadow: 0 0 12px var(--rk-glow); }
+.rk-switch[aria-checked="true"]:disabled, .rk-check:checked:disabled { box-shadow: none; }
+.rk-check { transition: background-color 165ms ease-out, box-shadow 165ms ease-out; }
+.rk-slider::-webkit-slider-thumb { box-shadow: 0 0 0 1px rgb(0 0 0 / 10%), 0 0 10px 1px var(--rk-glow-strong); }
+.rk-slider::-moz-range-thumb { box-shadow: 0 0 10px 1px var(--rk-glow-strong); }
+:is(.rk-hud, .rk-chip, .rk-toast, .rk-alert, .rk-person)[data-tone]::before { box-shadow: 0 0 var(--rk-glow-tick) var(--rk-tick); }
+.rk-nav[aria-current="page"] .rk-ico, .rk-nav[aria-current="true"] .rk-ico, .rk-nav.is-on .rk-ico { filter: drop-shadow(0 0 5px var(--rk-glow-icon)); }
 
 /* light is height */
 .rk-card, .rk-tile { box-shadow: inset 0 1px 0 var(--rk-card-top), inset 0 0 0 1px var(--rk-line); }

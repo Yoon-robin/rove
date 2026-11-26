@@ -220,7 +220,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .tabfind .item { display: flex; align-items: center; gap: 10px; min-height: 40px; margin: 0 6px; padding: 0 4px 0 10px; border-radius: var(--rk-r); color: var(--rk-text); cursor: default; }
 .tabfind .item.sel, .tabfind .item:hover { background: var(--rk-hover); color: var(--rk-head); }
 .tabfind .item > .rk-ico { flex: none; width: 15px; height: 15px; color: var(--rk-faint); }
-.tabfind .item > img.fav { flex: none; width: 16px; height: 16px; border-radius: 3px; }
+.tabfind .item > img.fav { flex: none; width: 16px; height: 16px; margin: 0 -0.5px; border-radius: 3px; } /* 16px on the marks' 15px box: titles in one line */
 .tabfind .item.asleep > img.fav, .tabfind .item.asleep > .rk-ico { opacity: .45; }
 .tabfind .item .w { flex: 1; min-width: 0; }
 .tabfind .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }

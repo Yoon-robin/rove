@@ -159,7 +159,7 @@ let overlayOn = null; // what the overlay shows: { kind, ... }
 let tabs = []; // { id, w, view, title, url, favicon, loading, failed, crashed }
 let active = null;
 let nextId = 1;
-let closed = []; // closed tabs (their urls) and closed windows ({ urls, ... } as in tabs.json), newest last
+let closed = []; // closed tabs ({ url, nav }) and closed windows ({ urls, ... } as in tabs.json), newest last
 let findOpen = false;
 let downloads = []; // { id, name, path, url, received, total, state, at, private }
 const windows = []; // { id, win, overlay, tabs, closed, private, ses, gone } + the fields above while not in use
@@ -285,13 +285,32 @@ function windowKept(w) {
   const kept = w.tabs.filter((t) => webby(t.failed || t.url));
   let bounds = null;
   try { bounds = { ...w.win.getNormalBounds(), max: w.win.isMaximized() }; } catch { bounds = w.closedAt || null; }
-  return { urls: kept.map((t) => t.failed || t.url), titles: kept.map((t) => t.title), pinned: kept.map((t) => !!t.pinned), group: kept.map((t) => t.group || null), groups: w.groups, active: kept.indexOf(w.active), bounds };
+  // each tab's back and forward list, addresses and titles only (a page's pageState holds what was typed in it)
+  const nav = kept.map((t) => { const h = navOf(t); return h && { entries: h.entries.map((e) => ({ url: e.url, title: e.title })), index: h.index }; });
+  return { urls: kept.map((t) => t.failed || t.url), titles: kept.map((t) => t.title), pinned: kept.map((t) => !!t.pinned), group: kept.map((t) => t.group || null), groups: w.groups, active: kept.indexOf(w.active), bounds, nav };
+}
+// a tab's back and forward list (a sleeping tab holds its own); a failed page's is not kept
+function navOf(tab) {
+  if (tab.failed) return null;
+  if (tab.asleep) return { entries: tab.asleep.entries, index: tab.asleep.index };
+  const h = tab.view.webContents.navigationHistory;
+  return { entries: h.getAllEntries(), index: h.getActiveIndex() };
+}
+// a list from tabs.json or the closed list, as navigationHistory.restore takes it: web addresses only
+// (a page of Rove's own is left out) and the shown one among them, or none
+function navOk(h) {
+  if (!Array.isArray(h?.entries) || h.entries.length > 50 || !Number.isInteger(h.index)) return null;
+  const shown = h.entries[h.index];
+  const entries = h.entries.filter((e) => typeof e?.url === "string" && webby(e.url));
+  const index = entries.indexOf(shown);
+  if (index < 0) return null;
+  return { entries: entries.map((e) => ({ url: e.url, title: typeof e.title === "string" ? e.title : "", ...(typeof e.pageState === "string" ? { pageState: e.pageState } : {}) })), index };
 }
 // Ctrl+Shift+T and the tab menu: the newest closed thing — a tab, or a whole window
 function reopenClosed() {
   const u = closed.pop();
-  if (typeof u === "string") newTab(u);
-  else if (u) createWindow({ restore: u });
+  if (u?.urls) createWindow({ restore: u });
+  else if (u) newTab(u.url, { nav: u.nav });
 }
 
 // ---- tabs -------------------------------------------------------------------------
@@ -308,10 +327,13 @@ function pageView(ses = cur?.ses || rove()) {
   view.setBackgroundColor("#ffffff");
   return view;
 }
-function newTab(url, { background = false, after = null, asleep = false, title = "", pinned = false, group } = {}) {
+// nav: a back and forward list to bring back (navOk); the tab then comes in asleep and loads it when looked at
+function newTab(url, { background = false, after = null, asleep = false, title = "", pinned = false, group, nav = null } = {}) {
   const view = pageView();
+  const back = navOk(nav);
+  if (back) asleep = true;
   const tab = { id: nextId++, w: cur, view, title: title || "새 탭", url: url || HOME_PAGE, favicon: null, loading: !asleep, failed: null, crashed: false, seen: Date.now() };
-  if (asleep) { tab.asleep = { entries: [{ url: tab.url, title: tab.title }], index: 0 }; if (!title) tab.title = hostOf(tab.url) || tab.url; }
+  if (asleep) { tab.asleep = back || { entries: [{ url: tab.url, title: tab.title }], index: 0 }; if (!title) tab.title = back?.entries[back.index].title || hostOf(tab.url) || tab.url; }
   tab.pinned = !!pinned;
   // the pinned ones stay first: a new tab goes after them
   const pins = tabs.filter((t) => t.pinned).length;
@@ -409,7 +431,7 @@ function sleepIdle() {
 function closeTab(tab) {
   const i = tabs.indexOf(tab);
   if (i < 0) return;
-  if (webby(tab.failed || tab.url)) closed.push(tab.failed || tab.url);
+  if (webby(tab.failed || tab.url)) closed.push({ url: tab.failed || tab.url, nav: navOf(tab) });
   if (closed.length > 25) closed.shift();
   tabs.splice(i, 1);
   if (split?.a === tab || split?.b === tab) split = null;
@@ -862,7 +884,7 @@ function tabItems(tab) {
     { label: "다른 탭 닫기", enabled: tabs.some((t) => t !== tab && !t.pinned), click: () => shut(tabs.filter((t) => t !== tab && !t.pinned)) },
     { label: "오른쪽 탭 닫기", enabled: tabs.slice(i + 1).some((t) => !t.pinned), click: () => shut(tabs.slice(i + 1).filter((t) => !t.pinned)) },
     { type: "separator" },
-    { label: closed.length && typeof closed[closed.length - 1] !== "string" ? "닫은 창 다시 열기" : "닫은 탭 다시 열기", enabled: closed.length > 0, click: reopenClosed },
+    { label: closed.at(-1)?.urls ? "닫은 창 다시 열기" : "닫은 탭 다시 열기", enabled: closed.length > 0, click: reopenClosed },
   ];
 }
 function tabMenu(tab) {
@@ -1068,7 +1090,7 @@ function messages() {
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   handle("rove:history", (q) => historyDays(q));
   handle("rove:bookmarks", () => bookmarks.slice().reverse());
-  handle("rove:closed", () => closed.filter((u) => typeof u === "string").slice(-10).reverse());
+  handle("rove:closed", () => closed.filter((u) => !u.urls).slice(-10).reverse().map((u) => u.url));
   handle("rove:import-from", () => importSources().map(({ list, ...x }) => x));
   handle("rove:import", (id) => importFrom(String(id)));
   on("rove:read", () => read());
@@ -1985,7 +2007,7 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
     nextGroup = Math.max(nextGroup, ...groups.map((g) => g.id + 1));
     // only the tab in front loads; the others sleep until looked at
     const front = Math.min(Math.max(0, restore.active), restore.urls.length - 1);
-    restore.urls.forEach((u, i) => newTab(u, { background: true, asleep: i !== front, title: restore.titles?.[i] || "", pinned: !!restore.pinned?.[i], group: groupOf(restore.group?.[i])?.id || null }));
+    restore.urls.forEach((u, i) => newTab(u, { background: true, asleep: i !== front, title: restore.titles?.[i] || "", pinned: !!restore.pinned?.[i], group: groupOf(restore.group?.[i])?.id || null, nav: restore.nav?.[i] }));
     select(tabs[front]);
   } else {
     const first = urls.length ? urls : [HOME_PAGE];

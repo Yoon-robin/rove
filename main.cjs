@@ -1498,7 +1498,9 @@ function permissions(ses, priv = false) {
     // another program for a link (zoommtg:, mailto: ...): asked for every time
     if (what === "openExternal") {
       const scheme = (() => { try { return new URL(details.externalURL).protocol.replace(":", ""); } catch { return ""; } })();
-      if (!tab || !scheme || /^(javascript|file|data|blob|vbscript|ms-.*)$/i.test(scheme)) return done(false);
+      // refused without asking: ones that run or reach files, and Windows ones used in attacks
+      // (search-ms:/search: show a remote share as a local folder; hcp:, its:, mk: old help-file holes)
+      if (!tab || !scheme || /^(javascript|file|data|blob|vbscript|ms-.*|search(-ms)?|shell|hcp|its|mk)$/i.test(scheme)) return done(false);
       asks.push({ id: nextId++, kind: "site", tab, origin, host: hostOf(origin) || origin, what: ["external"], scheme, done: [done] });
       layout(); tell(); return;
     }

@@ -421,4 +421,14 @@ body.vertical .pop.tabfind { top: 48px; }
   .tab[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
   .address { border: 1px solid CanvasText; }
   .address:focus-within { outline: 2px solid Highlight; outline-offset: -1px; }
+  /* the kit's switch is all background: forced colors blanked it, on or off. Drawn here in
+     system colours (forced-color-adjust: none keeps the knob's background) */
+  .rk-switch { forced-color-adjust: none; background: Canvas; border: 1px solid CanvasText; }
+  .rk-switch::before { forced-color-adjust: none; background: CanvasText; }
+  .rk-switch[aria-checked="true"] { background: Highlight; border-color: Highlight; }
+  .rk-switch[aria-checked="true"]::before { background: HighlightText; }
+  .pop, .drawer { outline: 1px solid CanvasText; }
+  .rk-tab[aria-selected="true"], .rk-tab[aria-pressed="true"], .rk-tab.is-on { outline: 2px solid Highlight; outline-offset: -2px; }
+  .rk-input, .rk-select, .rk-textarea { border: 1px solid CanvasText; }
+  .rk-input:focus-visible, .rk-select:focus-visible, .rk-textarea:focus-visible { outline: 2px solid Highlight; outline-offset: -1px; }
 }

@@ -173,7 +173,10 @@ static class Setup
         Part<Button>("Close").Click += delegate { Quit(); };
         Part<Button>("Cancel").Click += delegate { if (busy) stop.Cancel(); else Quit(); };
         Part<Button>("Go").Click += delegate { if (removing) { if (!busy) Remove(); } else if (done) { Launch(); Quit(); } else if (!busy) Go(); };
-        win.KeyDown += delegate(object o, KeyEventArgs e) { if (e.Key == Key.Escape) { if (busy) stop.Cancel(); else Quit(); } };
+        // removing has no stop: once it runs, Esc does nothing and the window stays until it is done
+        // (closing it half-way left current, app-* and the installed apps entry behind)
+        win.KeyDown += delegate(object o, KeyEventArgs e) { if (e.Key != Key.Escape) return; if (!busy) Quit(); else if (!removing) stop.Cancel(); };
+        win.Closing += delegate(object o, System.ComponentModel.CancelEventArgs e) { if (removing && busy) e.Cancel = true; };
 
         foreach (var n in new[] { "Desk", "Menu", "Open", "Mine" })
         {
@@ -577,6 +580,7 @@ static class Setup
         busy = true;
         var go = Part<Button>("Go"); go.IsEnabled = false;
         Part<Button>("Cancel").IsEnabled = false;
+        Part<Button>("Close").IsEnabled = false;
         Part<ToggleButton>("Mine").IsEnabled = false;
         bool mine = Part<ToggleButton>("Mine").IsChecked == true;
         int at = 0;
@@ -614,6 +618,7 @@ static class Setup
             Say(mine ? "다 지웠어요" : "다 지웠어요. 방문 기록·즐겨찾기는 남겨 뒀어요", null);
             busy = false;
             go.Visibility = Visibility.Collapsed;
+            Part<Button>("Close").IsEnabled = true;
             var cancel = Part<Button>("Cancel"); cancel.IsEnabled = true; cancel.Content = "닫기"; cancel.Focus();
             if (goNow) Quit();
         }
@@ -624,6 +629,7 @@ static class Setup
             busy = false;
             go.Content = "다시"; go.IsEnabled = true;
             Part<Button>("Cancel").IsEnabled = true;
+            Part<Button>("Close").IsEnabled = true;
             Part<ToggleButton>("Mine").IsEnabled = true;
             if (goNow) { Environment.ExitCode = 1; Quit(); }
         }

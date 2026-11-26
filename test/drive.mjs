@@ -42,6 +42,10 @@ for (const s of steps) {
 }
 await run("R.win.close()");
 await sleep(800);
+// the profile goes once Rove is gone: its helper processes hold files a moment after the kill
+// (deleting at once left a %TEMP%\rove-test-* behind on every run)
+const gone = child.exitCode !== null ? Promise.resolve() : new Promise((r) => child.once("exit", r));
 child.kill();
+await Promise.race([gone, sleep(5000)]);
 if (process.env.ROVE_LOG) console.log(log);
-try { rmSync(home, { recursive: true, force: true }); } catch { /* the profile is still held: leave it */ }
+try { rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { console.log(`프로필을 못 지웠어요: ${home}`); }

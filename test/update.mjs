@@ -3,6 +3,7 @@
 // 1) current already points at a newer version than latest.json (installed by hand,
 //    or by a newer Rove) -> current stays; it used to be moved back to latest.json's
 // 2) current is the running one, latest.json is newer -> current moves to it
+// every request goes without cookies (credentials "omit"): GitHub's _octo id stays out
 import { createRequire } from "node:module";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { createServer } from "node:http";
@@ -49,12 +50,14 @@ async function test(name, { cur, newest }, want) {
     if (cur) app(home, cur[0], cur[1]);
     junction(join(home, "current"), join(home, `app-${cur ? cur[0] : "1.2.2"}`));
     latest = release(...newest);
-    const u = updater({ mine, url, key, fetch, tell: () => {}, log: () => {} });
+    const asked = [];
+    const u = updater({ mine, url, key, fetch: (u, o) => { asked.push(o?.credentials); return fetch(u, o); }, tell: () => {}, log: () => {} });
     const s = await u.check();
     const got = at(home);
-    const ok = got === join(home, `app-${want}`) && !s.error;
+    const bare = asked.length > 0 && asked.every((c) => c === "omit");
+    const ok = got === join(home, `app-${want}`) && !s.error && bare;
     if (!ok) failed++;
-    console.log(`${ok ? "ok  " : "FAIL"} ${name}: current -> ${got.slice(home.length + 1)}${s.error ? `, error ${s.error}` : ""} (want app-${want})`);
+    console.log(`${ok ? "ok  " : "FAIL"} ${name}: current -> ${got.slice(home.length + 1)}${s.error ? `, error ${s.error}` : ""}${bare ? "" : `, cookies ${asked.join("/")}`} (want app-${want})`);
   } finally {
     unjunction(join(home, "current"));
     rmSync(home, { recursive: true, force: true });

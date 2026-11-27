@@ -79,6 +79,8 @@ function updater({ mine, tell, log, url, key, fetch }) {
   let state = { version: mine.version, ready: null, checking: false, downloading: null, checkedAt: 0, error: null };
   const set = (change) => { state = { ...state, ...change }; tell(state); };
   let busy = false;
+  // credentials "omit": net.fetch uses the default session, where GitHub would keep a
+  // year-long _octo id and get it back on every check (6 hours), as Brave's updates don't
 
   async function check() {
     if (busy) return state;
@@ -87,7 +89,7 @@ function updater({ mine, tell, log, url, key, fetch }) {
     try {
       let latest;
       try {
-        const r = await fetch(url + "latest.json", { cache: "no-store", signal: AbortSignal.timeout(30000) });
+        const r = await fetch(url + "latest.json", { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(30000) });
         if (!r.ok) throw new Error(String(r.status));
         latest = await r.json();
       } catch (e) { throw new Error(`업데이트 주소에 닿지 않아요(${String(e.message).slice(0, 60)})`); }
@@ -106,7 +108,7 @@ function updater({ mine, tell, log, url, key, fetch }) {
         rmSync(tmp, { recursive: true, force: true });
         log(`새 버전 ${latest.version}을 받는 중이에요.`);
         try {
-          const r = await fetch(url + latest.file, { cache: "no-store", signal: AbortSignal.timeout(20 * 60000) });
+          const r = await fetch(url + latest.file, { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(20 * 60000) });
           if (!r.ok || !r.body) throw new Error(String(r.status));
           await pipeline(Readable.fromWeb(r.body), createWriteStream(zip));
         } catch (e) { rmSync(zip, { force: true }); throw new Error(`새 버전을 받지 못했어요: ${String(e.message).slice(0, 160)}`); }

@@ -110,12 +110,16 @@ const file = (name) => join(home, name);
 function load(name, fallback) {
   try { return JSON.parse(readFileSync(file(name), "utf8")); } catch { return fallback; }
 }
-const timers = {};
+// a write waits 0.8 s so a burst of changes is one write; what still waits is written when Rove ends
+// (flushSaves in keepAll) — the timer never fires once the app has quit
+const unsaved = new Map(); // name → { timer, write }
 function save(name, value, now) {
-  clearTimeout(timers[name]);
-  const write = () => { try { writeFileSync(file(name) + ".tmp", JSON.stringify(value)); renameSync(file(name) + ".tmp", file(name)); } catch { /* next time */ } };
-  if (now) write(); else timers[name] = setTimeout(write, 800);
+  clearTimeout(unsaved.get(name)?.timer);
+  unsaved.delete(name);
+  const write = () => { unsaved.delete(name); try { writeFileSync(file(name) + ".tmp", JSON.stringify(value)); renameSync(file(name) + ".tmp", file(name)); } catch { /* next time */ } };
+  if (now) write(); else unsaved.set(name, { timer: setTimeout(write, 800), write });
 }
+function flushSaves() { for (const { timer, write } of [...unsaved.values()]) { clearTimeout(timer); write(); } }
 let history = load("history.json", []); // [{ url, title, at }], newest last
 let bookmarks = load("bookmarks.json", []); // [{ url, title, at }]
 // host → its page icon (data:, normal windows only) for the history and bookmark lists; a host in neither goes
@@ -2686,6 +2690,7 @@ function keepAll() {
   save("history.json", history, true);
   save("bookmarks.json", bookmarks, true);
   keepIcons(true);
+  flushSaves(); // settings, permissions, downloads changed in the last 0.8 s
 }
 function closedWindow(w) {
   if (cur === w) store();

@@ -127,7 +127,7 @@ body.full .side { display: none; }
 
 /* ---- the toolbar: 44 high on the page face, a line under */
 .tools { display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 8px; background: var(--rk-page); border-bottom: 1px solid var(--rk-line); }
-.address { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; height: 32px; margin: 0 6px; padding: 0 2px 0 11px; border-radius: var(--rk-r); background: var(--rk-control); box-shadow: inset 0 0 0 1px var(--rk-control-line); transition: box-shadow var(--rk-t-fast) ease-out; }
+.address { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 160px; height: 32px; margin: 0 6px; padding: 0 2px 0 11px; border-radius: var(--rk-r); background: var(--rk-control); box-shadow: inset 0 0 0 1px var(--rk-control-line); transition: box-shadow var(--rk-t-fast) ease-out; }
 .address:hover { box-shadow: inset 0 0 0 1px var(--rk-control-line-hover); }
 .address:focus-within { box-shadow: inset 0 0 0 1px var(--rk-ring); }
 .address input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--rk-head); font: inherit; font-size: 13px; outline: 0; user-select: text; }
@@ -149,9 +149,14 @@ body.full .side { display: none; }
 .newver { min-height: 28px; margin: 0 6px 0 2px; padding: 0 12px 0 15px; border: 0; font: inherit; font-size: 12px; font-weight: var(--rk-w-strong); cursor: pointer; transition: background-color var(--rk-t-fast) ease-out; }
 .newver:hover { background: var(--rk-control-hover); }
 /* extensions' buttons (<browser-action-list>: each one is its ::part(action), drawn as our .btn) */
-.actions { display: flex; align-items: center; gap: 2px; }
+/* many of them do not squeeze the address away: past 40% of the toolbar they scroll sideways (wheel, Tab)
+   with the cut edge faded, as the tab strip; the 4px pad keeps the focus ring inside the scroll box */
+.actions { display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 40%; margin: -4px; padding: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.actions.more-left { -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px); mask-image: linear-gradient(90deg, transparent, #000 32px); }
+.actions.more-right { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); }
+.actions.more-left.more-right { -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
 .actions[hidden] { display: none; }
-.actions::part(action) { width: 32px; height: 32px; border-radius: var(--rk-r); background-size: 17px; cursor: pointer; transition: background-color var(--rk-t-fast) ease-out; }
+.actions::part(action) { flex: none; width: 32px; height: 32px; border-radius: var(--rk-r); background-size: 17px; cursor: pointer; transition: background-color var(--rk-t-fast) ease-out; }
 .actions::part(action):hover { background-color: var(--rk-hover); }
 .actions::part(action):active { background-color: var(--rk-control-press); }
 .actions::part(action):focus-visible { outline: 2px solid var(--rk-ring); outline-offset: 2px; }

@@ -202,6 +202,18 @@ let stripWidth = 0;
 new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); stripWidth = tabsEl.clientWidth; markEdges(); }).observe(tabsEl);
 // a plain wheel over the strip moves it sideways
 tabsEl.addEventListener("wheel", (e) => { if (state.vertical || !e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; tabsEl.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
+// extensions' buttons past their 40% (ui.css .actions) scroll the same way, their cut edge faded;
+// a button added or removed changes no box size, so the list itself is watched too
+const actionsEl = $("actions");
+function markActions() {
+  const x = actionsEl.scrollLeft;
+  actionsEl.classList.toggle("more-left", x > 0);
+  actionsEl.classList.toggle("more-right", x + actionsEl.clientWidth < actionsEl.scrollWidth - 1);
+  if (actionsEl.shadowRoot && !actionsEl.watched) { actionsEl.watched = true; new MutationObserver(markActions).observe(actionsEl.shadowRoot, { childList: true }); }
+}
+actionsEl.addEventListener("scroll", markActions, { passive: true });
+new ResizeObserver(markActions).observe(actionsEl);
+actionsEl.addEventListener("wheel", (e) => { if (!e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; actionsEl.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
 $("sideNew").addEventListener("click", () => rove.send("rove:new-tab"));
 $("sideFold").addEventListener("click", () => rove.send("rove:narrow", !state.narrow));
 // folded to icons: the pointer resting on them a moment shows the names (laid over the page, ui/overlay.js)

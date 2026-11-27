@@ -633,7 +633,7 @@ async function drawDrawer() {
       const pic = x.icon ? `<img class="ext" src="${esc(x.icon)}" alt="">` : icon("spark");
       const sure = dropping === x.id;
       const turn = `<button class="rk-switch" role="switch" data-ext-on="${esc(x.id)}" aria-checked="${!!x.on}" aria-label="${esc(x.name)} 켜기" title="${x.on ? "끄기 (지우지 않음)" : "켜기"}"></button>`;
-      body += `<div class="item${x.on ? "" : " off"}">${pic}<div class="w"><b>${esc(x.name)}</b><small class="rk-num">${x.on ? "" : "꺼짐 · "}${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}${turn}</div>`;
+      body += `<div class="item${x.on ? "" : " off"}">${pic}<div class="w"><b title="${esc(x.name)}">${esc(x.name)}</b><small class="rk-num">${x.on ? "" : "꺼짐 · "}${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}${turn}</div>`;
     }
   } else if (panel === "bookmarks" && importing) {
     body += `<div class="rk-label">가져오기</div>`;

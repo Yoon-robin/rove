@@ -659,6 +659,7 @@ function wire(tab) {
   on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Enter") passTyped(tab); pageKey(tab, e, input); });
   on("before-mouse-event", (e, m) => { if (m.type === "mouseDown") passTyped(tab); });
   on("dom-ready", () => wc.executeJavaScriptInIsolatedWorld(KEY_WORLD, [{ code: KEY_LISTENER }]).catch(() => {}));
+  on("dom-ready", () => { if (own()) unAmp(tab, wc); });
   on("dom-ready", () => { if (!tab.w.private && pass?.status().state === "open") wc.executeJavaScriptInIsolatedWorld(1001, [{ code: SNAP }]).catch(() => {}); });
   on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
@@ -1304,6 +1305,29 @@ function keyAction(input, fromBar = false) {
 // the page took it (defaultPrevented), and Rove runs its shortcut when not. No word in KEY_WAIT ms
 // (a frame of another site, a PDF, a page not ready yet): Rove runs it, as before. The word
 // carries a secret the page cannot see and says only taken or not: the key is the one Rove got.
+// De-AMP (Brave, on by default): a page made in AMP (<html amp> or <html ⚡>) goes to the page it is
+// a copy of, its rel=canonical — the publisher's own, not one Google's AMP scripts show. Brave looks
+// while the page loads; here when it is read (dom-ready), in its place (replace: Back does not land
+// on it again). AMP cache addresses (google.com/amp/s/…) are bounce.json's, before the page. Only to
+// http(s), only with blocking on for the site, at most once in AMP_GAP ms in a tab (no A→B→A loop).
+const AMP_WORLD = 1005;
+const AMP_GAP = 5000;
+const AMP_READ = `(() => { const h = document.documentElement;
+  if (!h || !(h.hasAttribute("amp") || h.hasAttribute("\\u26a1"))) return null;
+  const l = document.querySelector('link[rel~="canonical"][href]'); return l ? l.href : null; })()`;
+async function unAmp(tab, wc) {
+  const at = wc.getURL();
+  if (!settings.block || !webby(at) || allowedFor(hostOf(at), tab.w?.private) || Date.now() - (tab.unAmpedAt || 0) < AMP_GAP) return;
+  let to;
+  try { to = await wc.executeJavaScriptInIsolatedWorld(AMP_WORLD, [{ code: AMP_READ }]); } catch { return; }
+  if (!to || wc.isDestroyed() || wc.getURL() !== at) return;
+  let u;
+  try { u = new URL(to); } catch { return; }
+  if (!/^https?:$/.test(u.protocol) || u.href.split("#")[0] === at.split("#")[0]) return;
+  tab.unAmpedAt = Date.now();
+  log(`AMP 대신 원래 쪽: ${siteInLog(tab.w?.private, at)}`);
+  wc.executeJavaScriptInIsolatedWorld(AMP_WORLD, [{ code: `location.replace(${JSON.stringify(u.href)})` }]).catch(() => {});
+}
 const KEY_WORLD = 1004;
 const KEY_WAIT = 400;
 const KEY_WORD = `rove-key:${crypto.randomUUID()}:`;

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self'">
+<meta name="color-scheme" content="dark">
+<title>새 탭</title>
+<link rel="stylesheet" href="fonts/pretendard.css">
+<link rel="stylesheet" href="robin-ui.css">
+<link rel="stylesheet" href="newtab.css">
+</head>
+<body class="rk newtab">
+  <main>
+    <form id="find" role="search">
+      <svg class="rk-ico ic" aria-hidden="true"><use href="icons.svg#rk-i-search"/></svg>
+      <input id="q" class="rk-input" type="search" name="q" autocomplete="off" spellcheck="false" placeholder="검색어 또는 주소" aria-label="검색어 또는 주소">
+    </form>
+    <nav id="sites" aria-label="자주 가는 사이트" hidden></nav>
+  </main>
+  <nav id="links" class="links" aria-label="바로 가기" hidden></nav>
+  <script src="newtab.js"></script>
+</body>
+</html>

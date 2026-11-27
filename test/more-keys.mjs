@@ -2,7 +2,7 @@
 // before, after), Ctrl+Shift+PgUp/PgDn (move the tab), Ctrl+F4 (close it), F3·Shift+F3·Ctrl+G·
 // Ctrl+Shift+G (the next, the last match of the find box), Esc (stop loading), Ctrl+U (the page's
 // source in a new tab), Alt+Home (the home page), Alt+F (the ≡ menu). Needs the network
-// (example.com, the home page). Each line prints ok or FAIL.
+// (example.com). Each line prints ok or FAIL.
 const H = `globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 globalThis.u = (t) => "https://example.com/?" + t;
 globalThis.KEY = (key, m = "") => R.keys({ type: "keyDown", key, control: m.includes("c"), shift: m.includes("s"), alt: m.includes("a") });
@@ -30,7 +30,7 @@ export default [
   { js: `const n = R.tabs.length, at = AT(); KEY("u", "c"); await sleep(1200); const t = R.tabs[at + 1];
     return CHECK("Ctrl+U: the source in a new tab next to it", R.tabs.length === n + 1 && t?.view.webContents.getURL() === "view-source:" + u("a"), t?.view.webContents.getURL());` },
   { js: `R.select(R.tabs[0]); await sleep(200); const tab = R.active; KEY("Home", "a"); await sleep(1500);
-    return CHECK("Alt+Home: the home page in this tab", R.active === tab && tab.view.webContents.getURL().startsWith("https://home.yoonrobin.xyz"), tab.view.webContents.getURL());` },
+    return CHECK("Alt+Home: the home page in this tab", R.active === tab && tab.view.webContents.getURL() === "rove://ui/newtab.html", tab.view.webContents.getURL());` },
   { js: `KEY("f", "a"); await sleep(300); const kind = R.overlayOn?.kind; R.hideOverlay(); await sleep(200);
     return CHECK("Alt+F: the ≡ menu", kind === "menu", kind);` },
   { js: `const http = process.mainModule.require("http"); const srv = http.createServer(() => {}); await new Promise((r) => srv.listen(0, "127.0.0.1", r));

@@ -28,7 +28,7 @@ export default [
     return CHECK("middle click: a tab in this window", b.rove === a.rove && b.tabs === a.tabs + 1, { a, b });` },
   { js: `R.select(R.windows[0].tabs[0]); await sleep(300); const a = COUNT(); await PRESS();
     await R.active.view.webContents.executeJavaScript("window.open('https://example.org/', 'login', 'width=400,height=500'), 1", true); await sleep(1200);
-    const b = COUNT(); const pop = BrowserWindow.getAllWindows().find((w) => w.getSize()[0] === 520); pop?.close(); await sleep(300);
+    const b = COUNT(); const pop = BrowserWindow.getAllWindows().find((w) => !R.windows.some((x) => x.win === w)); pop?.close(); await sleep(300);
     return CHECK("window.open with a size: still a popup", b.popups === a.popups + 1 && b.rove === a.rove, { a, b });` },
   { js: `const a = COUNT(); await PRESS(); await R.active.view.webContents.executeJavaScript("window.open('https://example.org/'), 1", true); await sleep(1200);
     const b = COUNT(); return CHECK("window.open plain: a tab", b.tabs === a.tabs + 1 && b.rove === a.rove && b.popups === a.popups, { a, b });` },

@@ -223,7 +223,7 @@ function readable(u) {
     return [...text].map((c) => (keep(c) ? [...bytes.encode(c)].map((b) => "%" + b.toString(16).toUpperCase().padStart(2, "0")).join("") : c)).join("");
   });
 }
-const shown = (u) => readable((u || "").replace(/^https:\/\/home\.yoonrobin\.xyz\/?$/, ""));
+const shown = (u) => readable((u || "").replace(/^rove:\/\/ui\/newtab\.html$/, ""));
 // copying the whole, untouched address gives the real one
 for (const kind of ["copy", "cut"]) url.addEventListener(kind, (e) => {
   const t = state.tabs.find((x) => x.id === state.active);

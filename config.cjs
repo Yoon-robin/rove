@@ -1,10 +1,17 @@
 // What makes this Rove robin's. A Rove of your own changes these (and makes
 // its own release key: the updates below are only taken when signed by one of its keys).
 module.exports = {
-  // a new tab, the home button
-  home: "https://home.yoonrobin.xyz/",
-  // what the address bar searches with (the words go at the end)
-  search: "https://www.google.com/search?q=",
+  // the new tab's links, under its sites: [name, address, icon (icons.svg rk-i-…)]
+  links: [
+    ["Home", "https://home.yoonrobin.xyz/", "home"],
+    ["Mail", "https://mail.yoonrobin.xyz/", "mail"],
+    ["Cloud", "https://cloud.yoonrobin.xyz/", "cloud"],
+    ["Pass", "https://pass.yoonrobin.xyz/", "lock"],
+    ["AI", "https://ai.yoonrobin.xyz/", "spark"],
+    ["Get", "https://get.yoonrobin.xyz/", "download"],
+  ],
+  // what the address bar searches with till one is chosen in ≡ (a key of ENGINES in main.cjs)
+  engine: "google",
   // RobinPass, the key button in the address bar: a Vaultwarden (Bitwarden) server
   pass: "https://pass.yoonrobin.xyz",
   // where an installed Rove looks for a new version: latest.json and the zip it names

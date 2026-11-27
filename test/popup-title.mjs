@@ -4,7 +4,7 @@
 // Each line prints ok or FAIL. Needs the network (example.com, example.org).
 const H = `globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { BrowserWindow } = process.mainModule.require("electron");
-globalThis.POP = () => BrowserWindow.getAllWindows().find((w) => !R.windows.some((x) => x.win === w) && w.isVisible !== undefined && w.webContents.getURL() && w.getSize()[0] === 520);
+globalThis.POP = () => BrowserWindow.getAllWindows().find((w) => !R.windows.some((x) => x.win === w) && w.isVisible !== undefined && w.webContents.getURL());
 globalThis.PRESS = async () => { const wc = R.active.view.webContents; wc.sendInputEvent({ type: "mouseDown", x: 10, y: 600, button: "left", clickCount: 1 }); wc.sendInputEvent({ type: "mouseUp", x: 10, y: 600, button: "left", clickCount: 1 }); await sleep(100); };
 globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + JSON.stringify(got);`;
 export default [

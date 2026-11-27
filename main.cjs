@@ -58,9 +58,12 @@ const { join, normalize, sep, parse, resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const UI = join(__dirname, "ui");
-const config = require("./config.cjs"); // the home page, search, RobinPass, updates
-const HOME_PAGE = config.home;
-const SEARCH = config.search;
+const config = require("./config.cjs"); // the new tab's links, the first search engine, RobinPass, updates
+// a new tab and the home button: Rove's own page (ui/newtab.html)
+const HOME_PAGE = "rove://ui/newtab.html";
+// what the address bar searches with (the words go at the end), chosen in ≡
+const ENGINES = { google: ["Google", "https://www.google.com/search?q="], naver: ["Naver", "https://search.naver.com/search.naver?query="], bing: ["Bing", "https://www.bing.com/search?q="], duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="] };
+const engine = () => ENGINES[settings.engine] || ENGINES[config.engine] || ENGINES.google;
 const TOP = 84; // tab strip 40 + toolbar 44
 const FIND = 44; // the find row under the toolbar, while open
 const ASK = 44; // the ask bar under the toolbar, while something asks
@@ -131,10 +134,10 @@ function toUrl(text) {
   const t = text.trim();
   if (!t) return null;
   if (/^(https?|file):\/\//i.test(t)) return t;
-  if (/^(about:blank|view-source:)/i.test(t)) return t;
+  if (/^(about:blank|view-source:)/i.test(t) || t === HOME_PAGE) return t;
   if (/^localhost(:\d+)?(\/|$)/i.test(t) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/|$)/.test(t)) return "http://" + t;
   if (!/\s/.test(t) && /^[^/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t) && realEnding(t)) return "https://" + t;
-  return SEARCH + encodeURIComponent(t);
+  return engine()[1] + encodeURIComponent(t);
 }
 // a site's ending as Chrome knows it: node.js, index.html are file names, not sites (*.localhost is this PC)
 function realEnding(t) { const h = t.split(/[/?#]/)[0].replace(/:\d+$/, "").replace(/^.*@/, ""); return parseHost(h).isIcann || /\.localhost$/i.test(h); }
@@ -244,11 +247,12 @@ function snapshot() {
     version: mine?.version || app.getVersion(),
     update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
     ask: asking() ? plainAsk(asking()) : null,
-    block: { ready: !!blocker, on: !!settings.block, site: active ? hostOf(active.url) : "", siteOn: !!active && !settings.allow.includes(hostOf(active.url)), count: active ? blocked.get(active.view.webContents.id) || 0 : 0 },
+    block: { ready: !!blocker, on: !!settings.block, site: active && webby(active.url) ? hostOf(active.url) : "", siteOn: !!active && !settings.allow.includes(hostOf(active.url)), count: active ? blocked.get(active.view.webContents.id) || 0 : 0 },
     isDefault,
     pass: passState(),
     sleep: !!settings.sleep,
     startLast: settings.start !== "home",
+    engine: engine()[0],
     split: splitShown() ? { a: split.a.id, b: split.b.id, ratio: split.ratio } : null,
     paired: split ? [split.a.id, split.b.id] : [],
     groups: groups.map((g) => ({ ...g })),
@@ -514,7 +518,7 @@ function wire(tab) {
     // a sign-in window (window.open with a size) stays a real popup: its page
     // talks back to the opener
     if (disposition === "new-window") {
-      return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true, backgroundColor: "#ffffff",
+      return { action: "allow", overrideBrowserWindowOptions: { ...popupSize(features, tab.w?.win), useContentSize: true, autoHideMenuBar: true, backgroundColor: "#ffffff",
         webPreferences: { session: tab.w?.ses || rove(), sandbox: true, contextIsolation: true, nodeIntegration: false } } };
     }
     if (webby(url) || /^about:blank/.test(url)) newTab(url, { background: disposition === "background-tab", after: tab });
@@ -546,6 +550,12 @@ function wire(tab) {
     tab.awake = true;
     log(`탭 재우지 않음: ${hostOf(tab.url)}`);
     tell();
+  });
+  on("will-navigate", (e) => {
+    const m = /^rove:\/\/ui\/go\?q=(.*)$/.exec(e.url);
+    if (!m) return;
+    e.preventDefault();
+    if (wc.getURL() === HOME_PAGE) go(decodeURIComponent(m[1]), tab);
   });
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
@@ -906,7 +916,7 @@ function pageMenu(tab, p) {
   } else if (p.selectionText) {
     const text = p.selectionText.trim();
     items.push({ label: "복사", role: "copy" },
-      { label: `"${text.length > 24 ? text.slice(0, 24) + "…" : text}" 찾아보기`, click: () => newTab(SEARCH + encodeURIComponent(text), { after: tab }) }, { type: "separator" });
+      { label: `"${text.length > 24 ? text.slice(0, 24) + "…" : text}" 찾아보기`, click: () => newTab(engine()[1] + encodeURIComponent(text), { after: tab }) }, { type: "separator" });
   }
   if (!p.linkURL && !p.isEditable && !p.selectionText && p.mediaType !== "image" && p.mediaType !== "video") {
     items.push({ label: "뒤로", enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
@@ -1135,7 +1145,7 @@ function suggestions(text, inline = "") {
   take(bookmarks, "bookmark");
   take(history, "history");
   const direct = toUrl(inline || text);
-  const first = direct && !direct.startsWith(SEARCH) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: SEARCH + encodeURIComponent(text.trim()), title: text.trim() };
+  const first = direct && !direct.startsWith(engine()[1]) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: engine()[1] + encodeURIComponent(text.trim()), title: text.trim() };
   return [first, ...out.filter((o) => o.kind === "tab" || o.url !== first.url)].slice(0, 8);
 }
 
@@ -1347,6 +1357,13 @@ function messages() {
   on("rove:split-ratio", (r) => splitRatio(Number(r)));
   on("rove:unsplit", unsplit);
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
+  // ≡ 검색엔진: a list to choose from, by the pointer
+  on("rove:engine-menu", () => Menu.buildFromTemplate(Object.entries(ENGINES).map(([k, [name]]) => ({ label: name, type: "radio", checked: engine() === ENGINES[k], click: () => {
+    settings.engine = k;
+    save("settings.json", settings);
+    for (const t of tabs) if (t.view.webContents.getURL() === HOME_PAGE) t.view.webContents.reload(); // its field says the engine
+    everywhere(tell);
+  } }))).popup({ window: win }));
   on("rove:start", (last) => { settings.start = last ? "last" : "home"; save("settings.json", settings); tell(); });
   on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
   on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });
@@ -1559,14 +1576,30 @@ function keepDownload(d, keep) {
 }
 
 // ---- start ---------------------------------------------------------------------------
-function serveUi() {
-  protocol.handle("rove", (req) => {
+// the pages' own sessions (tab: true) get the new tab and what it uses, nothing else of ours.
+// newtab.json: no visits from a private window's (priv)
+const FOR_TABS = /^\/(newtab\.(html|js|css)|robin-ui\.css|icons\.svg|fonts\/.+)$/;
+function serveUi(p = protocol, { tab = false, priv = false } = {}) {
+  p.handle("rove", (req) => {
     const u = new URL(req.url);
     if (u.host !== "ui") return new Response("", { status: 404 });
+    if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine()[0], sites: priv ? [] : topSites(), links: config.links || [] });
+    if (tab && !FOR_TABS.test(u.pathname)) return new Response("", { status: 404 });
     const path = normalize(join(UI, decodeURIComponent(u.pathname)));
     if (!path.startsWith(UI + sep)) return new Response("", { status: 404 });
     return net.fetch(pathToFileURL(path).toString());
   });
+}
+
+// the new tab's tiles: the sites gone to most (by visits kept in history), eight
+function topSites() {
+  const n = {};
+  for (const h of history) {
+    const host = hostOf(h.url);
+    if (!host || !webby(h.url)) continue;
+    (n[host] ||= { url: new URL(h.url).origin + "/", host, count: 0 }).count++;
+  }
+  return Object.values(n).sort((a, b) => b.count - a.count).slice(0, 8).map(({ url, host }) => ({ url, host, icon: siteIcons[host] || null }));
 }
 
 // ---- RobinPass (vault.cjs) ----------------------------------------------------------------
@@ -1918,6 +1951,16 @@ function permissions(ses, priv = false) {
     return G()[o]?.[key] === true || (t?.once?.origin === o && t.once.keys.includes(key));
   });
 }
+// a popup's size: what the page asked for (width/height are its own area, as Chrome), kept on the
+// screen it opens on; 520×680 when it gave none. (A lecture player laid out for 1024×768 lost its
+// controls in a 520×680 one.)
+function popupSize(features, near) {
+  const f = Object.fromEntries(String(features || "").split(",").map((p) => p.split("=").map((x) => x.trim().toLowerCase())));
+  const area = screen.getDisplayMatching(near && !near.isDestroyed() ? near.getBounds() : { x: 0, y: 0, width: 1, height: 1 }).workAreaSize;
+  const fit = (v, d, max) => { const n = parseInt(v, 10); return Math.min(Math.max(Number.isFinite(n) ? n : d, 100), max); };
+  return { width: fit(f.width ?? f.innerwidth, 520, area.width), height: fit(f.height ?? f.innerheight, 680, area.height - 40) }; // 40: the title bar
+}
+
 // ---- popups a page opened by itself ----------------------------------------------------
 const ACTIVATION_MS = 5000; // Chromium's transient activation
 const HELD_MAX = 20; // a page that opens popups in a loop: only so many are kept to open
@@ -2249,6 +2292,7 @@ const booted = new Promise((r) => { bootDone = r; }); // the first windows are u
 app.whenReady().then(async () => {
   serveUi();
   const ses = rove();
+  serveUi(ses.protocol, { tab: true });
   cleanAgent(ses);
   permissions(ses);
   sharing(ses);
@@ -2511,6 +2555,7 @@ let privateSes = null;
 function privateSession() {
   if (privateSes) return privateSes;
   const ses = session.fromPartition(`rove-private-${Date.now()}`);
+  serveUi(ses.protocol, { tab: true, priv: true });
   cleanAgent(ses);
   permissions(ses, true);
   sharing(ses);

@@ -209,7 +209,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .zoomrow span:first-child { margin-right: auto; }
 .zoomrow .rk-num { min-width: 44px; text-align: center; color: var(--rk-head); }
 .zoomrow .btn { width: 28px; height: 28px; }
-.menu .key { margin-left: auto; padding-left: 12px; color: var(--rk-faint); font-size: 12px; white-space: nowrap; }
+.menu .key, .menu .now { margin-left: auto; padding-left: 12px; color: var(--rk-faint); font-size: 12px; white-space: nowrap; }
 .pop.keys { width: 280px; outline: 0; }
 .keys .rk-label:first-child { margin-top: 4px; }
 .keyrow { display: flex; align-items: center; min-height: 28px; padding: 0 10px; color: var(--rk-text); font-size: 13px; }

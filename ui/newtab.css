@@ -1,0 +1,27 @@
+/* Rove's new tab: the search field, the sites gone to most, the links config.cjs gives (V5.1) */
+html, body { height: 100%; }
+body.newtab { margin: 0; background: var(--rk-page); color: var(--rk-text); font: var(--rk-w) 14px/1.5 var(--rk-font); display: flex; flex-direction: column; }
+main { flex: 1; width: min(600px, 100% - 48px); margin: 0 auto; padding-top: 24vh; box-sizing: border-box; }
+
+#find { position: relative; }
+#find .ic { position: absolute; left: 15px; top: 50%; width: 17px; height: 17px; margin-top: -8.5px; color: var(--rk-faint); pointer-events: none; }
+#q { min-height: 46px; padding-left: 42px; font-size: 15px; border-radius: var(--rk-r-card); }
+#q::-webkit-search-cancel-button { display: none; }
+
+/* up to eight, four to a row */
+#sites { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 28px; }
+#sites a { display: grid; justify-items: center; gap: 8px; padding: 12px 6px 10px; border-radius: var(--rk-r); color: var(--rk-soft); text-decoration: none; font-size: 12px; min-width: 0; transition: background var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
+#sites a:hover { background: var(--rk-hover); color: var(--rk-text); }
+#sites a:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--rk-ring); }
+#sites .tile { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--rk-r-card); background: var(--rk-tile); box-shadow: inset 0 0 0 1px var(--rk-control-line); }
+#sites .tile img, #sites .tile svg { width: 20px; height: 20px; }
+#sites .tile svg { color: var(--rk-faint); }
+#sites span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.links { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; padding: 0 16px 22px; }
+.links a { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--rk-r); color: var(--rk-faint); text-decoration: none; font-size: 13px; transition: background var(--rk-t-fast) ease-out, color var(--rk-t-fast) ease-out; }
+.links a:hover { background: var(--rk-hover); color: var(--rk-text); }
+.links a:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--rk-ring); }
+.links svg { width: 15px; height: 15px; }
+
+@media (prefers-reduced-motion: reduce) { #sites a, .links a { transition: none; } }

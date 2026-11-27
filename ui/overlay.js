@@ -468,6 +468,7 @@ function drawMenu() {
     <button class="rk-menu__item" data-do="tabs" role="menuitem">${icon("tabs")}탭 찾기${shortcut("Ctrl+Shift+A")}</button>
     <div class="switchrow">${icon("moon")}<span>안 쓰는 탭 재우기</span><button class="rk-switch" role="switch" data-sleep aria-checked="${!!state.sleep}" aria-label="안 쓰는 탭 재우기"></button></div>
     <div class="switchrow">${icon("sidebar")}<span>세로 탭</span><button class="rk-switch" role="switch" data-vertical aria-checked="${!!state.vertical}" aria-label="세로 탭"></button></div>
+    <button class="rk-menu__item" data-do="engine" role="menuitem">${icon("search")}검색엔진<small class="now">${esc(state.engine || "")}</small></button>
     ${state.private ? "" : `<div class="switchrow">${icon("refresh")}<span>지난 탭으로 시작</span><button class="rk-switch" role="switch" data-start aria-checked="${!!state.startLast}" aria-label="지난 탭으로 시작"></button></div>`}
     <hr>
     ${state.block?.ready ? `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><button class="rk-switch" role="switch" data-block aria-checked="${!!state.block.on}" aria-label="광고·추적 막기"></button></div>
@@ -498,6 +499,7 @@ function drawMenu() {
   root.querySelectorAll("[data-do]").forEach((b) => b.addEventListener("click", () => {
     const d = b.dataset.do;
     if (d === "new") rove.send("rove:new-tab");
+    else if (d === "engine") rove.send("rove:engine-menu");
     else if (d === "window") rove.send("rove:new-window");
     else if (d === "private") rove.send("rove:new-private");
     else if (d === "history" || d === "bookmarks" || d === "downloads" || d === "sites" || d === "extensions") rove.send("rove:overlay", { kind: "drawer", panel: d });

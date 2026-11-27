@@ -16,7 +16,9 @@ globalThis.SRV = process.mainModule.require("node:http").createServer((q, s) => 
 });
 await new Promise((r) => SRV.listen(0, "127.0.0.1", r));
 globalThis.BASE = "http://127.0.0.1:" + SRV.address().port;
-await R.active.view.webContents.loadURL(BASE + "/page").catch(() => {});
+// the first tab may still be loading Rove's new tab page: a loadURL then is cut off (ERR_ABORTED),
+// the tab stays on rove:// and the mark's page would be about:internet
+{ const wc = R.active.view.webContents; if (wc.isLoading()) await new Promise((r) => wc.once("did-stop-loading", r)); await wc.loadURL(BASE + "/page"); }
 globalThis.GET = (n, more = "", tab = R.active) => tab.view.webContents.downloadURL(BASE + "/f?n=" + encodeURIComponent(n) + more);
 globalThis.D = (n) => R.downloads.find((d) => d.name === n || (d.held && d.held.endsWith("-" + n)));
 globalThis.ASK = (d) => R.asks.find((a) => a.kind === "download" && a.d === d);

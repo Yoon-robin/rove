@@ -362,12 +362,12 @@ function drawAsk() {
     $("ask").classList.remove("warn");
     $("askIcon").innerHTML = `<use href="icons.svg#rk-i-globe"/>`;
     $("askWho").textContent = "Rove";
-    $("askWhat").textContent = [!state.isDefault && "기본 브라우저 아님", a.from && `즐겨찾기 ${a.from} 가져올 수 있음`].filter(Boolean).join(" · ");
+    $("askWhat").textContent = [!state.isDefault && !a.madeDefault && "기본 브라우저 아님", a.from && `즐겨찾기 ${a.from} 가져올 수 있음`].filter(Boolean).join(" · ");
     $("askNo").textContent = "가져오기";
     $("askNo").classList.remove("rk-btn--danger");
     $("askNo").hidden = !a.from;
     $("askYes").textContent = "기본 브라우저로";
-    $("askYes").hidden = !!state.isDefault;
+    $("askYes").hidden = !!state.isDefault || !!a.madeDefault;
     $("askShut").hidden = false;
     $("askAlways").hidden = true;
     return;

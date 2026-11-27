@@ -11,6 +11,7 @@ mkdirSync(dir, { recursive: true });
 const url = (n, u) => ({ type: "url", name: n, url: u });
 writeFileSync(join(dir, "Bookmarks"), JSON.stringify({ roots: { bookmark_bar: { type: "folder", children: [url("A", "https://example.com/a"), url("B", "https://example.org/b")] }, other: { type: "folder", children: [] } } }));
 const here = dirname(fileURLToPath(import.meta.url));
-const r = spawnSync(process.execPath, [join(here, "drive.mjs"), join(here, "welcome.steps.mjs")], { stdio: "inherit", env: { ...process.env, ROVE_WELCOME: "1", ROVE_AS: "RoveWelcomeTest", ROVE_IMPORT_ROOT: root } });
+// each a first run of its own (drive.mjs makes a new profile): 가져오기 first, then 기본 브라우저로 first
+const runs = ["welcome.steps.mjs", "welcome-default.steps.mjs"].map((f) => spawnSync(process.execPath, [join(here, "drive.mjs"), join(here, f)], { stdio: "inherit", env: { ...process.env, ROVE_WELCOME: "1", ROVE_AS: "RoveWelcomeTest", ROVE_IMPORT_ROOT: root } }));
 rmSync(root, { recursive: true, force: true });
-process.exit(r.status ?? 1);
+process.exit(runs.find((r) => r.status !== 0)?.status ?? 0);

@@ -2013,7 +2013,7 @@ const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); 
 const asking = () => asks.find((a) => (a.kind === "download" && mineKind(a.d)) || a.tab === active) || asks.find((a) => a.kind === "welcome") || null;
 // another program's link: kept for an https site only, as Chrome; popups for a page with a site (not data:)
 const keepable = (a) => a.what?.[0] === "popups" ? !!a.origin : a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || "");
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0, from: a.from || "" });
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0, from: a.from || "", madeDefault: !!a.madeDefault });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -2032,8 +2032,10 @@ function answer(id, yes, keep = true) {
   else if (a.kind === "pass") { if (yes) passKeep(a); }
   else if (a.kind === "welcome") {
     // 기본 브라우저로 / 가져오기 (the bookmarks drawer at the browsers list; the other button stays) / ×
-    if (yes) makeDefault().then(checkDefault);
-    else if (keep && a.from) { showOverlay({ kind: "drawer", panel: "bookmarks", importing: true }); if (!isDefault) asks.push({ ...a, from: "" }); }
+    // either one leaves the other offered, as Brave's welcome goes on to its next step (Windows'
+    // settings page decides the default later, so 기본 브라우저로 is not offered twice)
+    if (yes) { makeDefault().then(checkDefault); if (a.from) asks.push({ ...a, madeDefault: true }); }
+    else if (keep && a.from) { showOverlay({ kind: "drawer", panel: "bookmarks", importing: true }); if (!isDefault && !a.madeDefault) asks.push({ ...a, from: "" }); }
   } else {
     if (keep && keepable(a)) {
       const g = a.tab?.w?.private ? privGrants : grants;

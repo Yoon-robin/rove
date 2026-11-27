@@ -2338,6 +2338,9 @@ function setBlock(on, site) {
     const list = cur?.private ? privSites : settings;
     list.allow = list.allow.filter((x) => x !== h);
     if (!on) list.allow.push(h);
+    // what was blocked comes only with a new load: the page that broke loads again, as Brave does
+    // with its Shields switch (the switch for all sites loads nothing, as there)
+    if (active && hostOf(active.url) === h) active.view.webContents.reload();
     if (list === privSites) return tell();
   } else settings.block = !!on;
   save("settings.json", settings);

@@ -256,7 +256,7 @@ function snapshot() {
     findOpen,
     // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
     downloadDir: downloadDir(),
-    downloads: downloads.slice(-30).map((d) => (d.state === "completed" && !existsSync(d.path) ? { ...plain(d), gone: true } : plain(d))),
+    downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && !existsSync(d.path) ? { ...plain(d), gone: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
     update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
@@ -1454,7 +1454,7 @@ function messages() {
   });
   on("rove:download-cancel", (id) => { const d = downloads.find((x) => x.id === id); d?.item?.cancel(); });
   on("rove:download-dir", () => pickDownloadDir());
-  on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing"); saveDownloads(); tell(); });
+  on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing" || !mineKind(d)); saveDownloads(); tell(); });
   on("rove:keys", (input) => keys(input || {}));
   on("rove:answer", (id, yes, keep) => answer(Number(id), !!yes, keep !== false));
   handle("rove:sites", () => Object.entries(gr()).map(([origin, g]) => ({ origin, host: hostOf(origin) || origin, ...g })).concat([...new Set([...settings.allow, ...(cur?.private ? privSites.allow : [])])].map((h) => ({ origin: "", host: h, ads: false }))));
@@ -1652,8 +1652,12 @@ function downloadsTo(ses, priv = false) {
 function finish(d, state) {
   d.state = state;
   if (state === "completed") markWeb(d.path, d.url, d.referrer);
+  if (d.private && !privateSes) downloads = downloads.filter((x) => x !== d); // its private windows are all closed
   saveDownloads();
 }
+// a private window's downloads are listed in private windows only, a normal one's in normal ones (in Chrome
+// and Brave each kind of window has its own list)
+const mineKind = (d) => !!d.private === !!cur?.private;
 const saveDownloads = () => save("downloads.json", downloads.filter((d) => !d.private).map(plain));
 // the answer and the file are both there
 function settle(d) {

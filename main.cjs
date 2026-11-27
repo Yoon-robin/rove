@@ -1307,7 +1307,10 @@ function keyAction(input, fromBar = false) {
 const KEY_WORLD = 1004;
 const KEY_WAIT = 400;
 const KEY_WORD = `rove-key:${crypto.randomUUID()}:`;
+// each frame element is watched once: the observer runs on every change of a page that keeps
+// changing (mail, chat), and a load listener added each time piled up without end
 const KEY_LISTENER = `(() => {
+  const seen = new WeakSet();
   const hook = (w) => {
     if (!w || w.__roveKeys) return;
     w.__roveKeys = true;
@@ -1315,7 +1318,7 @@ const KEY_LISTENER = `(() => {
       if (!(e.ctrlKey || e.metaKey || e.altKey || /^(F\\d+|Escape)$/.test(e.key))) return;
       setTimeout(() => console.debug(${JSON.stringify(KEY_WORD)} + (e.defaultPrevented ? "1" : "0") + e.key), 0);
     }, true);
-    const frames = () => { for (const f of w.document.querySelectorAll("iframe")) { f.addEventListener("load", () => { try { hook(f.contentWindow); } catch {} }); try { hook(f.contentWindow); } catch {} } };
+    const frames = () => { for (const f of w.document.querySelectorAll("iframe")) { if (seen.has(f)) continue; seen.add(f); f.addEventListener("load", () => { try { hook(f.contentWindow); } catch {} }); try { hook(f.contentWindow); } catch {} } };
     new w.MutationObserver(frames).observe(w.document, { subtree: true, childList: true });
     frames();
   };

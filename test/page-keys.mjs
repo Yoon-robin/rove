@@ -30,4 +30,14 @@ export default [
   { js: `R.go("https://example.com/"); await sleep(1500); await wc().executeJavaScript(${JSON.stringify(PAGE)}); await TAKE("d");
     const n = R.bookmarks.length; PRESS("D"); await sleep(700); const saw = await SAW();
     return CHECK("a page loaded again has the listener too (Ctrl+D taken: no bookmark)", saw.includes("d") && R.bookmarks.length === n, { saw, added: R.bookmarks.length - n });` },
+  // a page that keeps changing (mail, chat) with frames: one load listener per frame, not one per change,
+  // and a frame added later still gets the listener (hooked in Rove's world 1004)
+  { js: `const W = (code) => wc().executeJavaScriptInIsolatedWorld(1004, [{ code }]);
+    await wc().loadURL("data:text/html," + encodeURIComponent('<div id=box></div><iframe srcdoc="<p>a"></iframe><iframe srcdoc="<p>b"></iframe>')); await sleep(800);
+    await W("window.__n = 0; const a = EventTarget.prototype.addEventListener; EventTarget.prototype.addEventListener = function (t, ...r) { if (t === 'load' && this instanceof HTMLIFrameElement) window.__n++; return a.call(this, t, ...r); }; 1");
+    await wc().executeJavaScript("new Promise(async (done) => { for (let i = 0; i < 200; i++) { box.append(document.createElement('p')); await new Promise((r) => setTimeout(r, 0)); } done(1); })");
+    const piled = await W("window.__n");
+    await wc().executeJavaScript("const f = document.createElement('iframe'); f.srcdoc = '<p>c'; document.body.append(f); 1"); await sleep(800);
+    const got = { piled, added: await W("window.__n"), hooked: await W("!!frames[2].__roveKeys") };
+    return CHECK("200 page changes with 2 frames: no load listener piles up, a new frame is hooked", piled === 0 && got.added === 1 && got.hooked, got);` },
 ];

@@ -1259,7 +1259,7 @@ function keyAction(input, fromBar = false) {
   if (k === "F9") return run(() => read());
   if (c && k === "f") return run(() => setFind(true));
   if (k === "F3" || (c && k === "g")) return run(() => findAgain(!input.shift));
-  if (c && k === "u") return run(() => webby(active?.url) && newTab("view-source:" + active.url, { after: active }));
+  if (c && !input.shift && k === "u") return run(() => webby(active?.url) && newTab("view-source:" + active.url, { after: active }));
   if (input.alt && k === "Home") return run(() => go(HOME_PAGE));
   if (input.alt && !c && k === "f") return run(() => showOverlay({ kind: "menu", keyed: true }));
   if (c && k === "p") return run(() => active?.view.webContents.print());
@@ -1270,6 +1270,10 @@ function keyAction(input, fromBar = false) {
   if (c && k === "0") return run(() => zoom(0));
   if (k === "F11") return run(() => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   if (k === "F12" || (c && input.shift && k === "i")) return run(() => active?.view.webContents.toggleDevTools());
+  // an extension's shortcut (Rove's own above stay Rove's): before the page, as Chrome's are.
+  // Its popup comes from its toolbar button, so it sits under the button as when clicked.
+  const ext = active && exts?.key(input, active.view.webContents);
+  if (ext) return Object.assign(ext.run || (() => win.webContents.executeJavaScript(`document.getElementById("actions").shadowRoot?.getElementById(${JSON.stringify(ext.action)})?.click()`).catch(() => {})), { now: true });
   // the suggestions under the address bar: its own Esc closes them (and takes back what it filled in)
   if (k === "Escape" && overlayOn && !(fromBar && overlayOn.kind === "suggest")) return run(hideOverlay);
   if (k === "Escape" && findOpen) return run(() => setFind(false));
@@ -1311,7 +1315,7 @@ function reserved(input) {
 function pageKey(tab, e, input) {
   const f = keyAction(input);
   if (!f) return;
-  if (reserved(input)) { e.preventDefault(); f(); return; }
+  if (f.now || reserved(input)) { e.preventDefault(); f(); return; }
   const wait = { key: input.key, f };
   tab.keysWaiting = [...(tab.keysWaiting || []), wait];
   wait.timer = setTimeout(() => { tab.keysWaiting = tab.keysWaiting.filter((x) => x !== wait); runKey(tab, f); }, KEY_WAIT);

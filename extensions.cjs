@@ -79,7 +79,38 @@ function start({ ses, dir, impl, confirm, actionsPreload, log }) {
       return true;
     },
     options(id) { return optionsOf(exts().find((e) => e.id === id)); },
+    // an extension's keyboard shortcut (its manifest commands' suggested_key, as Chrome and Brave
+    // take them) for the page `wc`: { action: id } opens its toolbar button's popup, { run } tells
+    // the extension (chrome.commands.onCommand with the tab, Chrome 86+). The library keeps the
+    // commands but never listens for their keys, so Rove does; its router and tabs are not public.
+    key(input, wc) {
+      if (input.type !== "keyDown" || !wc || wc.isDestroyed() || wc.session !== ses) return null;
+      for (const e of exts()) {
+        for (const [name, c] of Object.entries(e.manifest.commands || {})) {
+          if (!keyIs(c?.suggested_key, input)) continue;
+          if (ACTION.has(name)) return { action: e.id };
+          return { run: () => api.ctx.router.sendEvent(e.id, "commands.onCommand", name, api.api.tabs.getTabDetails(wc)) };
+        }
+      }
+      return null;
+    },
   };
+}
+
+// the commands that press the extension's toolbar button (MV3, MV2 and page action)
+const ACTION = new Set(["_execute_action", "_execute_browser_action", "_execute_page_action"]);
+// suggested_key: "Ctrl+Shift+Y" or { windows, default }; Chrome takes Ctrl or Alt with a letter, a
+// digit or one of these keys (and Shift but not alone), matched by where the key is (input.code)
+const NAMED = { Comma: "Comma", Period: "Period", Home: "Home", End: "End", PageUp: "PageUp", PageDown: "PageDown", Space: "Space", Insert: "Insert", Delete: "Delete", Up: "ArrowUp", Down: "ArrowDown", Left: "ArrowLeft", Right: "ArrowRight" };
+function keyIs(suggested, input) {
+  const s = typeof suggested === "string" ? suggested : suggested?.windows || suggested?.default;
+  if (typeof s !== "string") return false;
+  const parts = s.split("+").map((p) => p.trim());
+  const k = parts.pop();
+  const mods = new Set(parts);
+  if (![...mods].every((m) => m === "Ctrl" || m === "Alt" || m === "Shift") || !(mods.has("Ctrl") || mods.has("Alt"))) return false;
+  const code = /^[A-Z]$/.test(k) ? `Key${k}` : /^[0-9]$/.test(k) ? `Digit${k}` : NAMED[k];
+  return !!code && input.code === code && !!input.control === mods.has("Ctrl") && !!input.alt === mods.has("Alt") && !!input.shift === mods.has("Shift") && !input.meta;
 }
 
 // content scripts or host permissions on every site: what the ask bar says
@@ -109,4 +140,4 @@ function icon(e) {
   return null;
 }
 
-module.exports = { start, STORE, blocksRequests };
+module.exports = { start, STORE, blocksRequests, keyIs };

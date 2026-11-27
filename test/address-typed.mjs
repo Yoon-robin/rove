@@ -8,12 +8,17 @@ globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + J
 globalThis.SEARCH = R.toUrl("zzqq").replace("zzqq", "");`;
 export default [
   { js: H + `const go = { "example.com": "https://example.com", "news.ycombinator.com/item?id=1": "https://news.ycombinator.com/item?id=1", "foo.co.uk": "https://foo.co.uk", "test.ai": "https://test.ai", "readme.md": "https://readme.md",
-      "localhost:3000/x": "http://localhost:3000/x", "192.168.0.1": "http://192.168.0.1", "app.localhost:5173": "https://app.localhost:5173", "https://a.b/c": "https://a.b/c", "  example.com  ": "https://example.com" };
+      "localhost:3000/x": "http://localhost:3000/x", "192.168.0.1": "http://192.168.0.1", "app.localhost:5173": "https://app.localhost:5173", "https://a.b/c": "https://a.b/c", "  example.com  ": "https://example.com",
+      // measured in Brave 1.100 (brave://omnibox, 11-27): these are addresses there too
+      "example.com/a b": "https://example.com/a%20b", "example.com/search?q=a b": "https://example.com/search?q=a%20b", "네이버.한국": "https://네이버.한국",
+      "intranet/": "http://intranet/", "foo:8080": "http://foo:8080", "[::1]:8080": "http://[::1]:8080", "EXAMPLE.COM/A": "https://EXAMPLE.COM/A" };
     const got = {}; for (const [t, want] of Object.entries(go)) { const u = R.toUrl(t); if (u !== want) got[t] = u; }
     return CHECK("addresses go there", !Object.keys(got).length, got);` },
-  { js: `const search = ["what is rove", "node.js", "index.html", "file.txt", "main.cjs", "e.g.", "3.14", "javascript:alert(1)", "Mr.Smith", "rove"];
+  { js: `const search = ["what is rove", "node.js", "index.html", "file.txt", "main.cjs", "e.g.", "3.14", "javascript:alert(1)", "Mr.Smith", "rove", "ex ample.com", "and/or", "127.1", "what is example.com/x"];
+    const q = R.toUrl("?rove"), q2 = R.toUrl("? two words");
     const got = {}; for (const t of search) { const u = R.toUrl(t); if (!u?.startsWith(SEARCH)) got[t] = u; }
-    return CHECK("anything else is a search (words, file names, javascript:)", !Object.keys(got).length && R.toUrl("   ") === null, got);` },
+    if (q !== SEARCH + "rove" || q2 !== SEARCH + "two%20words" || R.toUrl("?") !== null) got["?"] = [q, q2, R.toUrl("?")];
+    return CHECK("anything else is a search (words, file names, javascript:); a leading ? searches what follows", !Object.keys(got).length && R.toUrl("   ") === null, got);` },
   { js: `const SRV = process.mainModule.require("node:http").createServer((q, s) => { s.writeHead(200, { "content-type": "text/html" }); s.end("<title>here</title>"); });
     await new Promise((r) => SRV.listen(0, "127.0.0.1", r)); const at = "127.0.0.1:" + SRV.address().port + "/typed"; const t = R.active; R.go(at); await sleep(1200);
     const got = { url: t.view.webContents.getURL(), title: t.title }; SRV.close();

@@ -132,12 +132,19 @@ const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
 function toUrl(text) {
-  const t = text.trim();
+  let t = text.trim();
   if (!t) return null;
+  // a leading ? means "search for this" (Chrome, Brave)
+  if (t.startsWith("?")) return (t = t.slice(1).trim()) ? engine()[1] + encodeURIComponent(t) : null;
   if (/^(https?|file):\/\//i.test(t)) return t;
   if (/^(about:blank|view-source:)/i.test(t) || t === HOME_PAGE) return t;
-  if (/^localhost(:\d+)?(\/|$)/i.test(t) || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?(\/|$)/.test(t)) return "http://" + t;
-  if (!/\s/.test(t) && /^[^/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(t) && realEnding(t)) return "https://" + t;
+  // as Brave reads it: the site part has no space, the path after it may (example.com/a b goes there, %20)
+  const host = t.split(/[/?#]/)[0], rest = t.slice(host.length).replace(/\s/g, "%20");
+  if (/\s/.test(host)) return engine()[1] + encodeURIComponent(t);
+  // this PC, an IP, a one-word name with a port or a closing / (intranet/, foo:8080)
+  if (/^(localhost|\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:.]+\])(:\d+)?$/i.test(host) || /^[a-z0-9-]+:\d+$/i.test(host) || (/^[a-z0-9-]+$/i.test(host) && rest === "/")) return "http://" + host + rest;
+  // a real ending, in any script (네이버.한국)
+  if (/^[^/]+\.\p{L}[\p{L}\p{N}-]+(:\d+)?$/u.test(host) && realEnding(host)) return "https://" + host + rest;
   return engine()[1] + encodeURIComponent(t);
 }
 // a site's ending as Chrome knows it: node.js, index.html are file names, not sites (*.localhost is this PC)
@@ -1181,7 +1188,7 @@ function suggestions(text, inline = "") {
   take(bookmarks, "bookmark");
   take(history, "history");
   const direct = toUrl(inline || text);
-  const first = direct && !direct.startsWith(engine()[1]) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: engine()[1] + encodeURIComponent(text.trim()), title: text.trim() };
+  const first = direct && !direct.startsWith(engine()[1]) ? { kind: "go", url: direct, title: direct } : { kind: "search", url: toUrl(text) || engine()[1] + encodeURIComponent(text.trim()), title: text.trim().replace(/^\?\s*/, "") };
   return [first, ...out.filter((o) => o.kind === "tab" || o.url !== first.url)].slice(0, 8);
 }
 

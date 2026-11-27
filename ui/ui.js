@@ -513,7 +513,12 @@ rove.on("rove:suggested", (list, typed, inline) => {
   drawLead();
 });
 rove.on("rove:overlay-closed", (kind) => { if (kind === "suggest") { suggestShown = false; drawLead(); } });
-rove.on("rove:focus-address", () => { url.focus(); url.select(); });
+rove.on("rove:focus-address", (text) => {
+  url.focus();
+  if (text == null) { url.select(); return; }
+  // after the focus handler's select (a frame later), so the caret stays after the text
+  requestAnimationFrame(() => { url.value = text; url.setSelectionRange(text.length, text.length); close(); drawLead(); });
+});
 
 // ---- find in page -------------------------------------------------------------------
 const findText = $("findText");

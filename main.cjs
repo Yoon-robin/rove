@@ -1259,6 +1259,8 @@ function keyAction(input, fromBar = false) {
   // F6 goes back and forth between the address bar and the page, as in Chrome
   if (k === "F6" && !c && !input.alt && fromBar && active) return run(() => active.view.webContents.focus());
   if ((c && k === "l") || (input.alt && k === "d") || k === "F6") return run(focusAddress);
+  // Ctrl+K, Ctrl+E: the address bar ready for a search (a leading ? there is one), as in Chrome, Brave
+  if (c && !input.shift && (k === "k" || k === "e")) return run(() => focusAddress("?"));
   if ((c && k === "r") || k === "F5") return run(() => reload(input.shift || (c && k === "F5")));
   if (input.alt && k === "ArrowLeft") return run(() => active?.view.webContents.navigationHistory.goBack());
   if (input.alt && k === "ArrowRight") return run(() => active?.view.webContents.navigationHistory.goForward());
@@ -1274,7 +1276,7 @@ function keyAction(input, fromBar = false) {
   if (k === "F3" || (c && k === "g")) return run(() => findAgain(!input.shift));
   if (c && !input.shift && k === "u") return run(() => webby(active?.url) && newTab("view-source:" + active.url, { after: active }));
   if (input.alt && k === "Home") return run(() => go(HOME_PAGE));
-  if (input.alt && !c && k === "f") return run(() => showOverlay({ kind: "menu", keyed: true }));
+  if (input.alt && !c && (k === "f" || k === "e")) return run(() => showOverlay({ kind: "menu", keyed: true }));
   if (c && k === "p") return run(() => active?.view.webContents.print());
   if (c && !input.shift && k === "s") return run(() => savePageAs());
   if (c && !input.shift && k === "o") return run(openFiles);
@@ -1349,10 +1351,11 @@ function runKey(tab, f) {
   use(tab.w);
   f();
 }
-function focusAddress() {
+// text: put in it with the caret after (Ctrl+K's "?"), instead of the address selected
+function focusAddress(text) {
   hideOverlay();
   win.webContents.focus();
-  win.webContents.send("rove:focus-address");
+  win.webContents.send("rove:focus-address", typeof text === "string" ? text : null);
 }
 
 // ---- messages from our two views ---------------------------------------------------

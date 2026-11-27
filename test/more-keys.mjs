@@ -33,6 +33,24 @@ export default [
     return CHECK("Alt+Home: the home page in this tab", R.active === tab && tab.view.webContents.getURL() === "rove://ui/newtab.html", tab.view.webContents.getURL());` },
   { js: `KEY("f", "a"); await sleep(300); const kind = R.overlayOn?.kind; R.hideOverlay(); await sleep(200);
     return CHECK("Alt+F: the ≡ menu", kind === "menu", kind);` },
+  { js: `KEY("e", "a"); await sleep(300); const kind = R.overlayOn?.kind; R.hideOverlay(); await sleep(200);
+    return CHECK("Alt+E: the ≡ menu too (Chrome on Windows)", kind === "menu", kind);` },
+  { js: `const BAR = () => R.win.webContents.executeJavaScript("(() => { const u = document.getElementById('url'); return { on: document.activeElement === u, value: u.value, at: u.selectionStart, end: u.selectionEnd }; })()");
+    const seen = []; for (const k of ["k", "e"]) { R.active.view.webContents.focus(); await sleep(200); KEY(k, "c"); await sleep(400); seen.push(await BAR()); }
+    return CHECK("Ctrl+K·Ctrl+E: the address bar with ? and the caret after it", seen.every((b) => b.on && b.value === "?" && b.at === 1 && b.end === 1), seen);` },
+  // (the first place it goes: the search site may send a test browser on to its robot check)
+  { js: `const wc = R.active.view.webContents, first = new Promise((r) => wc.once("did-start-navigation", (d) => r(d.url)));
+    R.win.webContents.executeJavaScript("(() => { const u = document.getElementById('url'); u.value = '?rove 브라우저'; u.dispatchEvent(new Event('input')); document.getElementById('address').requestSubmit(); return 1; })()");
+    const got = await Promise.race([first, sleep(3000)]); await sleep(300);
+    return CHECK("…typed after it and Enter: a search, not an address", /[?&]q=rove(%20|\\+)/.test(got), got);` },
+  // a page's own Ctrl+K (GitHub, Slack: their search) is the page's, as in Chrome
+  { js: `R.go(u("k")); await sleep(1200); const wc = R.active.view.webContents;
+    await wc.executeJavaScript("addEventListener('keydown', (e) => { if (e.ctrlKey && e.key === 'k') e.preventDefault(); }, true), 1");
+    const BAR = () => R.win.webContents.executeJavaScript("document.getElementById('url').value");
+    const PRESS = async () => { wc.focus(); await sleep(200); for (const type of ["keyDown", "keyUp"]) wc.sendInputEvent({ type, keyCode: "K", modifiers: ["control"] }); await sleep(700); return BAR(); };
+    const taken = await PRESS(); await wc.executeJavaScript("location.reload(), 1"); await sleep(1500);
+    const free = await PRESS(); wc.focus(); await sleep(200);
+    return CHECK("Ctrl+K in a page: the page's when it takes it (GitHub, Slack), else the bar's", taken !== "?" && free === "?", { taken, free });` },
   { js: `const http = process.mainModule.require("http"); const srv = http.createServer(() => {}); await new Promise((r) => srv.listen(0, "127.0.0.1", r));
     R.go("http://127.0.0.1:" + srv.address().port + "/"); await sleep(600); const wc = R.active.view.webContents; const loading = wc.isLoading();
     KEY("Escape"); await sleep(300); const after = wc.isLoading(); srv.closeAllConnections(); srv.close();

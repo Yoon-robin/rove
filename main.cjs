@@ -1970,7 +1970,10 @@ function popupsKept(tab) {
   const o = topOrigin(tab);
   if (tab.once?.origin === o && tab.once.keys.includes("popups")) return true;
   const mine = (tab.w?.private ? privGrants : grants)[o]?.popups;
-  return typeof mine === "boolean" ? mine : grants[o]?.popups === false ? false : undefined;
+  if (typeof mine === "boolean") return mine;
+  if (grants[o]?.popups === false) return false;
+  // 창을 내려도 계속 on: a lecture site that opens its player by itself (robin 11-27 "응, 허용해")
+  return awakeFor(tab.view.webContents.getURL() || tab.url) ? true : undefined;
 }
 const popupsOk = (tab) => popupsKept(tab) === true;
 function holdPopup(tab, url) {

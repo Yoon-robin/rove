@@ -567,6 +567,12 @@ function wire(tab) {
     if (webby(to)) go(to, tab);
   });
   on("will-frame-navigate", (e) => { if (!e.isMainFrame && /^rove:/i.test(e.url)) e.preventDefault(); });
+  // nor can a web server, with a redirect (302 Location: rove://...), in the tab or in a frame. MIKAEL n373
+  on("will-redirect", (e) => {
+    if (!/^rove:/i.test(e.url)) return;
+    e.preventDefault();
+    log(`rove:// 돌려보내기 막음: ${hostOf(wc.getURL()) || "?"}`);
+  });
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url));

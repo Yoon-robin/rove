@@ -328,6 +328,23 @@ function drawAsk() {
   askShown = key;
   // 이번만 허용: a site's own question only (not a download, a link to another app, an extension, RobinPass)
   $("askOnce").hidden = a.kind !== "site" || once(a);
+  $("askNo").hidden = $("askYes").hidden = false;
+  $("askShut").title = $("askShut").ariaLabel = a.kind === "welcome" ? "닫기" : "이번만 거절";
+  if (a.kind === "welcome") {
+    // the first run: 기본 브라우저로 and 가져오기, whichever is left to do
+    $("ask").classList.remove("warn");
+    $("askIcon").innerHTML = `<use href="icons.svg#rk-i-globe"/>`;
+    $("askWho").textContent = "Rove";
+    $("askWhat").textContent = [!state.isDefault && "기본 브라우저 아님", a.from && `즐겨찾기 ${a.from} 가져올 수 있음`].filter(Boolean).join(" · ");
+    $("askNo").textContent = "가져오기";
+    $("askNo").classList.remove("rk-btn--danger");
+    $("askNo").hidden = !a.from;
+    $("askYes").textContent = "기본 브라우저로";
+    $("askYes").hidden = !!state.isDefault;
+    $("askShut").hidden = false;
+    $("askAlways").hidden = true;
+    return;
+  }
   if (a.kind === "extension") {
     // a blocker (declarativeNetRequest) installs but would block nothing: said before it is added
     $("ask").classList.toggle("warn", !!a.wontBlock);

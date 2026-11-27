@@ -1863,10 +1863,10 @@ let asks = []; // { id, kind: "site" | "download", tab, origin, host, what: [key
 let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
-const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
+const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || asks.find((a) => a.kind === "welcome") || null;
 // another program's link: kept for an https site only, as Chrome; popups for a page with a site (not data:)
 const keepable = (a) => a.what?.[0] === "popups" ? !!a.origin : a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || "");
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0 });
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0, from: a.from || "" });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -1883,7 +1883,11 @@ function answer(id, yes, keep = true) {
   if (a.kind === "download") keepDownload(a.d, !!yes);
   else if (a.kind === "extension") for (const f of a.done) f(!!yes);
   else if (a.kind === "pass") { if (yes) passKeep(a); }
-  else {
+  else if (a.kind === "welcome") {
+    // 기본 브라우저로 / 가져오기 (the bookmarks drawer at the browsers list; the other button stays) / ×
+    if (yes) makeDefault().then(checkDefault);
+    else if (keep && a.from) { showOverlay({ kind: "drawer", panel: "bookmarks", importing: true }); if (!isDefault) asks.push({ ...a, from: "" }); }
+  } else {
     if (keep && keepable(a)) {
       const g = a.tab?.w?.private ? privGrants : grants;
       g[a.origin] = { ...g[a.origin] };
@@ -2313,6 +2317,16 @@ async function makeDefault() {
   if (ok && !TEST) shell.openExternal(defaults.settingsPage(AS));
   return ok;
 }
+// the first run: what Brave's and Chrome's welcome offer, once and in the ask bar (≡ has both too) —
+// be the default browser, bring bookmarks from the browser that has the most. Parity 39
+async function welcome() {
+  await checkDefault();
+  const from = importSources().filter((s) => s.fresh).sort((x, y) => y.fresh - x.fresh)[0];
+  if (isDefault && !from) return;
+  asks.push({ id: nextId++, kind: "welcome", tab: null, host: "Rove", what: [], from: from ? `${from.name} ${from.fresh}개` : "", done: [] });
+  everywhere(layout);
+  tell();
+}
 
 let bootDone;
 const booted = new Promise((r) => { bootDone = r; }); // the first windows are up
@@ -2344,6 +2358,12 @@ app.whenReady().then(async () => {
   else startWindows(list);
   use(windows[0]);
   for (const u of opened(process.argv.slice(1))) newTab(u);
+  // asked once per Rove: on its first run only (no tabs kept yet), not after an update. Tests ask for it
+  if (!settings.welcomed) {
+    settings.welcomed = true;
+    save("settings.json", settings);
+    if (!last && (!TEST || process.env.ROVE_WELCOME)) welcome();
+  }
   bootDone();
 
   setInterval(sleepIdle, Math.min(60e3, SLEEP_AFTER / 2)).unref?.();

@@ -34,6 +34,7 @@ rove.on("rove:overlay", (what) => {
   if (what?.kind === "site" && was !== "site") { siteSure = false; siteMsg = null; siteKey = ""; }
   if (what?.kind === "tabs" && was !== "tabs") { tq = ""; tsel = 0; }
   if (what?.kind === "drawer" && was !== "drawer") { importing = null; importMsg = null; renaming = null; }
+  if (what?.importing) importing = true; // the first run's 가져오기: straight to the browsers list
   if (what?.kind === "share" && was !== "share") { shareFrom = what.screens.length ? "screens" : "windows"; sharePick = null; shareSound = true; }
   draw();
 });

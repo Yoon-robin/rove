@@ -1,6 +1,6 @@
 // node test/all.mjs [name ...] [--clipboard] [--offline]: every test in test/, one after another
 // (each starts its own hidden Rove), then what failed. A test whose first line says
-// "node test/drive.mjs" runs through the driver; the others (update, setup-sig) run on their own.
+// "node test/drive.mjs" runs through the driver; the others (update, setup-sig) run on their own; *.steps.mjs are steps another test runs.
 // Left out unless asked: tests that write the PC's own clipboard (--clipboard: only with nobody
 // at the PC), and with --offline those whose first lines say they use the network.
 // Not here: setup-*.ps1 (they install and remove Rove for real). Exit code 1 if anything failed.
@@ -17,7 +17,7 @@ const withClipboard = args.includes("--clipboard"), offline = args.includes("--o
 // lists.bin is made, not kept in git: without it blocking, GPC and the tracking tails are all off
 // and privacy.mjs and the like fail line after line for that one reason
 if (!existsSync(join(here, "..", "lists.bin"))) console.log("주의: lists.bin이 없어요 — 먼저 node tools/lists.cjs (막기 목록을 받아 만들어요). 없으면 privacy 등이 줄줄이 넘어져요.\n");
-const tests = readdirSync(here).filter((f) => f.endsWith(".mjs") && f !== "drive.mjs" && f !== "all.mjs")
+const tests = readdirSync(here).filter((f) => f.endsWith(".mjs") && f !== "drive.mjs" && f !== "all.mjs" && !f.endsWith(".steps.mjs"))
   .filter((f) => !named.length || named.includes(f.replace(/\.mjs$/, "")));
 const failed = [], skipped = [];
 let oks = 0;

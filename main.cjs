@@ -566,13 +566,7 @@ function wire(tab) {
     try { to = toUrl(decodeURIComponent(m[1])); } catch { /* a broken % */ }
     if (webby(to)) go(to, tab);
   });
-  on("will-frame-navigate", (e) => { if (!e.isMainFrame && /^rove:/i.test(e.url)) e.preventDefault(); });
-  // nor can a web server, with a redirect (302 Location: rove://...), in the tab or in a frame. MIKAEL n373
-  on("will-redirect", (e) => {
-    if (!/^rove:/i.test(e.url)) return;
-    e.preventDefault();
-    log(`rove:// 돌려보내기 막음: ${hostOf(wc.getURL()) || "?"}`);
-  });
+  guardOurPages(wc);
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url));
@@ -2250,9 +2244,23 @@ function keepGoing(wc, on) {
     wc.roveSeen = null;
   }
 }
-// a window a page opened (a lecture's player): the same, and so on down
+// a web page's tab or popup shares the session that serves rove://, so neither its frames nor a web
+// server (302 Location: rove://...) can take it there. MIKAEL n373
+function guardOurPages(wc) {
+  wc.on("will-frame-navigate", (e) => { if (!e.isMainFrame && /^rove:/i.test(e.url)) e.preventDefault(); });
+  wc.on("will-redirect", (e) => {
+    if (!/^rove:/i.test(e.url)) return;
+    e.preventDefault();
+    log(`rove:// 돌려보내기 막음: ${hostOf(wc.getURL()) || "?"}`);
+  });
+}
+// a window a page opened (a lecture's player): the same, and so on down. It has no new tab of its own,
+// so our pages are closed to it entirely: by its page, its opener, or a window it opens. MIKAEL n376
 function popupGoing(child, url) {
   const wc = child.webContents;
+  guardOurPages(wc);
+  wc.on("will-navigate", (e) => { if (/^rove:/i.test(e.url)) e.preventDefault(); });
+  wc.setWindowOpenHandler(({ url: to }) => (/^rove:/i.test(to) ? { action: "deny" } : { action: "allow" }));
   keepGoing(wc, awakeFor(url));
   wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url)); });
   wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url); });

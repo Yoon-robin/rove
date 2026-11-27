@@ -396,6 +396,8 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item .rk-meter { margin-top: 5px; }
 .drawer footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rk-line); }
 .drawer footer span { margin-right: auto; color: var(--rk-text); font-size: 13px; }
+.drawer footer .where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-soft); }
+.drawer footer .where b { color: var(--rk-text); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none; border-color: var(--rk-accent); }

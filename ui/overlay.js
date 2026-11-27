@@ -669,7 +669,8 @@ async function drawDrawer() {
   const foot = panel === "history" && list.length && !query
     ? (sure ? `<footer><span>기록을 전부 지울까요?</span><button class="rk-btn rk-btn--small" data-no>그만두기</button><button class="rk-btn rk-btn--small rk-btn--danger-fill" data-yes>지우기</button></footer>`
       : `<footer><button class="rk-btn rk-btn--small rk-btn--danger" data-all>기록 모두 지우기</button></footer>`)
-    : panel === "downloads" && list.some((d) => d.state !== "progressing") ? `<footer><button class="rk-btn rk-btn--small" data-clear>목록 비우기</button></footer>`
+    // where new files go, and 바꾸기 to pick another folder (Brave's and Chrome's 위치 · 변경)
+    : panel === "downloads" ? `<footer><span class="where" title="${esc(state.downloadDir || "")}">받는 곳 <b>${esc((state.downloadDir || "").split(/[\\/]/).filter(Boolean).pop() || "")}</b></span><button class="rk-btn rk-btn--small" data-dir>바꾸기</button>${list.some((d) => d.state !== "progressing") ? `<button class="rk-btn rk-btn--small" data-clear>목록 비우기</button>` : ""}</footer>`
     : panel === "extensions" ? `<footer><button class="rk-btn rk-btn--small" data-store>Chrome 웹 스토어</button></footer>`
     : panel === "bookmarks" ? `<footer>${importMsg ? `<span role="status">${esc(importMsg)}</span>` : ""}${importing ? `<button class="rk-btn rk-btn--small" data-import-done>돌아가기</button>` : `<button class="rk-btn rk-btn--small" data-import-ask>다른 브라우저에서 가져오기</button>`}</footer>` : "";
   root.innerHTML = `<div class="scrim"></div><aside class="pop drawer" aria-label="${NAMES[panel]}">
@@ -717,6 +718,7 @@ async function drawDrawer() {
   root.querySelector("[data-no]")?.addEventListener("click", () => { sure = false; draw(); });
   root.querySelector("[data-yes]")?.addEventListener("click", () => { sure = false; rove.send("rove:forget-all"); setTimeout(draw, 50); });
   root.querySelector("[data-clear]")?.addEventListener("click", () => rove.send("rove:downloads-clear"));
+  root.querySelector("[data-dir]")?.addEventListener("click", () => rove.send("rove:download-dir"));
   root.querySelector("[data-store]")?.addEventListener("click", () => rove.send("rove:open", STORE, true));
   root.querySelectorAll("[data-ext-options]").forEach((b) => b.addEventListener("click", () => rove.send("rove:extension-options", b.dataset.extOptions)));
   root.querySelectorAll("[data-ext-on]").forEach((b) => b.addEventListener("click", async () => {

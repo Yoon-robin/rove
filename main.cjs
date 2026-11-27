@@ -255,6 +255,7 @@ function snapshot() {
     zoom: active ? Math.round(active.view.webContents.getZoomFactor() * 100) : 100,
     findOpen,
     // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
+    downloadDir: downloadDir(),
     downloads: downloads.slice(-30).map((d) => (d.state === "completed" && !existsSync(d.path) ? { ...plain(d), gone: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
@@ -1061,7 +1062,7 @@ const SAVE_KINDS = [{ name: "웹 페이지, 전체", extensions: ["html", "htm"]
 async function savePageAs(tab = active) {
   if (!tab || !/^(https?|file):/i.test(tab.url || "")) return;
   const name = (tab.title || hostOf(tab.url) || "page").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").trim().slice(0, 120) || "page";
-  const r = await dialog.showSaveDialog(win, { defaultPath: join(app.getPath("downloads"), name + ".html"), filters: SAVE_KINDS });
+  const r = await dialog.showSaveDialog(win, { defaultPath: join(downloadDir(), name + ".html"), filters: SAVE_KINDS });
   if (!r.canceled && r.filePath) await savePageTo(tab, r.filePath);
 }
 // the file's ending picks the kind (the dialog puts the chosen kind's ending on the name)
@@ -1452,6 +1453,7 @@ function messages() {
     tell();
   });
   on("rove:download-cancel", (id) => { const d = downloads.find((x) => x.id === id); d?.item?.cancel(); });
+  on("rove:download-dir", () => pickDownloadDir());
   on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing"); saveDownloads(); tell(); });
   on("rove:keys", (input) => keys(input || {}));
   on("rove:answer", (id, yes, keep) => answer(Number(id), !!yes, keep !== false));
@@ -1577,6 +1579,17 @@ function importFrom(id) {
 }
 
 // ---- downloads ----------------------------------------------------------------------
+// where they go: the folder picked in the downloads drawer (Chrome's and Brave's 위치 · 변경), else
+// Windows' own Downloads; a picked one that is gone (a drive taken out) falls back, the pick kept
+const downloadDir = () => (settings.downloadDir && statSync(settings.downloadDir, { throwIfNoEntry: false })?.isDirectory() ? settings.downloadDir
+  : TEST ? join(home, "downloads") : app.getPath("downloads"));
+async function pickDownloadDir() {
+  const r = await dialog.showOpenDialog(win, { title: "받는 곳", defaultPath: downloadDir(), properties: ["openDirectory", "createDirectory"] });
+  if (r.canceled || !r.filePaths?.[0]) return;
+  settings.downloadDir = r.filePaths[0];
+  save("settings.json", settings);
+  tell();
+}
 function freePath(dir, name) {
   const p = parse(name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_") || "download");
   let candidate = join(dir, p.base);
@@ -1604,7 +1617,7 @@ function downloadsTo(ses, priv = false) {
   ses.on("will-download", (e, item, wc) => {
     const from = tabOf(wc);
     if (from) use(from.w);
-    const to = TEST ? join(home, "downloads") : app.getPath("downloads");
+    const to = downloadDir();
     mkdirSync(to, { recursive: true });
     const kind = runs(item.getFilename());
     const d = { id: nextId++, item, name: "", path: freePath(to, item.getFilename()), url: item.getURL(), received: 0, total: item.getTotalBytes(), state: "progressing", at: Date.now(), runs: kind, private: priv };

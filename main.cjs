@@ -5,7 +5,8 @@
 // laid over the window only while one is open (ui/overlay.html).
 //
 // Pages get nothing of ours: their own sandboxed renderer, the session
-// "persist:rove" (rove:// is not even known there), no preload of ours (1.2: the
+// "persist:rove" (where rove:// is only the new tab and what it uses, and no page
+// can go to it, frame it or open it: wire()), no preload of ours (1.2: the
 // extension libraries' two, see extensions.cjs). Only our two
 // views have the preload, and every message is checked to come from one of
 // them.
@@ -516,8 +517,9 @@ function wire(tab) {
       return { action: "deny" };
     }
     // a sign-in window (window.open with a size) stays a real popup: its page
-    // talks back to the opener
+    // talks back to the opener. Not to our pages (rove://)
     if (disposition === "new-window") {
+      if (!webby(url) && !/^about:blank/.test(url)) return { action: "deny" };
       return { action: "allow", overrideBrowserWindowOptions: { ...popupSize(features, tab.w?.win), useContentSize: true, autoHideMenuBar: true, backgroundColor: "#ffffff",
         webPreferences: { session: tab.w?.ses || rove(), sandbox: true, contextIsolation: true, nodeIntegration: false } } };
     }
@@ -551,12 +553,20 @@ function wire(tab) {
     log(`탭 재우지 않음: ${hostOf(tab.url)}`);
     tell();
   });
+  // our pages are Rove's to open (loadURL), not a page's: a web page, or a popup moving its opener,
+  // cannot take a tab there. The new tab's field (go?q=) is taken from that page's own frame only, and
+  // only to http(s) or a search (no file: and the like from it). MIKAEL n366
   on("will-navigate", (e) => {
-    const m = /^rove:\/\/ui\/go\?q=(.*)$/.exec(e.url);
-    if (!m) return;
+    if (!/^rove:/i.test(e.url)) return;
     e.preventDefault();
-    if (wc.getURL() === HOME_PAGE) go(decodeURIComponent(m[1]), tab);
+    const m = /^rove:\/\/ui\/go\?q=(.*)$/.exec(e.url);
+    const own = wc.getURL() === HOME_PAGE && e.initiator && e.initiator.processId === wc.mainFrame.processId && e.initiator.routingId === wc.mainFrame.routingId;
+    if (!m || !own) return log(`rove:// 막음: ${hostOf(wc.getURL()) || wc.getURL().slice(0, 40)}`);
+    let to = null;
+    try { to = toUrl(decodeURIComponent(m[1])); } catch { /* a broken % */ }
+    if (webby(to)) go(to, tab);
   });
+  on("will-frame-navigate", (e) => { if (!e.isMainFrame && /^rove:/i.test(e.url)) e.preventDefault(); });
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url));

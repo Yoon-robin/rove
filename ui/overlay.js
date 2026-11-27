@@ -20,6 +20,7 @@ rove.on("rove:state", (s) => {
   if (open?.kind === "site") drawSite(true);
   if (open?.kind === "tabs") drawTabs();
   if (open?.kind === "group") groupShown();
+  if (open?.kind === "peek") drawPeek();
   document.body.classList.toggle("vertical", !!s.vertical);
 });
 rove.ask("rove:state").then((s) => { if (s) state = s; });
@@ -52,6 +53,41 @@ function draw() {
   if (open.kind === "tabs") return drawTabs();
   if (open.kind === "splitdrag") return drawSplitDrag();
   if (open.kind === "group") return drawGroup();
+  if (open.kind === "peek") return drawPeek();
+}
+
+// ---- the tabs folded to icons, the pointer on them: the same list unfolded, over the page -----
+// (the marks and rows of ui.js's list, so nothing moves under the pointer; no dragging here)
+function drawPeek() {
+  const was = root.querySelector(".peek .sidelist")?.scrollTop;
+  const groups = new Map((state.groups || []).map((g) => [g.id, g]));
+  const face = (t) => t.favicon ? `<img alt="" src="${esc(t.favicon)}">` : icon("globe");
+  let last = null;
+  const rows = state.tabs.map((t, i) => {
+    const g = groups.get(t.group) || null;
+    const label = g && t.group !== last ? `<button class="grp${g.collapsed ? " folded" : ""}" type="button" data-g="${g.id}" data-color="${esc(g.color)}"><i class="dot"></i><span class="n">${esc(g.name || COLORS[g.color] || "묶음")}</span><small class="c rk-num">${state.tabs.filter((x) => x.group === g.id).length}</small>${icon("down")}</button>` : "";
+    last = g ? t.group : null;
+    const cls = ["tab", t.pinned && "pinned", t.asleep && "asleep", g && "ing", g?.collapsed && "folded", g && state.tabs[i + 1]?.group !== t.group && "gend"].filter(Boolean).join(" ");
+    return `${label}<div class="${cls}" role="tab" aria-selected="${t.id === state.active}" data-id="${t.id}"${g ? ` data-color="${esc(g.color)}"` : ""} title="${esc(t.title || t.url)}"><span class="ic">${face(t)}</span><span class="t">${esc(t.title || host(t.url))}</span><button class="btn x" type="button" aria-label="탭 닫기" tabindex="-1">${icon("close")}</button><i class="gl"></i></div>`;
+  }).join("");
+  root.innerHTML = `<nav class="side peek" aria-label="탭">
+    <button class="sidenew" type="button" title="새 탭 (Ctrl+T)">${icon("plus")}<span>새 탭</span></button>
+    <div class="sidelist"><div class="tabs">${rows}</div></div>
+    <div class="sidefoot"><button class="btn" type="button" aria-label="탭 이름 보이기" title="탭 이름 보이기">${icon("sidebar")}</button></div></nav>`;
+  const list = root.querySelector(".sidelist");
+  list.scrollTop = was ?? open.scroll ?? 0;
+  root.querySelector(".sidenew").addEventListener("click", () => rove.send("rove:new-tab"));
+  root.querySelector(".sidefoot .btn").addEventListener("click", () => rove.send("rove:narrow", false));
+  for (const b of root.querySelectorAll(".grp")) b.addEventListener("click", () => rove.send("rove:group-fold", Number(b.dataset.g)));
+  for (const el of root.querySelectorAll(".tab")) {
+    const id = Number(el.dataset.id);
+    el.addEventListener("mousedown", (e) => {
+      if (e.button === 1) { e.preventDefault(); rove.send("rove:close", id); }
+      else if (e.button === 0 && !e.target.closest(".x")) rove.send("rove:select", id);
+    });
+    el.querySelector(".x").addEventListener("click", () => rove.send("rove:close", id));
+    el.addEventListener("contextmenu", (e) => { e.preventDefault(); rove.send("rove:tab-menu", id); });
+  }
 }
 
 // ---- a tab group: its name and colour (its label right-clicked, or just made) ----------

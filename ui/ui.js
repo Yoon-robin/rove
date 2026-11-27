@@ -204,6 +204,15 @@ new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); st
 tabsEl.addEventListener("wheel", (e) => { if (state.vertical || !e.deltaY || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; tabsEl.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
 $("sideNew").addEventListener("click", () => rove.send("rove:new-tab"));
 $("sideFold").addEventListener("click", () => rove.send("rove:narrow", !state.narrow));
+// folded to icons: the pointer resting on them a moment shows the names (laid over the page, ui/overlay.js)
+let peekWait = 0;
+$("sidelist").addEventListener("mouseenter", (e) => {
+  if (!state.vertical || !state.narrow || e.buttons) return;
+  clearTimeout(peekWait);
+  peekWait = setTimeout(() => { const r = $("side").getBoundingClientRect(); rove.send("rove:peek", { y: r.top, height: r.height }, $("sidelist").scrollTop); }, 400);
+});
+$("sidelist").addEventListener("mouseleave", () => clearTimeout(peekWait));
+$("sidelist").addEventListener("mousedown", () => clearTimeout(peekWait));
 
 // ---- the toolbar --------------------------------------------------------------
 const url = $("url");

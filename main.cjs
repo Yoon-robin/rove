@@ -227,7 +227,7 @@ function layout() {
     t.view.setBounds({ ...r, y: top, height: Math.max(0, h - top) });
   }
   if (overlay && overlayOn) {
-    const r = overlayOn.kind === "suggest" ? overlayOn.rect : { x: 0, y: 0, width: w, height: h };
+    const r = overlayOn.kind === "suggest" || overlayOn.kind === "peek" ? overlayOn.rect : { x: 0, y: 0, width: w, height: h };
     overlay.setBounds({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) });
   }
 }
@@ -789,6 +789,7 @@ function setVertical(on) {
 }
 function setNarrow(on) {
   settings.narrow = !!on;
+  everywhere(() => { if (overlayOn?.kind === "peek") hideOverlay(); });
   save("settings.json", settings);
   everywhere(layout);
   tell();
@@ -1122,7 +1123,7 @@ function showOverlay(what) {
   overlay.setVisible(true);
   layout();
   // a key pressed the moment a window opens: its pop-over page is still loading and would miss it
-  const wc = overlay.webContents, show = () => { wc.send("rove:overlay", what); if (what.kind !== "suggest") wc.focus(); };
+  const wc = overlay.webContents, show = () => { wc.send("rove:overlay", what); if (what.kind !== "suggest" && what.kind !== "peek") wc.focus(); };
   if (wc.isLoading()) wc.once("did-finish-load", () => { if (overlayOn === what) show(); });
   else show();
 }
@@ -1360,6 +1361,21 @@ function messages() {
     if (!items.length) { if (overlayOn?.kind === "suggest") hideOverlay(); return; }
     const height = 8 + items.length * 36;
     showOverlay({ kind: "suggest", items, sel: 0, rect: { x: rect.x, y: rect.y, width: rect.width, height } });
+  });
+  // the tabs folded to icons, the pointer resting on them: the list as wide as unfolded, laid over
+  // the page (which does not move), as Brave's expand on hover; gone once the pointer is off it
+  on("rove:peek", (rect, scroll) => {
+    if (!settings.vertical || !settings.narrow || overlayOn || fullTab) return;
+    const what = { kind: "peek", scroll: Number(scroll) || 0, rect: { x: 0, y: Math.round(Number(rect?.y) || 0), width: SIDE_W, height: Math.round(Number(rect?.height) || 0) } };
+    showOverlay(what);
+    const w = cur, t = setInterval(() => {
+      if (w.gone) return clearInterval(t);
+      within(w, () => {
+        if (overlayOn !== what) return clearInterval(t);
+        const p = screen.getCursorScreenPoint(), b = win.getContentBounds(), r = what.rect, x = p.x - b.x, y = p.y - b.y;
+        if (x < r.x || x >= r.x + r.width || y < r.y || y >= r.y + r.height) { clearInterval(t); hideOverlay(); }
+      });
+    }, 150);
   });
   on("rove:suggest-sel", (sel) => { if (overlayOn?.kind === "suggest") { overlayOn.sel = sel; overlay.webContents.send("rove:overlay", overlayOn); } });
   on("rove:overlay", (what) => { if (what) showOverlay(what); else hideOverlay(); });
@@ -2520,7 +2536,7 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   // Escape is the overlay's own (it closes it, unless a field there takes it first: a bookmark being renamed)
   overlay.webContents.on("before-input-event", here((e, input) => { if (input.key !== "Escape" && keys(input)) e.preventDefault(); }));
   overlay.webContents.on("will-navigate", (e) => e.preventDefault());
-  overlay.webContents.on("blur", here(() => { if (overlayOn && overlayOn.kind !== "suggest") hideOverlay(); }));
+  overlay.webContents.on("blur", here(() => { if (overlayOn && overlayOn.kind !== "suggest" && overlayOn.kind !== "peek") hideOverlay(); }));
   win.contentView.addChildView(overlay);
 
   if (tab) putTab(tab, w);

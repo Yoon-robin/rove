@@ -501,6 +501,10 @@ function wire(tab) {
   const on = (ev, f) => wc.on(ev, (...a) => { here(); return f(...a); });
   wc.setWindowOpenHandler(({ url, disposition, features }) => {
     here();
+    // no click or key in the page just before: a popup, held (Chrome's popup blocker)
+    const clicked = Date.now() - (tab.input || 0) < ACTIVATION_MS;
+    tab.input = 0; // used up by this one, as Chromium's transient activation
+    if (!clicked && !popupsOk(tab)) { holdPopup(tab, url); return { action: "deny" }; }
     // a link Shift+clicked ("new-window" with no features): a new Rove window with it, as in
     // Chrome — private from a private window, in the same private session
     if (disposition === "new-window" && !features) {
@@ -528,7 +532,11 @@ function wire(tab) {
   // a click into the other of two side by side puts it in front
   const front = () => { if (own() && tab !== active && splitShown() && (split.a === tab || split.b === tab)) { active = tab; layout(); tell(); } };
   on("focus", front);
-  on("input-event", (_e, i) => { if (i.type === "mouseDown") front(); });
+  on("input-event", (_e, i) => {
+    if (i.type === "mouseDown") front();
+    // what lets the page open a window (Chromium's activation: a press, not a move; not Esc or a lone modifier)
+    if (/^(mouseDown|mouseUp|keyDown|rawKeyDown|touchEnd)$/.test(i.type) && !/^(Escape|Shift|Control|Alt|Meta)$/.test(i.key || "")) tab.input = Date.now();
+  });
   // the page asks to be left (something typed there would go): it stays awake
   on("will-prevent-unload", () => {
     if (tab.closing !== wc) return;
@@ -1813,8 +1821,9 @@ let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
 const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || null;
-const keepable = (a) => a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || ""); // another program's link: kept for an https site only, as Chrome
-const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a) });
+// another program's link: kept for an https site only, as Chrome; popups for a page with a site (not data:)
+const keepable = (a) => a.what?.[0] === "popups" ? !!a.origin : a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || "");
+const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0 });
 function dropAsks(tab) {
   if (share?.tab === tab) dropShare();
   const gone = asks.filter((a) => a.tab === tab);
@@ -1909,6 +1918,34 @@ function permissions(ses, priv = false) {
     return G()[o]?.[key] === true || (t?.once?.origin === o && t.once.keys.includes(key));
   });
 }
+// ---- popups a page opened by itself ----------------------------------------------------
+const ACTIVATION_MS = 5000; // Chromium's transient activation
+const HELD_MAX = 20; // a page that opens popups in a loop: only so many are kept to open
+const topOrigin = (tab) => originOf(tab.view.webContents.getURL() || tab.url);
+// the site's answer (허용·차단, or 이번만 허용 in this tab): a private window keeps its own and takes the normal no
+function popupsKept(tab) {
+  const o = topOrigin(tab);
+  if (tab.once?.origin === o && tab.once.keys.includes("popups")) return true;
+  const mine = (tab.w?.private ? privGrants : grants)[o]?.popups;
+  return typeof mine === "boolean" ? mine : grants[o]?.popups === false ? false : undefined;
+}
+const popupsOk = (tab) => popupsKept(tab) === true;
+function holdPopup(tab, url) {
+  if (popupsKept(tab) === false) return log(`팝업 막음: ${hostOf(tab.url)}`);
+  const origin = topOrigin(tab);
+  let a = asks.find((x) => x.tab === tab && x.what[0] === "popups");
+  if (!a) {
+    a = { id: nextId++, kind: "site", tab, origin, host: hostOf(origin) || origin, what: ["popups"], urls: [], count: 0, done: [] };
+    // 허용 (always or this once): the held ones open now, behind, after this tab
+    a.done.push((yes) => { if (yes) for (const u of a.urls) newTab(u, { background: true, after: tab }); });
+    asks.push(a);
+  }
+  a.count++;
+  if (webby(url) && a.urls.length < HELD_MAX) a.urls.push(url);
+  layout();
+  tell();
+}
+
 function forgetSite(origin, key) {
   const g = gr();
   if (!g[origin]) return;

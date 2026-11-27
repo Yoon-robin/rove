@@ -5,9 +5,10 @@
 const H = `globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { BrowserWindow } = process.mainModule.require("electron");
 globalThis.POP = () => BrowserWindow.getAllWindows().find((w) => !R.windows.some((x) => x.win === w) && w.isVisible !== undefined && w.webContents.getURL() && w.getSize()[0] === 520);
+globalThis.PRESS = async () => { const wc = R.active.view.webContents; wc.sendInputEvent({ type: "mouseDown", x: 10, y: 600, button: "left", clickCount: 1 }); wc.sendInputEvent({ type: "mouseUp", x: 10, y: 600, button: "left", clickCount: 1 }); await sleep(100); };
 globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + JSON.stringify(got);`;
 export default [
-  { js: H + `R.go("https://example.com/"); await sleep(2500);
+  { js: H + `R.go("https://example.com/"); await sleep(2500); await PRESS();
     await R.active.view.webContents.executeJavaScript("window.open('https://example.com/', 'login', 'width=400,height=500'), 1", true); await sleep(2500);
     const p = POP(); if (!p) return "FAIL no popup";
     await p.webContents.executeJavaScript("document.title = 'Google 계정 로그인'"); await sleep(400);

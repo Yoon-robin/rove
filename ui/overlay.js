@@ -538,7 +538,7 @@ function drawKeys() {
 const NAMES = { history: "방문 기록", bookmarks: "즐겨찾기", downloads: "내려받기", sites: "사이트 권한", extensions: "확장 프로그램" };
 const STORE = "https://chromewebstore.google.com/";
 const TAB = { ...NAMES, extensions: "확장" }; // the drawer's tab row (five do not fit in full)
-const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기" };
+const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기", popups: "팝업" };
 const permName = (k) => WHAT[k] || (k.startsWith("external:") ? `${k.slice(9)}: 링크 열기` : k); // a kept permission, or another program's link kept
 function day(at) {
   const d = new Date(at);

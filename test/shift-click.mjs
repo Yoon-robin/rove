@@ -13,6 +13,7 @@ globalThis.CLICK = async (modifiers, button = "left") => {
   wc.sendInputEvent({ type: "mouseUp", x: 50, y: 40, button, clickCount: 1, modifiers });
   await sleep(1200);
 };
+globalThis.PRESS = async () => { const wc = R.active.view.webContents; wc.sendInputEvent({ type: "mouseDown", x: 10, y: 600, button: "left", clickCount: 1 }); wc.sendInputEvent({ type: "mouseUp", x: 10, y: 600, button: "left", clickCount: 1 }); await sleep(100); };
 globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + JSON.stringify(got);`;
 export default [
   { js: H + `await R.active.view.webContents.loadURL(pg("start")); await sleep(500); return "start " + JSON.stringify(COUNT());` },
@@ -25,11 +26,11 @@ export default [
     return CHECK("Ctrl+Shift+click: a tab in this window", b.rove === a.rove && b.tabs === a.tabs + 1, { a, b });` },
   { js: `R.select(R.windows[0].tabs[0]); await sleep(300); const a = COUNT(); await CLICK([], "middle"); const b = COUNT();
     return CHECK("middle click: a tab in this window", b.rove === a.rove && b.tabs === a.tabs + 1, { a, b });` },
-  { js: `R.select(R.windows[0].tabs[0]); await sleep(300); const a = COUNT();
+  { js: `R.select(R.windows[0].tabs[0]); await sleep(300); const a = COUNT(); await PRESS();
     await R.active.view.webContents.executeJavaScript("window.open('https://example.org/', 'login', 'width=400,height=500'), 1", true); await sleep(1200);
     const b = COUNT(); const pop = BrowserWindow.getAllWindows().find((w) => w.getSize()[0] === 520); pop?.close(); await sleep(300);
     return CHECK("window.open with a size: still a popup", b.popups === a.popups + 1 && b.rove === a.rove, { a, b });` },
-  { js: `const a = COUNT(); await R.active.view.webContents.executeJavaScript("window.open('https://example.org/'), 1", true); await sleep(1200);
+  { js: `const a = COUNT(); await PRESS(); await R.active.view.webContents.executeJavaScript("window.open('https://example.org/'), 1", true); await sleep(1200);
     const b = COUNT(); return CHECK("window.open plain: a tab", b.tabs === a.tabs + 1 && b.rove === a.rove && b.popups === a.popups, { a, b });` },
   { js: `R.createWindow({ priv: true }); await sleep(1000);
     const p = R.windows.find((w) => w.private); if (!p) return "FAIL no private window";

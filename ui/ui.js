@@ -315,7 +315,7 @@ $("gap").addEventListener("mousedown", (e) => {
 $("read").addEventListener("click", () => rove.send("rove:read"));
 
 // ---- the ask bar: a site's question, or a program coming down ----------------------
-const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기" };
+const WHAT = { camera: "카메라", microphone: "마이크", location: "위치", notifications: "알림", clipboard: "클립보드 읽기", midi: "MIDI 기기", popups: "팝업" };
 const RUNS = { program: "실행 파일", script: "스크립트", disk: "디스크 이미지" };
 const once = (a) => (a?.kind === "site" && a.what[0] === "external") || a?.kind === "extension";
 let askShown = null;
@@ -360,7 +360,7 @@ function drawAsk() {
   $("askIcon").innerHTML = `<use href="icons.svg#rk-i-${download ? "alarm" : once(a) ? "out" : "lock"}"/>`;
   $("askWho").textContent = download ? a.name : a.host;
   $("askWhat").textContent = download ? [a.host, RUNS[a.what[0]]].filter(Boolean).join(" · ")
-    : once(a) ? `${a.scheme}: 링크를 다른 앱으로` : a.what.map((k) => WHAT[k] || k).join(" · ");
+    : once(a) ? `${a.scheme}: 링크를 다른 앱으로` : a.what[0] === "popups" ? `팝업 ${a.count}개 막음` : a.what.map((k) => WHAT[k] || k).join(" · ");
   $("askNo").textContent = download ? "버리기" : once(a) ? "취소" : "차단";
   $("askNo").classList.toggle("rk-btn--danger", download);
   $("askYes").textContent = download ? "받기" : once(a) ? "열기" : "허용";

@@ -515,11 +515,11 @@ function drawMenu() {
       <button class="btn" data-do="zoom-out" aria-label="작게" title="작게">${icon("minus")}</button>
       <span class="rk-num">${state.zoom || 100}%</span>
       <button class="btn" data-do="zoom-in" aria-label="크게" title="크게">${icon("plus")}</button>
+      <button class="btn full" data-do="full" aria-label="전체 화면 (F11)" title="전체 화면 (F11)">${icon("target")}</button>
     </div>
     <button class="rk-menu__item" data-do="find" role="menuitem">${icon("search")}페이지에서 찾기${shortcut("Ctrl+F")}</button>
     <button class="rk-menu__item" data-do="print" role="menuitem">${icon("print")}인쇄${shortcut("Ctrl+P")}</button>
     <button class="rk-menu__item" data-do="save-page" role="menuitem">${icon("download")}페이지 저장${shortcut("Ctrl+S")}</button>
-    <button class="rk-menu__item" data-do="full" role="menuitem">${icon("target")}전체 화면${shortcut("F11")}</button>
     <button class="rk-menu__item" data-do="devtools" role="menuitem">${icon("terminal")}개발자 도구${shortcut("F12")}</button>
     <button class="rk-menu__item" data-do="keys" role="menuitem">${icon("keys")}단축키</button>
     <hr>

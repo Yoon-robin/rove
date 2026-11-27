@@ -213,10 +213,13 @@ body.vertical .pop.tabfind { top: 48px; }
 .grpedit .sw { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: var(--g); cursor: pointer; box-shadow: 0 0 0 2px var(--rk-hud); transition: box-shadow var(--rk-t-fast) ease-out; }
 .grpedit .sw[aria-checked="true"] { box-shadow: 0 0 0 2px var(--rk-hud), 0 0 0 3.5px var(--g); }
 .grpedit .sw:focus-visible { outline: 0; box-shadow: 0 0 0 2px var(--rk-hud), 0 0 0 3.5px var(--rk-ring); }
-.zoomrow { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 4px 0 10px; font-size: 13px; color: var(--rk-text); }
+.zoomrow { display: flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 4px 0 36px; font-size: 13px; color: var(--rk-text); }
 .zoomrow span:first-child { margin-right: auto; }
 .zoomrow .rk-num { min-width: 44px; text-align: center; color: var(--rk-head); }
 .zoomrow .btn { width: 28px; height: 28px; }
+/* full screen at the zoom row's end, as in Chrome's and Brave's menu: one row less, set off from the zoom steps by a rule */
+.zoomrow .btn.full { position: relative; margin-left: 9px; }
+.zoomrow .btn.full::before { content: ""; position: absolute; left: -7px; top: 6px; bottom: 6px; width: 1px; background: var(--rk-hud-line); }
 .menu .key, .menu .now { margin-left: auto; padding-left: 12px; color: var(--rk-faint); font-size: 12px; white-space: nowrap; }
 .pop.keys { width: 280px; outline: 0; }
 .keys .rk-label:first-child { margin-top: 4px; }

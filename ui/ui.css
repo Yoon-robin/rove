@@ -375,6 +375,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item > .rk-ico { width: 15px; height: 15px; color: var(--rk-faint); }
 .drawer .item > img.fav { flex: none; width: 16px; height: 16px; margin: 0 -0.5px; border-radius: 3px; }
 .drawer .item > .ext { flex: none; width: 18px; height: 18px; margin: 0 -1.5px; border-radius: 4px; }
+.drawer .item.off > .ext, .drawer .item.off > .rk-ico { opacity: 0.5; } .drawer .item.off b { color: var(--rk-soft); } /* an extension turned off */
 .drawer .item .w { flex: 1; min-width: 0; }
 .drawer .item b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--rk-w); font-size: 13px; line-height: 18px; }
 .drawer .item small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--rk-faint); font-size: 12px; line-height: 16px; }

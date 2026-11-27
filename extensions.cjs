@@ -14,8 +14,8 @@
 // an extension's chrome.webRequest, and declarativeNetRequest is not there:
 // an ad blocking extension does nothing here, Rove's own blocking does that.
 // So the ask before such an install says so (blocksRequests).
-const { nativeImage, session, webContents } = require("electron");
-const { existsSync } = require("node:fs");
+const { app, nativeImage, session, webContents } = require("electron");
+const { existsSync, readdirSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { ElectronChromeExtensions } = require("electron-chrome-extensions");
 const webStore = require("electron-chrome-web-store");
@@ -35,26 +35,37 @@ const onStore = (url) => { try { return new URL(url).origin === new URL(STORE).o
 // ses: the session the pages are in; dir: where installed extensions are kept;
 // impl: Rove's tabs and windows for chrome.tabs / chrome.windows (see main.cjs);
 // confirm({ name, id, allSites, wontBlock, wc }) → Promise<boolean>: asked before an install;
-// actionsPreload: the file that gives our toolbar <browser-action-list>
-function start({ ses, dir, impl, confirm, actionsPreload, log }) {
+// actionsPreload: the file that gives our toolbar <browser-action-list>;
+// off: { id: { name, version, path } } the ones turned off (kept installed, not loaded, as Chrome's
+// and Brave's switch on brave://extensions), saveOff(off) keeps it
+function start({ ses, dir, impl, confirm, actionsPreload, log, off = {}, saveOff = () => {} }) {
   const api = new ElectronChromeExtensions({ session: ses, ...impl });
   // the toolbar (our own screen, the default session) shows the icons through crx://
   ElectronChromeExtensions.handleCRXProtocol(session.defaultSession);
   session.defaultSession.registerPreloadScript({ id: "rove-actions", type: "frame", filePath: actionsPreload });
   api.on("browser-action-popup-created", (popup) => popup.browserWindow?.setMenu?.(null));
 
+  // the library would load every installed one and look for updates before that (then none for
+  // 5 hours): Rove loads the ones not turned off, then looks
   const ready = webStore.installChromeWebStore({
     session: ses,
     extensionsPath: dir,
-    autoUpdate: true,
+    loadExtensions: false,
+    autoUpdate: false,
     beforeInstall: async ({ id, localizedName, manifest, frame }) => {
       const yes = await confirm({ id, name: localizedName || manifest?.name || id, allSites: allSites(manifest), wontBlock: blocksRequests(manifest), wc: (frame && webContents.fromFrame(frame)) || null }).catch(() => false);
       log(`확장 프로그램 ${yes ? "추가" : "안 함"}: ${localizedName || id}`);
       return { action: yes ? "allow" : "deny" };
     },
-  }).then(() => log(`확장 프로그램 ${(ses.extensions || ses).getAllExtensions().length}개`), (e) => log(`확장 프로그램을 못 불러옴: ${e.message}`));
+  }).then(() => loadInstalled(ses, dir, off)).then(() => {
+    log(`확장 프로그램 ${exts().length}개${Object.keys(off).length ? `, 꺼 둔 것 ${Object.keys(off).length}개` : ""}`);
+    keepUpdated(ses, log);
+  }, (e) => log(`확장 프로그램을 못 불러옴: ${e.message}`));
 
-  const exts = () => (ses.extensions || ses).getAllExtensions();
+  const sx = ses.extensions || ses;
+  const exts = () => sx.getAllExtensions();
+  // added again from the web store while off: it is on
+  sx.on("extension-loaded", (_e, ext) => { if (off[ext.id]) { delete off[ext.id]; saveOff(off); } });
   const watched = new WeakSet();
   const noSwitch = (wc) => {
     if (watched.has(wc)) return;
@@ -70,11 +81,31 @@ function start({ ses, dir, impl, confirm, actionsPreload, log }) {
     moved(wc, bw) { if (wc.session !== ses || wc.isDestroyed()) return; api.removeTab(wc); api.addTab(wc, bw); },
     menu(wc, params) { return wc.session === ses ? api.getContextMenuItems(wc, params) : []; },
     list() {
-      return exts().map((e) => ({ id: e.id, name: e.name, version: e.version, icon: icon(e), options: optionsOf(e) })).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      const on = exts().map((e) => ({ id: e.id, name: e.name, version: e.version, icon: icon(e), options: optionsOf(e), on: true }));
+      const offs = Object.entries(off).filter(([id, x]) => !sx.getExtension(id) && existsSync(x.path))
+        .map(([id, x]) => ({ id, name: x.name, version: x.version, icon: icon({ path: x.path, manifest: manifestAt(x.path) }), options: null, on: false }));
+      return [...on, ...offs].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    },
+    // turned off: out of every page and the toolbar, its data kept; on again from where it is
+    async setOn(id, yes) {
+      const e = sx.getExtension(id);
+      if (!yes && e) {
+        off[id] = { name: e.name, version: e.version, path: e.path };
+        saveOff(off);
+        sx.removeExtension(id);
+      } else if (yes && !e && off[id]) {
+        const { path } = off[id];
+        delete off[id];
+        saveOff(off);
+        await wake(ses, await sx.loadExtension(path));
+      } else return false;
+      log(`확장 프로그램 ${yes ? "켬" : "끔"}: ${id}`);
+      return true;
     },
     async remove(id) {
-      if (!exts().some((e) => e.id === id)) return false;
+      if (!sx.getExtension(id) && !off[id]) return false;
       await webStore.uninstallExtension(id, { session: ses, extensionsPath: dir });
+      if (off[id]) { delete off[id]; saveOff(off); }
       log(`확장 프로그램 지움: ${id}`);
       return true;
     },
@@ -95,6 +126,33 @@ function start({ ses, dir, impl, confirm, actionsPreload, log }) {
       return null;
     },
   };
+}
+
+// the installed ones (dir/<id>/<version>/) but those turned off; the library's loader per id
+// (newest version, an MV3 worker started)
+async function loadInstalled(ses, dir, off) {
+  let ids = [];
+  try { ids = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !off[d.name]).map((d) => d.name); } catch { /* none yet */ }
+  for (const id of ids) await webStore.loadAllExtensions(ses, join(dir, id));
+}
+// a loaded MV3 extension's worker, as at start (it would wait for an event otherwise)
+async function wake(ses, ext) {
+  if (ext?.manifest.manifest_version === 3 && ext.manifest.background?.service_worker) await ses.serviceWorkers.startWorkerForScope(`chrome-extension://${ext.id}`).catch(() => {});
+}
+// the library's own updater (5 hours apart, and when a window comes up), after the load
+function keepUpdated(ses, log) {
+  let last = 0;
+  const check = () => {
+    if (Date.now() - last < 5 * 60 * 60e3) return;
+    last = Date.now();
+    webStore.updateExtensions(ses).catch((e) => log(`확장 프로그램 업데이트 못 함: ${e.message}`));
+  };
+  app.on("browser-window-focus", check);
+  setInterval(check, 5 * 60 * 60e3).unref?.();
+  check();
+}
+function manifestAt(path) {
+  try { return JSON.parse(readFileSync(join(path, "manifest.json"), "utf8")); } catch { return {}; }
 }
 
 // the commands that press the extension's toolbar button (MV3, MV2 and page action)
@@ -140,4 +198,4 @@ function icon(e) {
   return null;
 }
 
-module.exports = { start, STORE, blocksRequests, keyIs };
+module.exports = { start, STORE, blocksRequests, keyIs, loadInstalled };

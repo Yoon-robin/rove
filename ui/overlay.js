@@ -632,7 +632,8 @@ async function drawDrawer() {
     for (const x of list) {
       const pic = x.icon ? `<img class="ext" src="${esc(x.icon)}" alt="">` : icon("spark");
       const sure = dropping === x.id;
-      body += `<div class="item">${pic}<div class="w"><b>${esc(x.name)}</b><small class="rk-num">${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}</div>`;
+      const turn = `<button class="rk-switch" role="switch" data-ext-on="${esc(x.id)}" aria-checked="${!!x.on}" aria-label="${esc(x.name)} 켜기" title="${x.on ? "끄기 (지우지 않음)" : "켜기"}"></button>`;
+      body += `<div class="item${x.on ? "" : " off"}">${pic}<div class="w"><b>${esc(x.name)}</b><small class="rk-num">${x.on ? "" : "꺼짐 · "}${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}${turn}</div>`;
     }
   } else if (panel === "bookmarks" && importing) {
     body += `<div class="rk-label">가져오기</div>`;
@@ -714,6 +715,13 @@ async function drawDrawer() {
   root.querySelector("[data-clear]")?.addEventListener("click", () => rove.send("rove:downloads-clear"));
   root.querySelector("[data-store]")?.addEventListener("click", () => rove.send("rove:open", STORE, true));
   root.querySelectorAll("[data-ext-options]").forEach((b) => b.addEventListener("click", () => rove.send("rove:extension-options", b.dataset.extOptions)));
+  root.querySelectorAll("[data-ext-on]").forEach((b) => b.addEventListener("click", async () => {
+    const id = b.dataset.extOn;
+    b.disabled = true;
+    await rove.ask("rove:extension-on", id, b.getAttribute("aria-checked") !== "true");
+    await draw();
+    root.querySelector(`[data-ext-on="${CSS.escape(id)}"]`)?.focus();
+  }));
   root.querySelectorAll("[data-ext-drop]").forEach((b) => b.addEventListener("click", async () => {
     if (dropping !== b.dataset.extDrop) { dropping = b.dataset.extDrop; draw(); return; }
     dropping = null;

@@ -1451,6 +1451,7 @@ function messages() {
   on("rove:share", (id, pick, audio) => shareAnswer(Number(id), pick && typeof pick === "object" ? { kind: String(pick.kind), id: pick.kind === "tab" ? Number(pick.id) : String(pick.id) } : null, !!audio));
   handle("rove:site", () => siteInfo());
   handle("rove:extensions", () => exts?.list() || []);
+  handle("rove:extension-on", (id, yes) => exts?.setOn(String(id), !!yes).catch((e) => { log(`확장 프로그램을 못 켜고 끔: ${e.message}`); return false; }) ?? false);
   handle("rove:extension-remove", (id) => exts?.remove(String(id)).catch((e) => { log(`확장 프로그램을 못 지움: ${e.message}`); return false; }) ?? false);
   on("rove:extension-options", (id) => { const u = exts?.options(String(id)); if (u) { hideOverlay(); newTab(u); } });
   on("rove:site-set", (origin, key, value) => setSite(String(origin), String(key), String(value)));
@@ -2481,6 +2482,7 @@ function startExtensions(ses) {
   const windowFor = (id) => windows.find((w) => normal(w) && w.win.id === id) || (normal(lastNormal) ? lastNormal : windows.find(normal));
   return require("./extensions.cjs").start({
     ses, dir: join(home, "Extensions"), actionsPreload: actions, log, confirm: askExtension,
+    off: { ...settings.extOff }, saveOff(off) { settings.extOff = { ...off }; save("settings.json", settings); },
     impl: {
       createTab(details) {
         const w = windowFor(details.windowId);

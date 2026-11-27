@@ -1699,7 +1699,7 @@ function finish(d, state) {
 // a private window's downloads are listed in private windows only, a normal one's in normal ones (in Chrome
 // and Brave each kind of window has its own list)
 const mineKind = (d) => !!d.private === !!cur?.private;
-const saveDownloads = () => save("downloads.json", downloads.filter((d) => !d.private).map(plain));
+const saveDownloads = (now) => save("downloads.json", downloads.filter((d) => !d.private).map(plain), now);
 // the answer and the file are both there
 function settle(d) {
   if (d.keep) {
@@ -2690,7 +2690,10 @@ function keepAll() {
   save("history.json", history, true);
   save("bookmarks.json", bookmarks, true);
   keepIcons(true);
-  flushSaves(); // settings, permissions, downloads changed in the last 0.8 s
+  // one still coming down was never written (only a finished one is): kept as it is, the next
+  // start reads it as interrupted, to get again (Chrome keeps it the same way)
+  saveDownloads(true);
+  flushSaves(); // settings, permissions changed in the last 0.8 s
 }
 function closedWindow(w) {
   if (cur === w) store();

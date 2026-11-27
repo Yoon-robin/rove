@@ -128,7 +128,7 @@ let grants = load("permissions.json", {}); // { origin: { camera: true, location
 // are put to sleep; zoom: { host: factor } (not 1); awake: sites (edup.co.kr)
 // whose pages keep going with the window down (keepGoing, below)
 // start: "last" (the last run's tabs) or "home" (one home tab)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], start: "last", ...load("settings.json", {}) };
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], start: "last", suggestOff: [], ...load("settings.json", {}) };
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
@@ -1163,7 +1163,8 @@ function hideOverlay() {
 function completion(text) {
   const q = text.toLowerCase();
   if (!q || /[\s/:]/.test(q)) return "";
-  for (const list of [history, bookmarks]) for (let i = list.length - 1; i >= 0; i--) {
+  const off = settings.suggestOff; // ≡ 검색엔진's 주소창 추천
+  for (const list of [off.includes("history") ? [] : history, off.includes("bookmark") ? [] : bookmarks]) for (let i = list.length - 1; i >= 0; i--) {
     if (!webby(list[i].url)) continue;
     const h = q.startsWith("www.") ? new URL(list[i].url).hostname : hostOf(list[i].url);
     if (h.startsWith(q) && h !== q) return h;
@@ -1176,6 +1177,7 @@ function suggestions(text, inline = "") {
   const seen = new Set();
   const out = [];
   const take = (list, kind) => {
+    if (settings.suggestOff.includes(kind)) return;
     for (let i = list.length - 1; i >= 0 && out.length < 7; i--) {
       const it = list[i];
       if (seen.has(it.url)) continue;
@@ -1427,13 +1429,19 @@ function messages() {
   on("rove:split-ratio", (r) => splitRatio(Number(r)));
   on("rove:unsplit", unsplit);
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
-  // ≡ 검색엔진: a list to choose from, by the pointer
-  on("rove:engine-menu", () => Menu.buildFromTemplate(Object.entries(ENGINES).map(([k, [name]]) => ({ label: name, type: "radio", checked: engine() === ENGINES[k], click: () => {
+  // ≡ 검색엔진: a list to choose from, by the pointer, and under it what the address bar suggests
+  // from, each turned off on its own as in Brave's settings › search (all on at first)
+  on("rove:engine-menu", () => popup([...Object.entries(ENGINES).map(([k, [name]]) => ({ label: name, type: "radio", checked: engine() === ENGINES[k], click: () => {
     settings.engine = k;
     save("settings.json", settings);
     for (const t of tabs) if (t.view.webContents.getURL() === HOME_PAGE) t.view.webContents.reload(); // its field says the engine
     everywhere(tell);
-  } }))).popup({ window: win }));
+  } })), { type: "separator" }, { label: "주소창 추천", enabled: false },
+  ...[["history", "방문 기록"], ["bookmark", "즐겨찾기"], ["tab", "열린 탭"]].map(([kind, label]) => ({ label, type: "checkbox", checked: !settings.suggestOff.includes(kind), click: () => {
+    const off = settings.suggestOff;
+    settings.suggestOff = off.includes(kind) ? off.filter((x) => x !== kind) : [...off, kind];
+    save("settings.json", settings);
+  } }))]));
   on("rove:start", (last) => { settings.start = last ? "last" : "home"; save("settings.json", settings); tell(); });
   on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
   on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });

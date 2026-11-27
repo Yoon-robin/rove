@@ -338,9 +338,12 @@ function navOk(h) {
   return { entries: entries.map((e) => ({ url: e.url, title: typeof e.title === "string" ? e.title : "", ...(typeof e.pageState === "string" ? { pageState: e.pageState } : {}) })), index };
 }
 // how Rove starts (≡ 지난 탭으로 시작, as Chrome's 시작 시): the last run's windows, or one home tab —
-// then the last run's windows are the newest closed things, and Ctrl+Shift+T brings them back
-function startWindows(list) {
-  if (list.length && settings.start !== "home") for (const r of list) createWindow({ restore: r });
+// then the last run's windows are the newest closed things, and Ctrl+Shift+T brings them back.
+// again: started by "다시 켜서 새 버전으로" — the tabs come back whatever the setting, as Chrome's and
+// Brave's relaunch for an update restores the session
+const AGAIN = "--rove-relaunched";
+function startWindows(list, again = false) {
+  if (list.length && (again || settings.start !== "home")) for (const r of list) createWindow({ restore: r });
   else { createWindow({}); closedTabs.push(...list.slice(-25)); }
 }
 // Ctrl+Shift+T and the tab menu: the newest closed thing — a tab, or a whole window
@@ -1503,7 +1506,7 @@ function messages() {
   on("rove:pass-logout", () => { pass.logout(); peeked = null; tell(); });
   on("rove:relaunch", () => {
     if (!updates?.state().ready) return;
-    app.relaunch({ execPath: updates.exe(), args: [] });
+    app.relaunch({ execPath: updates.exe(), args: [AGAIN] });
     app.quit();
   });
   // ≡ "업데이트 확인": now, as Brave and Chrome check when their About page opens (not only every 6 h)
@@ -2530,7 +2533,7 @@ app.whenReady().then(async () => {
   const last = load("tabs.json", null);
   const list = Array.isArray(last?.windows) ? last.windows.filter((x) => x?.urls?.length) : last?.urls?.length ? [last] : [];
   if (start) createWindow({ urls: [start] });
-  else startWindows(list);
+  else startWindows(list, process.argv.includes(AGAIN));
   use(windows[0]);
   for (const u of opened(process.argv.slice(1))) newTab(u);
   // asked once per Rove: on its first run only (no tabs kept yet), not after an update. Tests ask for it

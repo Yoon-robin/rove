@@ -7,6 +7,7 @@ Rove 자체는 GPL-3.0이에요([LICENSE](LICENSE)). 아래 것들은 각자의 
 | [Electron](https://github.com/electron/electron) 45.5.0 (Chromium·Node.js 포함) | 실행 파일 전체 | MIT. Chromium과 그 안의 것들은 릴리스의 `LICENSES.chromium.html` |
 | [@ghostery/adblocker](https://github.com/ghostery/adblocker) 2.20.3 | `adblock.cjs`(한 파일로 묶음), `blocker.cjs`가 씀 | MPL-2.0 |
 | Ghostery가 미리 만든 광고·추적 목록: EasyList·EasyPrivacy, uBlock Origin 목록, Peter Lowe 목록 | `lists.bin`(`tools/lists.cjs`가 릴리스마다 새로 만듦) | EasyList·EasyPrivacy: GPL-3.0 또는 CC BY-SA 3.0, uBlock Origin 목록: GPL-3.0, Peter Lowe 목록: 만든 사람의 조건([pgl.yoyo.org](https://pgl.yoyo.org/adservers/)) |
+| Brave의 추적 주소 목록(`debounce.json`, [brave/adblock-lists](https://github.com/brave/adblock-lists)) | `bounce.json`(`tools/lists.cjs`가 릴리스마다 받음), `blocker.cjs`가 씀. 목록만 쓰고 Brave 코드는 안 씀 | MPL-2.0 |
 | [@mozilla/readability](https://github.com/mozilla/readability) 0.6.0 | 읽기 모드, 릴리스의 `readability/`(그 `LICENSE.md` 포함) | Apache-2.0 |
 | [tldts](https://github.com/remusao/tldts) 7.4.21 | RobinPass 사이트 맞추기, `vault.cjs`에 묶음 | MIT |
 | [hash-wasm](https://github.com/Daninet/hash-wasm) 4.13.0 | RobinPass 키 만들기(Argon2id), `vault.cjs`에 묶음 | MIT |

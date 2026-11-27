@@ -4,7 +4,7 @@
 // asks nothing of the web for them. Only requests are matched: no script or
 // style goes into a page (pages keep getting nothing of ours).
 const { existsSync, readFileSync } = require("node:fs");
-const { join } = require("node:path");
+const { dirname, join } = require("node:path");
 
 // a release has the engine as one file (scripts/release-rove.mjs); the repo, as the package
 function lib() {
@@ -35,10 +35,71 @@ function clean(url) {
   return url.slice(0, q) + (kept.length ? "?" + kept.join("&") : "") + (h < 0 ? "" : url.slice(h));
 }
 
+// Bounce trackers: a link that goes through a tracker's address only to be sent
+// on (ad and shop links in mail and news) goes straight to where it was sent,
+// as Brave's debouncer does by default. The rules are Brave's list
+// (brave/adblock-lists debounce.json, MPL-2.0), fetched as bounce.json with
+// lists.bin; what is done with them is ours. Safety as there: only to http(s),
+// never to the same site, and the site the address names must be the one it
+// parses to. site(host): the host's registrable domain (tldts' getDomain).
+function glob(s) { return s.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*"); }
+// a match pattern (scheme://host/path, the path with its query) as a regex
+function pattern(p) {
+  const m = /^(\*|https?):\/\/(\*|(?:\*\.)?[^/*]+)(\/.*)$/.exec(p);
+  if (!m) return null;
+  const scheme = m[1] === "*" ? "https?" : m[1];
+  const host = m[2] === "*" ? "[^/]+" : m[2].startsWith("*.") ? "(?:[^/]+\\.)?" + glob(m[2].slice(2)) : glob(m[2]);
+  return new RegExp(`^${scheme}://${host}(?::\\d+)?${glob(m[3])}$`, "i");
+}
+function bouncer(rules, site) {
+  const ACTIONS = new Set(["redirect", "base64,redirect", "regex-path", "regex-path-template"]);
+  const list = (Array.isArray(rules) ? rules : []).filter((r) => ACTIONS.has(r?.action) && typeof r.param === "string").map((r) => ({
+    ...r, inc: (r.include || []).map(pattern).filter(Boolean), exc: (r.exclude || []).map(pattern).filter(Boolean),
+  }));
+  const target = (r, u) => {
+    if (r.action === "redirect" || r.action === "base64,redirect") {
+      const v = u.searchParams.get(r.param);
+      if (!v) return null;
+      if (r.action === "redirect") return v;
+      try { return Buffer.from(v.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"); } catch { return null; }
+    }
+    let m;
+    try { m = new RegExp(r.param).exec(u.pathname); } catch { return null; }
+    if (!m || m.length < 2) return null;
+    const groups = m.slice(1);
+    const v = r.action === "regex-path" ? groups.join("") : (r.redirect_url_template || "").replace(/\$([1-9])/g, (_, i) => groups[i - 1] ?? "");
+    try { return decodeURIComponent(v.replace(/\+/g, " ")); } catch { return null; }
+  };
+  return (url) => {
+    let u;
+    try { u = new URL(url); } catch { return null; }
+    for (const r of list) {
+      if (!r.inc.some((x) => x.test(url)) || r.exc.some((x) => x.test(url))) continue;
+      let to = target(r, u);
+      if (!to) continue;
+      if (r.prepend_scheme && !/^https?:\/\//i.test(to)) to = `${r.prepend_scheme}://${to}`;
+      let t;
+      try { t = new URL(to); } catch { continue; }
+      if (!/^https?:$/.test(t.protocol)) continue;
+      // "https://good.example\@evil.example" and the like: the host written must be the host
+      const named = /^https?:\/\/([^/?#:\\@]+)(?=[/?#:]|$)/i.exec(to)?.[1]?.toLowerCase();
+      if (named !== t.hostname) continue;
+      const d = site(t.hostname);
+      if (!d || d === site(u.hostname)) continue;
+      return t.href;
+    }
+    return null;
+  };
+}
+
 // ses: the pages' session. on(): blocking is on. skip(pageUrl): the page's site is let be.
-// counted(webContentsId): one more stopped there. Returns null without lists.bin.
-function start({ ses, file, on, skip, counted, log }) {
+// counted(webContentsId): one more stopped there. site(host): registrable domain.
+// Returns null without lists.bin.
+function start({ ses, file, on, skip, counted, log, site }) {
   if (!existsSync(file)) { log("광고·추적 막기: lists.bin이 없어요"); return null; }
+  const bounceFile = join(dirname(file), "bounce.json");
+  let unbounce = () => null;
+  try { unbounce = bouncer(JSON.parse(readFileSync(bounceFile, "utf8")), site); } catch (err) { log(`추적 주소 건너뛰기 못 켬: ${err.message}`); }
   const { FiltersEngine, Request } = lib();
   const t0 = Date.now();
   const engine = FiltersEngine.deserialize(readFileSync(file));
@@ -52,7 +113,9 @@ function start({ ses, file, on, skip, counted, log }) {
   ses.webRequest.onBeforeRequest({ urls: ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"] }, (d, done) => {
     if (!on()) return done({});
     if (d.resourceType === "mainFrame" || d.resourceType === "subFrame") {
-      const to = d.method === "GET" && !skip(d.url) ? clean(d.url) : d.url;
+      if (d.method !== "GET" || skip(d.url)) return done({});
+      // a tracker's own address only in the address bar's place (a frame keeps its page's links)
+      const to = (d.resourceType === "mainFrame" && unbounce(d.url)) || clean(d.url);
       return done(to !== d.url ? { redirectURL: to } : {});
     }
     const top = page(d);
@@ -70,4 +133,4 @@ function start({ ses, file, on, skip, counted, log }) {
   return engine;
 }
 
-module.exports = { start, clean };
+module.exports = { start, clean, bouncer };

@@ -2331,7 +2331,7 @@ const blocked = new Map(); // webContents id: how many stopped on its page
 function blocking(ses, priv = false) {
   try {
     const b = require("./blocker.cjs").start({
-      ses, file: join(__dirname, "lists.bin"), log,
+      ses, file: join(__dirname, "lists.bin"), log, site: (h) => getDomain(h),
       on: () => settings.block,
       skip: (url) => allowedFor(hostOf(url), priv),
       counted: (id) => { blocked.set(id, (blocked.get(id) || 0) + 1); store(); if (windows.some((w) => w.active?.view.webContents.id === id)) tell(); },

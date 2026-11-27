@@ -338,6 +338,8 @@ function reopenClosed() {
 
 // ---- tabs -------------------------------------------------------------------------
 const rove = () => session.fromPartition("persist:rove");
+// a site as rove.log names it: rove.log is on disk, so a private window's sites go in unnamed, as in no history
+const siteInLog = (priv, url) => (priv ? "(비공개 창)" : hostOf(url));
 let exts = null; // Chrome extensions (extensions.cjs), set at start
 let movingWc = null; // a page going to another window: not closed by chrome.tabs' removeTab
 
@@ -565,7 +567,7 @@ function wire(tab) {
     tab.asleep = null;
     tab.wakeAfter = false;
     tab.awake = true;
-    log(`탭 재우지 않음: ${hostOf(tab.url)}`);
+    log(`탭 재우지 않음: ${siteInLog(tab.w?.private, tab.url)}`);
     tell();
   });
   // our pages are Rove's to open (loadURL), not a page's: a web page, or a popup moving its opener,
@@ -576,7 +578,7 @@ function wire(tab) {
     e.preventDefault();
     const m = /^rove:\/\/ui\/go\?q=(.*)$/.exec(e.url);
     const own = wc.getURL() === HOME_PAGE && e.initiator && e.initiator.processId === wc.mainFrame.processId && e.initiator.routingId === wc.mainFrame.routingId;
-    if (!m || !own) return log(`rove:// 막음: ${hostOf(wc.getURL()) || wc.getURL().slice(0, 40)}`);
+    if (!m || !own) return log(`rove:// 막음: ${siteInLog(wc.session !== rove(), wc.getURL()) || wc.getURL().slice(0, 40)}`);
     let to = null;
     try { to = toUrl(decodeURIComponent(m[1])); } catch { /* a broken % */ }
     if (webby(to)) go(to, tab);
@@ -848,9 +850,9 @@ async function read(tab = active) {
   const a = await reader.article(wc);
   if (tab.w.gone) return;
   use(tab.w);
-  if (!a || !tabs.includes(tab) || wc.getURL() !== url) { if (!a) log(`읽기 모드 못 함: ${hostOf(url)}`); return; }
+  if (!a || !tabs.includes(tab) || wc.getURL() !== url) { if (!a) log(`읽기 모드 못 함: ${siteInLog(tab.w.private, url)}`); return; }
   const to = reader.dataUrl(reader.page(a, url));
-  if (!to) { log(`읽기 모드: 글이 너무 김 (${hostOf(url)})`); return; }
+  if (!to) { log(`읽기 모드: 글이 너무 김 (${siteInLog(tab.w.private, url)})`); return; }
   tab.readerUrl = to;
   wc.loadURL(to).catch(() => {});
 }
@@ -1808,7 +1810,7 @@ async function passFill(id, tab = active, master) {
   wc.focus();
   let code = null;
   if (i.totp) { const c = pass.code(i.id); if (c) { copySecret(c.code); code = true; } }
-  log(`RobinPass: 채움 ${hostOf(url)}`);
+  log(`RobinPass: 채움 ${siteInLog(tab.w.private, url)}`);
   return { ok: true, ...r, code };
 }
 async function passPeek() {
@@ -2038,7 +2040,7 @@ function popupsKept(tab) {
 }
 const popupsOk = (tab) => popupsKept(tab) === true;
 function holdPopup(tab, url) {
-  if (popupsKept(tab) === false) return log(`팝업 막음: ${hostOf(tab.url)}`);
+  if (popupsKept(tab) === false) return log(`팝업 막음: ${siteInLog(tab.w?.private, tab.url)}`);
   const origin = topOrigin(tab);
   let a = asks.find((x) => x.tab === tab && x.what[0] === "popups");
   if (!a) {
@@ -2079,7 +2081,7 @@ function dropShare() {
   const s = share;
   share = null;
   safe(() => s.answer(null));
-  log(`화면 공유 안 함 ${hostOf(s.origin)}`);
+  log(`화면 공유 안 함 ${siteInLog(s.w.private, s.origin)}`);
   if (s.w && !s.w.gone) within(s.w, () => { if (overlayOn?.kind === "share") hideOverlay(); });
 }
 async function askShare(tab, origin, audio, answer) {
@@ -2105,7 +2107,7 @@ async function askShare(tab, origin, audio, answer) {
   if (share !== ask) return; // answered or gone meanwhile
   if (ask.w.gone) { dropShare(); return; }
   use(ask.w);
-  log(`화면 공유 물음 ${hostOf(origin)}`);
+  log(`화면 공유 물음 ${siteInLog(tab.w.private, origin)}`);
   showOverlay(what(names, here, true));
   const pics = await sources({ width: 320, height: 180 });
   if (ask.w.gone) return;
@@ -2148,7 +2150,7 @@ function give(c, req, done) {
   } else if (c.src) streams = { video: c.src, ...(c.audio && req.audioRequested && c.src.id.startsWith("screen:") ? { audio: "loopback" } : {}) };
   if (!streams) return safe(() => done(null));
   safe(() => done(streams));
-  log(`화면 공유 ${hostOf(req.securityOrigin)} → ${c.kind}${streams.audio ? " 소리 포함" : ""}`);
+  log(`화면 공유 ${siteInLog(c.tab.w?.private, req.securityOrigin)} → ${c.kind}${streams.audio ? " 소리 포함" : ""}`);
   if (shown) {
     // the tab shown to the site is marked while it is captured
     shown.shownTo = hostOf(req.securityOrigin) || req.securityOrigin;
@@ -2181,7 +2183,7 @@ function watchShown() {
     store();
     for (const t of windows.flatMap((w) => w.tabs)) {
       if (!t.shownTo) continue;
-      if (Date.now() - t.shownAt > 3e3 && !t.view.webContents.isBeingCaptured()) { log(`탭 공유 끝 ${t.shownTo}`); t.shownTo = null; tell(); } else left++;
+      if (Date.now() - t.shownAt > 3e3 && !t.view.webContents.isBeingCaptured()) { log(`탭 공유 끝 ${t.w?.private ? siteInLog(true) : t.shownTo}`); t.shownTo = null; tell(); } else left++;
     }
     if (!left) { clearInterval(shownTimer); shownTimer = null; }
   }, 1500);
@@ -2232,7 +2234,7 @@ async function clearSite() {
     // its cached files only (clearCache() empties every site's, as Chrome does not)
     await ses.clearData({ dataTypes: ["cache"], origins: [origin] });
   } catch (err) { return { error: err.message }; }
-  log(`사이트 데이터 지움 ${hostOf(url)} (쿠키 ${n})`);
+  log(`사이트 데이터 지움 ${siteInLog(tab.w.private, url)} (쿠키 ${n})`);
   tab.view.webContents.reload();
   return { ok: true, cookies: n };
 }
@@ -2304,7 +2306,7 @@ function guardOurPages(wc) {
   wc.on("will-redirect", (e) => {
     if (!/^rove:/i.test(e.url)) return;
     e.preventDefault();
-    log(`rove:// 돌려보내기 막음: ${hostOf(wc.getURL()) || "?"}`);
+    log(`rove:// 돌려보내기 막음: ${siteInLog(wc.session !== rove(), wc.getURL()) || "?"}`);
   });
 }
 // a window a page opened (a lecture's player): the same, and so on down. It has no new tab of its own,
@@ -2328,7 +2330,7 @@ function popupGoing(child, url, tab = null) {
     input = 0;
     if (!clicked && !awakeFor(wc.getURL() || url, priv) && !(live && popupsOk(tab))) {
       if (live) within(tab.w, () => holdPopup(tab, to));
-      else log(`팝업 막음: ${hostOf(wc.getURL())}`);
+      else log(`팝업 막음: ${siteInLog(priv, wc.getURL())}`);
       return { action: "deny" };
     }
     if (disposition === "new-window" && features) {

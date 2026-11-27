@@ -2309,7 +2309,7 @@ function popupGoing(child, url, tab = null) {
       return { action: "allow", overrideBrowserWindowOptions: { ...popupSize(features, child), useContentSize: true, autoHideMenuBar: true, backgroundColor: "#ffffff",
         webPreferences: { session: wc.session, sandbox: true, contextIsolation: true, nodeIntegration: false } } };
     }
-    if (disposition === "new-window" || !live) createWindow({ priv, urls: [to] });
+    if (disposition === "new-window" || !live) { if (webby(to)) createWindow({ priv, urls: [to] }); }
     else within(tab.w, () => {
       newTab(to, { background: disposition === "background-tab", from: tab });
       if (disposition !== "background-tab") tab.w.win?.focus();

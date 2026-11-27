@@ -251,6 +251,17 @@ function paintShown() {
   host.textContent = m[2];
   $("shown").replaceChildren(m[1], host, m[3]);
 }
+// the icon before the address: the page's lock or globe; once something else is typed, what Enter
+// will do (as Chrome, Brave) — a lock beside typed words read as if they were a safe site
+let leadIcon = "";
+function drawLead() {
+  const u = state.tabs.find((x) => x.id === state.active)?.url || "";
+  const typed = editing && url.value !== shown(u);
+  const name = typed ? (suggestShown && items[sel] && items[sel].kind !== "search" ? "globe" : "search") : /^https:/.test(u) ? "lock" : "globe";
+  if (name !== leadIcon) { $("lead").innerHTML = icon(name); leadIcon = name; }
+  $("lead").classList.toggle("plain", !typed && /^http:/.test(u) && !/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(u));
+  $("lead").disabled = typed || !/^(https?|file):/.test(u);
+}
 function drawTools() {
   const t = state.tabs.find((x) => x.id === state.active);
   // extensions: the normal windows only; their buttons show what they say for the tab in front
@@ -265,12 +276,7 @@ function drawTools() {
   if (document.activeElement !== url) editing = false;
   if (!editing) url.value = shown(t?.url);
   paintShown();
-  const u = t?.url || "";
-  const secure = /^https:/.test(u);
-  const plain = /^http:/.test(u) && !/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(u);
-  $("lead").innerHTML = icon(secure ? "lock" : "globe");
-  $("lead").classList.toggle("plain", plain);
-  $("lead").disabled = !/^(https?|file):/.test(u);
+  drawLead();
   $("star").classList.toggle("on", !!state.starred);
   $("star").setAttribute("aria-pressed", String(!!state.starred));
   $("star").hidden = !/^https?:/.test(t?.url || "");
@@ -443,6 +449,7 @@ url.addEventListener("input", (e) => {
   editing = true; paintShown(); filled = "";
   fill = e.inputType === "insertText" && !e.isComposing && url.selectionStart === url.value.length;
   if (url.value.trim()) suggest(); else close();
+  drawLead();
 });
 url.addEventListener("blur", () => { setTimeout(() => { editing = false; close(); drawTools(); }, 150); });
 url.addEventListener("keydown", (e) => {
@@ -451,6 +458,7 @@ url.addEventListener("keydown", (e) => {
     e.preventDefault();
     sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
     rove.send("rove:suggest-sel", sel);
+    drawLead();
   } else if (e.key === "Enter" && (e.ctrlKey || e.altKey || e.shiftKey) && !e.isComposing) {
     // as Chrome, Brave: Ctrl+Enter adds www. and .com to a bare word, Alt+Enter opens a new tab, Shift a new window
     e.preventDefault();
@@ -490,8 +498,9 @@ rove.on("rove:suggested", (list, typed, inline) => {
     url.setSelectionRange(typed.length, url.value.length);
     filled = typed;
   }
+  drawLead();
 });
-rove.on("rove:overlay-closed", (kind) => { if (kind === "suggest") suggestShown = false; });
+rove.on("rove:overlay-closed", (kind) => { if (kind === "suggest") { suggestShown = false; drawLead(); } });
 rove.on("rove:focus-address", () => { url.focus(); url.select(); });
 
 // ---- find in page -------------------------------------------------------------------

@@ -347,13 +347,22 @@ function pageView(ses = cur?.ses || rove()) {
   return view;
 }
 // nav: a back and forward list to bring back (navOk); the tab then comes in asleep and loads it when looked at
-function newTab(url, { background = false, after = null, asleep = false, title = "", pinned = false, group, nav = null } = {}) {
+function newTab(url, { background = false, after = null, from = null, asleep = false, title = "", pinned = false, group, nav = null } = {}) {
+  // a link a page opens (from: that tab) goes after the ones it opened before, in order; one gone
+  // to at once forgets the others' (Chromium's tab strip: a run of openers at a time)
+  if (from) {
+    if (!background) for (const t of tabs) t.opener = null;
+    let j = tabs.indexOf(from);
+    while (tabs[j + 1]?.opener === from) j++;
+    after = tabs[j] || from;
+  }
   const view = pageView();
   const back = navOk(nav);
   if (back) asleep = true;
   const tab = { id: nextId++, w: cur, view, title: title || "새 탭", url: url || HOME_PAGE, favicon: null, loading: !asleep, failed: null, crashed: false, seen: Date.now() };
   if (asleep) { tab.asleep = back || { entries: [{ url: tab.url, title: tab.title }], index: 0 }; if (!title) tab.title = back?.entries[back.index].title || hostOf(tab.url) || tab.url; }
   tab.pinned = !!pinned;
+  tab.opener = from;
   // the pinned ones stay first: a new tab goes after them
   const pins = tabs.filter((t) => t.pinned).length;
   let at = after ? tabs.indexOf(after) + 1 : tabs.length;
@@ -465,7 +474,11 @@ function closeTab(tab) {
     newTab(HOME_PAGE);
     return;
   }
-  if (active === tab) select(tabs[Math.min(i, tabs.length - 1)]); else { layout(); tell(); } // the other of two side by side takes the page again
+  // the one in front closed: another its opener opened (right, then left), then the opener (Chromium's),
+  // else its neighbour
+  const kin = (t) => t.opener && t.opener === tab.opener;
+  const next = tab.opener && tabs.includes(tab.opener) ? tabs.slice(i).find(kin) || tabs.slice(0, i).reverse().find(kin) || tab.opener : null;
+  if (active === tab) select(next || tabs[Math.min(i, tabs.length - 1)]); else { layout(); tell(); } // the other of two side by side takes the page again
 }
 
 function record(url, title) {
@@ -523,7 +536,7 @@ function wire(tab) {
       return { action: "allow", overrideBrowserWindowOptions: { ...popupSize(features, tab.w?.win), useContentSize: true, autoHideMenuBar: true, backgroundColor: "#ffffff",
         webPreferences: { session: tab.w?.ses || rove(), sandbox: true, contextIsolation: true, nodeIntegration: false } } };
     }
-    if (webby(url) || /^about:blank/.test(url)) newTab(url, { background: disposition === "background-tab", after: tab });
+    if (webby(url) || /^about:blank/.test(url)) newTab(url, { background: disposition === "background-tab", from: tab });
     return { action: "deny" };
   });
   on("did-create-window", (child, d) => {
@@ -893,7 +906,7 @@ function pageMenu(tab, p) {
     // a new window as Shift+click makes it: private from a private window (so no "private" item there)
     const priv = !!tab.w?.private;
     const words = (p.linkText || "").trim();
-    items.push({ label: "새 탭에서 링크 열기", click: () => newTab(p.linkURL, { background: true, after: tab }) },
+    items.push({ label: "새 탭에서 링크 열기", click: () => newTab(p.linkURL, { background: true, from: tab }) },
       { label: "옆에 열기", click: () => { const t = newTab(p.linkURL, { background: true, after: tab }); splitWith(t, tab); } },
       { label: "새 창에서 링크 열기", click: () => createWindow({ priv, urls: [p.linkURL] }) },
       ...(priv ? [] : [{ label: "비공개 창에서 링크 열기", click: () => createWindow({ priv: true, urls: [p.linkURL] }) }]),

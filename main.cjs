@@ -99,9 +99,8 @@ const log = (text) => {
 `);
   } catch { /* no log, no matter */ }
 };
-let update = null; // what the updater last said
 log(`켜짐: ${mine ? `설치 버전 ${mine.version}` : `설치 버전 아님 ${app.getVersion()}`}${TEST ? " (시험)" : ""}`);
-const updates = mine && !TEST ? updater({ mine, log, url: process.env.ROVE_UPDATE_URL || config.updates, key: config.updateKeys, fetch: (u, o) => net.fetch(u, o), tell: (s) => { update = s; tell(); } }) : null;
+let updates = mine && !TEST ? updater({ mine, log, url: process.env.ROVE_UPDATE_URL || config.updates, key: config.updateKeys, fetch: (u, o) => net.fetch(u, o), tell: () => tell() }) : null;
 Menu.setApplicationMenu(null);
 nativeTheme.themeSource = "dark";
 
@@ -265,7 +264,7 @@ function snapshot() {
     downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && filesGone.has(d.id) ? { ...plain(d), gone: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
-    update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
+    update: updates ? (({ ready, downloading, checking, checkedAt, error }) => ({ ready, downloading, checking, checked: !!checkedAt, error }))(updates.state()) : null,
     ask: asking() ? plainAsk(asking()) : null,
     block: { ready: !!blocker, on: !!settings.block, site: active && webby(active.url) ? hostOf(active.url) : "", siteOn: !!active && !allowedFor(hostOf(active.url), cur?.private), count: active ? blocked.get(active.view.webContents.id) || 0 : 0 },
     isDefault,
@@ -1503,10 +1502,12 @@ function messages() {
   on("rove:pass-lock", () => { pass.lock(); peeked = null; tell(); });
   on("rove:pass-logout", () => { pass.logout(); peeked = null; tell(); });
   on("rove:relaunch", () => {
-    if (!updates || !update?.ready) return;
+    if (!updates?.state().ready) return;
     app.relaunch({ execPath: updates.exe(), args: [] });
     app.quit();
   });
+  // ≡ "업데이트 확인": now, as Brave and Chrome check when their About page opens (not only every 6 h)
+  on("rove:update-check", () => { updates?.check(); });
   on("rove:win", (what) => { if (what === "min") win.minimize(); else if (what === "max") (win.isMaximized() ? win.unmaximize() : win.maximize()); else if (what === "close") win.close(); });
 }
 const plain = (d) => ({ id: d.id, name: d.name, path: d.path, url: d.url, received: d.received, total: d.total, state: d.state, at: d.at, ...(d.asking ? { asking: asks.find((a) => a.d === d)?.id || true } : {}) }); // asking: its ask's id, answered from the downloads list too
@@ -2840,6 +2841,7 @@ function testHooks() {
     get asks() { return asks; }, answer, askExtension, get grants() { return grants; }, get settings() { return settings; }, setBlock, get blocker() { return blocker; }, blocked,
     makeDefault, checkDefault, defaults, AS, opened, get pass() { return pass; }, clipboard, passFill, passPeek, passSave, passCopy, passItems, passCodes, passQuick, passIdle,
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
+    setUpdater: (make) => { updates = make(() => tell()); tell(); }, // a fake update.cjs updater: no install, no network
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows,

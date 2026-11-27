@@ -491,7 +491,18 @@ const kindOf = (name) => (KINDS.find(([, re]) => re.test(name || "")) || ["downl
 // ---- the menu -----------------------------------------------------------------------
 // each row's shortcut on its right, as in Chrome (the keys are main.cjs keyAction's)
 const shortcut = (k) => `<small class="key" aria-hidden="true">${k}</small>`;
+// the version line, with what the last update check found; "업데이트 확인" checks now, as Brave's About page does
+// (u null: not an installed Rove, nothing to check)
+function versionLine(version, u) {
+  const status = !u || u.ready ? "" : u.downloading ? " · 새 버전 받는 중" : u.checking ? " · 확인하는 중"
+    : u.error ? ` · <span class="alarm" title="${esc(u.error)}">확인하지 못했어요</span>` : u.checked ? " · 최신 버전이에요" : "";
+  // stays while checking (aria-disabled, a second press does nothing), so a keyboard press keeps its place
+  const button = u && !u.ready && !u.downloading ? `<button class="rk-btn rk-btn--small rk-btn--icon check" data-do="update-check" aria-label="업데이트 확인" title="업데이트 확인"${u.checking ? ' aria-disabled="true"' : ""}>${icon("refresh")}</button>` : "";
+  return `<div class="fact"><span>Rove ${esc(version || "")}${status}</span>${button}</div>`;
+}
 function drawMenu() {
+  // a redraw (each state change, e.g. a download's progress) keeps the keyboard where it was
+  const was = root.querySelector(".pop.menu")?.contains(document.activeElement) && document.activeElement.dataset.do;
   root.innerHTML = `<div class="scrim"></div><div class="pop menu rk-menu" role="menu">
     <button class="rk-menu__item" data-do="new" role="menuitem">${icon("plus")}새 탭${shortcut("Ctrl+T")}</button>
     <button class="rk-menu__item" data-do="window" role="menuitem">${icon("window")}새 창${shortcut("Ctrl+N")}</button>
@@ -525,7 +536,7 @@ function drawMenu() {
     <hr>
     ${state.isDefault ? "" : `<button class="rk-menu__item" data-do="default" role="menuitem">${icon("globe")}기본 브라우저로</button>`}
     ${state.update?.ready ? `<button class="rk-menu__item" data-do="relaunch" role="menuitem">${icon("refresh")}다시 켜서 새 버전으로</button>` : ""}
-    <div class="fact">Rove ${esc(state.version || "")}${state.update?.downloading ? " · 새 버전 받는 중" : ""}</div>
+    ${versionLine(state.version, state.update)}
   </div>`;
   root.querySelector(".scrim").addEventListener("mousedown", shut);
   root.querySelector("[data-block]")?.addEventListener("click", () => rove.send("rove:block", !state.block.on, false));
@@ -551,8 +562,9 @@ function drawMenu() {
     else if (d === "full") { shut(); rove.send("rove:full"); }
     else if (d === "devtools") { shut(); rove.send("rove:devtools"); }
     else if (d === "relaunch") rove.send("rove:relaunch");
+    else if (d === "update-check") rove.send("rove:update-check");
   }));
-  root.querySelector(".rk-menu__item")?.focus();
+  (was && root.querySelector(`.pop.menu [data-do="${was}"]`) || root.querySelector(".rk-menu__item"))?.focus();
 }
 
 // ---- the shortcuts (≡ 단축키): every one is main.cjs keyAction's (test/shortcut-list.mjs checks) ----

@@ -541,8 +541,7 @@ function wire(tab) {
   });
   on("did-create-window", (child, d) => {
     child.setMenu(null);
-    popupGoing(child, d.url);
-    child.webContents.on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Escape" && input.control) child.close(); });
+    popupGoing(child, d.url, tab);
   });
   // asleep: what about:blank does is not the tab's
   const own = () => mine() && !tab.asleep && tab.view.webContents === wc;
@@ -553,8 +552,7 @@ function wire(tab) {
   on("focus", front);
   on("input-event", (_e, i) => {
     if (i.type === "mouseDown") front();
-    // what lets the page open a window (Chromium's activation: a press, not a move; not Esc or a lone modifier)
-    if (/^(mouseDown|mouseUp|keyDown|rawKeyDown|touchEnd)$/.test(i.type) && !/^(Escape|Shift|Control|Alt|Meta)$/.test(i.key || "")) tab.input = Date.now();
+    if (activates(i)) tab.input = Date.now(); // what lets the page open a window
   });
   // the page asks to be left (something typed there would go): it stays awake
   on("will-prevent-unload", () => {
@@ -1992,6 +1990,8 @@ function popupSize(features, near) {
 
 // ---- popups a page opened by itself ----------------------------------------------------
 const ACTIVATION_MS = 5000; // Chromium's transient activation
+// what lets a page open a window (Chromium's activation: a press, not a move; not Esc or a lone modifier)
+const activates = (i) => /^(mouseDown|mouseUp|keyDown|rawKeyDown|touchEnd)$/.test(i.type) && !/^(Escape|Shift|Control|Alt|Meta)$/.test(i.key || "");
 const HELD_MAX = 20; // a page that opens popups in a loop: only so many are kept to open
 const topOrigin = (tab) => originOf(tab.view.webContents.getURL() || tab.url);
 // the site's answer (허용·차단, or 이번만 허용 in this tab): a private window keeps its own and takes the normal no
@@ -2275,14 +2275,42 @@ function guardOurPages(wc) {
 }
 // a window a page opened (a lecture's player): the same, and so on down. It has no new tab of its own,
 // so our pages are closed to it entirely: by its page, its opener, or a window it opens. MIKAEL n376
-function popupGoing(child, url) {
+// What its page opens is taken as a tab's is (Brave, Chrome; MIKAEL 11-27): a window it opens with no click
+// or key just before is held on the tab that opened it all (unless that site's popups are allowed, or it is
+// a 창을 내려도 계속 site, as there); a link to a new tab is a tab after that one in its window, not another
+// bare window; a sized window.open stays a popup, at the size asked; Shift+click, a new Rove window.
+function popupGoing(child, url, tab = null) {
   const wc = child.webContents;
+  const priv = tab ? !!tab.w?.private : wc.session !== rove();
   guardOurPages(wc);
   wc.on("will-navigate", (e) => { if (/^rove:/i.test(e.url)) e.preventDefault(); });
-  wc.setWindowOpenHandler(({ url: to }) => (/^rove:/i.test(to) ? { action: "deny" } : { action: "allow" }));
+  let input = 0;
+  wc.on("input-event", (_e, i) => { if (activates(i)) input = Date.now(); });
+  wc.on("before-input-event", (_e, i) => { if (i.type === "keyDown" && i.key === "Escape" && i.control) child.close(); });
+  wc.setWindowOpenHandler(({ url: to, disposition, features }) => {
+    if (!webby(to) && !/^about:blank/.test(to)) return { action: "deny" }; // rove:, file: and the like
+    const live = !!tab?.w && !tab.w.gone && tab.w.tabs.includes(tab);
+    const clicked = Date.now() - input < ACTIVATION_MS;
+    input = 0;
+    if (!clicked && !awakeFor(wc.getURL() || url) && !(live && popupsOk(tab))) {
+      if (live) within(tab.w, () => holdPopup(tab, to));
+      else log(`팝업 막음: ${hostOf(wc.getURL())}`);
+      return { action: "deny" };
+    }
+    if (disposition === "new-window" && features) {
+      return { action: "allow", overrideBrowserWindowOptions: { ...popupSize(features, child), useContentSize: true, autoHideMenuBar: true, backgroundColor: "#ffffff",
+        webPreferences: { session: wc.session, sandbox: true, contextIsolation: true, nodeIntegration: false } } };
+    }
+    if (disposition === "new-window" || !live) createWindow({ priv, urls: [to] });
+    else within(tab.w, () => {
+      newTab(to, { background: disposition === "background-tab", from: tab });
+      if (disposition !== "background-tab") tab.w.win?.focus();
+    });
+    return { action: "deny" };
+  });
   keepGoing(wc, awakeFor(url));
   wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url)); });
-  wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url); });
+  wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url, tab); });
   // a popup has no address bar: its title says whose page it is, the host first and as
   // punycode (a look-alike name shows as xn--…), whatever the page calls itself
   const name = (title = wc.getTitle()) => {

@@ -254,7 +254,8 @@ function snapshot() {
     starred: !!active && bookmarks.some((b) => b.url === (active.failed || active.url)),
     zoom: active ? Math.round(active.view.webContents.getZoomFactor() * 100) : 100,
     findOpen,
-    downloads: downloads.slice(-30).map(plain),
+    // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
+    downloads: downloads.slice(-30).map((d) => (d.state === "completed" && !existsSync(d.path) ? { ...plain(d), gone: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
     update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
@@ -1135,6 +1136,7 @@ function freshPass() {
 }
 function showOverlay(what) {
   if (what.kind === "pass") freshPass();
+  if (what.kind === "drawer" && what.panel === "downloads") tell(); // a file deleted since shows as such
   overlayOn = what;
   overlay.setVisible(true);
   layout();
@@ -1433,8 +1435,22 @@ function messages() {
   on("rove:forget", (url) => { history = history.filter((h) => h.url !== url); save("history.json", history); keepIcons(); });
   on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });
   on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); keepIcons(); tell(); });
-  on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.openPath(d.path); });
-  on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state === "completed") shell.showItemInFolder(d.path); });
+  // a file gone since: no open, the list shows it as deleted
+  on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state !== "completed") return; if (existsSync(d.path)) shell.openPath(d.path); else tell(); });
+  on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state !== "completed") return; if (existsSync(d.path)) shell.showItemInFolder(d.path); else tell(); });
+  // stopped, cancelled or deleted: the same address again from the start, as Chrome's 다시 시도 (its row
+  // gives way to the new one); a private one only while its private session is still there
+  on("rove:download-retry", (id) => {
+    const d = downloads.find((x) => x.id === id);
+    if (!d || d.state === "progressing" || d.asking || !webby(d.url) || (d.state === "completed" && existsSync(d.path))) return;
+    const ses = d.private ? privateSes : rove();
+    if (!ses) return;
+    d.item?.cancel(); // a stopped one Chromium still holds: let it go, not two of one file
+    downloads = downloads.filter((x) => x !== d);
+    saveDownloads();
+    ses.downloadURL(d.url);
+    tell();
+  });
   on("rove:download-cancel", (id) => { const d = downloads.find((x) => x.id === id); d?.item?.cancel(); });
   on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing"); saveDownloads(); tell(); });
   on("rove:keys", (input) => keys(input || {}));

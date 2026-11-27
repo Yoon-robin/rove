@@ -647,16 +647,19 @@ async function drawDrawer() {
     for (const d of list) {
       const going = d.state === "progressing";
       const line = d.asking ? "받을지 기다리는 중" : going ? `${size(d.received)}${d.total ? ` / ${size(d.total)}` : ""}`
+        : d.gone ? "삭제됨"
         : d.state === "completed" ? `${size(d.received)} · ${time(d.at)}`
         : d.state === "cancelled" ? "취소함" : "멈춤";
       const meter = going && d.total && !d.asking ? `<span class="rk-meter"><i data-p="${Math.round((d.received / d.total) * 100)}"></i></span>` : "";
-      // only a finished one has a file to show; a cancelled or stopped one says so by its mark
-      const done = d.state === "completed";
-      const mark = going || done ? kindOf(d.name) : d.state === "cancelled" ? "close" : "alarm";
+      // only a finished one has a file to show; a cancelled, stopped or deleted one says so by its mark
+      // and can come down again (Chrome's 다시 시도)
+      const done = d.state === "completed" && !d.gone;
+      const mark = going || done ? kindOf(d.name) : d.state === "cancelled" || d.gone ? "close" : "alarm";
+      const again = /^https?:/i.test(d.url || "") ? `<button class="btn hover" data-retry="${d.id}" aria-label="다시 받기" title="다시 받기">${icon("refresh")}</button>` : "";
       // one waiting for a yes: the same 버리기·받기 as the ask bar, which this drawer covers
       const act = typeof d.asking === "number" ? `<button class="rk-btn rk-btn--small rk-btn--danger" data-keep="${d.asking}" data-yes="0">버리기</button><button class="rk-btn rk-btn--small rk-btn--primary" data-keep="${d.asking}" data-yes="1">받기</button>`
         : going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`
-        : done ? `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>` : "";
+        : done ? `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>` : again;
       body += `<div class="item" data-dl="${d.id}">${icon(mark)}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
     }
   }
@@ -707,6 +710,7 @@ async function drawDrawer() {
   root.querySelectorAll("[data-cancel]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-cancel", Number(b.dataset.cancel))));
   root.querySelectorAll("[data-keep]").forEach((b) => b.addEventListener("click", () => rove.send("rove:answer", Number(b.dataset.keep), b.dataset.yes === "1")));
   root.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-show", Number(b.dataset.show))));
+  root.querySelectorAll("[data-retry]").forEach((b) => b.addEventListener("click", () => rove.send("rove:download-retry", Number(b.dataset.retry))));
   root.querySelectorAll("[data-site]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:forget-site", b.dataset.site); setTimeout(draw, 50); }));
   root.querySelectorAll("[data-unallow]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:unallow", b.dataset.unallow); setTimeout(draw, 50); }));
   root.querySelector("[data-all]")?.addEventListener("click", () => { sure = true; draw(); });

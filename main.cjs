@@ -1987,7 +1987,8 @@ let asks = []; // { id, kind: "site" | "download", tab, origin, host, what: [key
 let privGrants = {}; // a private window's answers, gone with it
 const gr = () => (cur?.private ? privGrants : grants);
 const keepGrants = () => { if (!cur?.private) save("permissions.json", grants); };
-const asking = () => asks.find((a) => a.kind === "download" || a.tab === active) || asks.find((a) => a.kind === "welcome") || null;
+// a held download is asked about in the windows of its kind only (its name is a private window's)
+const asking = () => asks.find((a) => (a.kind === "download" && mineKind(a.d)) || a.tab === active) || asks.find((a) => a.kind === "welcome") || null;
 // another program's link: kept for an https site only, as Chrome; popups for a page with a site (not data:)
 const keepable = (a) => a.what?.[0] === "popups" ? !!a.origin : a.what?.[0] !== "external" || /^https:\/\//.test(a.origin || "");
 const plainAsk = (a) => ({ id: a.id, kind: a.kind, host: a.host, what: a.what, name: a.name || "", error: a.error || "", scheme: a.scheme || "", allSites: !!a.allSites, wontBlock: !!a.wontBlock, keepable: keepable(a), count: a.count || 0, from: a.from || "" });
@@ -2776,6 +2777,11 @@ function endPrivate() {
   privateSes = null;
   privGrants = {};
   privSites = { allow: [], awake: [] };
+  // a program still asked about has no window left to answer in: not kept (Chrome cancels a private
+  // window's downloads with the last one)
+  const unasked = asks.filter((a) => a.kind === "download" && a.d.private);
+  asks = asks.filter((a) => !unasked.includes(a));
+  for (const a of unasked) keepDownload(a.d, false);
   downloads = downloads.filter((d) => !d.private || d.state === "progressing");
   if (ses) { ses.clearStorageData().catch(() => {}); ses.clearCache().catch(() => {}); }
   log("비공개 창 끝: 데이터 지움");

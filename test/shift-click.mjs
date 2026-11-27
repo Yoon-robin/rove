@@ -14,9 +14,11 @@ globalThis.CLICK = async (modifiers, button = "left") => {
   await sleep(1200);
 };
 globalThis.PRESS = async () => { const wc = R.active.view.webContents; wc.sendInputEvent({ type: "mouseDown", x: 10, y: 600, button: "left", clickCount: 1 }); wc.sendInputEvent({ type: "mouseUp", x: 10, y: 600, button: "left", clickCount: 1 }); await sleep(100); };
+// a new window's tab may still be reading its new tab page: going elsewhere then aborts one of the two loads (-3)
+globalThis.OPEN = async (url) => { const wc = R.active.view.webContents; if (wc.isLoading()) await new Promise((r) => wc.once("did-stop-loading", r)); await wc.loadURL(url); };
 globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + JSON.stringify(got);`;
 export default [
-  { js: H + `await R.active.view.webContents.loadURL(pg("start")); await sleep(500); return "start " + JSON.stringify(COUNT());` },
+  { js: H + `await OPEN(pg("start")); await sleep(500); return "start " + JSON.stringify(COUNT());` },
   { js: `const a = COUNT(); await CLICK(["shift"]); const b = COUNT();
     const w = R.windows[R.windows.length - 1];
     const ok = b.rove === a.rove + 1 && b.popups === a.popups && w.tabs.length === 1 && /example.com/.test(w.tabs[0].view.webContents.getURL());
@@ -34,7 +36,7 @@ export default [
     const b = COUNT(); return CHECK("window.open plain: a tab", b.tabs === a.tabs + 1 && b.rove === a.rove && b.popups === a.popups, { a, b });` },
   { js: `R.createWindow({ priv: true }); await sleep(1000);
     const p = R.windows.find((w) => w.private); if (!p) return "FAIL no private window";
-    R.select(p.tabs[0]); await R.active.view.webContents.loadURL(pg("private")); await sleep(500); const a = COUNT(); await CLICK(["shift"]); const b = COUNT();
+    R.select(p.tabs[0]); await OPEN(pg("private")); await sleep(500); const a = COUNT(); await CLICK(["shift"]); const b = COUNT();
     const n = R.windows[R.windows.length - 1];
     return CHECK("Shift+click in a private window: a private window, the same session", n !== p && n.private && n.ses === p.ses && b.rove === a.rove + 1, { a, b, priv: n.private });` },
 ];

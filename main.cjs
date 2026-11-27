@@ -103,6 +103,20 @@ log(`켜짐: ${mine ? `설치 버전 ${mine.version}` : `설치 버전 아님 ${
 let updates = mine && !TEST ? updater({ mine, log, url: process.env.ROVE_UPDATE_URL || config.updates, key: config.updateKeys, fetch: (u, o) => net.fetch(u, o), tell: () => tell() }) : null;
 Menu.setApplicationMenu(null);
 nativeTheme.themeSource = "dark";
+// the spell checker's dictionaries come with Rove (tools/dictionaries.cjs): put where Chromium
+// looks before it starts, it never fetches them from Google's servers (Brave sends that
+// through its own). Without the folder (a dev copy that hasn't run the tool) Chromium fetches.
+{
+  const from = join(__dirname, "dictionaries"), to = join(app.getPath("userData"), "Dictionaries");
+  for (const name of ["en-US-10-2.bdic", "ko-3-0.bdic"]) {
+    try {
+      const have = statSync(join(from, name), { throwIfNoEntry: false });
+      if (!have || statSync(join(to, name), { throwIfNoEntry: false })?.size === have.size) continue;
+      mkdirSync(to, { recursive: true });
+      writeFileSync(join(to, name), readFileSync(join(from, name))); // readFileSync: also out of app.asar
+    } catch (e) { log(`맞춤법 사전을 못 옮김 ${name}: ${e.message}`); }
+  }
+}
 
 // ---- small files ---------------------------------------------------------------
 const file = (name) => join(home, name);

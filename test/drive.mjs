@@ -13,8 +13,10 @@ const steps = (await import(pathToFileURL(process.argv[2]).href)).default;
 const home = mkdtempSync(join(tmpdir(), "rove-test-"));
 const port = 9300 + Math.floor(Math.random() * 500);
 // ROVE_EXE: the packaged Rove.exe instead of the repository's Electron
+// ROVE_ARG: one more switch for Electron (spell-offline.mjs: --log-net-log=…)
+const extra = process.env.ROVE_ARG ? [process.env.ROVE_ARG] : [];
 const exe = process.env.ROVE_EXE || join(APP, "node_modules", "electron", "dist", "electron.exe");
-const child = spawn(exe, process.env.ROVE_EXE ? [`--inspect=${port}`] : [`--inspect=${port}`, APP], { env: { ...process.env, ROVE_TEST: "1", ROVE_HOME: home, ROVE_START: process.env.ROVE_START || "" }, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(exe, process.env.ROVE_EXE ? [`--inspect=${port}`, ...extra] : [`--inspect=${port}`, ...extra, APP], { env: { ...process.env, ROVE_TEST: "1", ROVE_HOME: home, ROVE_START: process.env.ROVE_START || "" }, stdio: ["ignore", "pipe", "pipe"] });
 let log = "";
 child.stdout.on("data", (b) => (log += b));
 child.stderr.on("data", (b) => (log += b));

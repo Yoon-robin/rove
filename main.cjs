@@ -55,6 +55,7 @@
 const { getDomain, parse: parseHost } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, dialog, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
+const { stat } = require("node:fs/promises");
 const { join, normalize, sep, parse, resolve, relative } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
@@ -255,8 +256,9 @@ function snapshot() {
     zoom: active ? Math.round(active.view.webContents.getZoomFactor() * 100) : 100,
     findOpen,
     // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
-    downloadDir: downloadDir(),
-    downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && !existsSync(d.path) ? { ...plain(d), gone: true } : plain(d))),
+    // what checkFiles last found: no disk here, as a gone network folder blocks a look for 20 s
+    downloadDir: settings.downloadDir && dirOk ? settings.downloadDir : defaultDownloadDir(),
+    downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && filesGone.has(d.id) ? { ...plain(d), gone: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
     update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
@@ -1137,7 +1139,7 @@ function freshPass() {
 }
 function showOverlay(what) {
   if (what.kind === "pass") freshPass();
-  if (what.kind === "drawer" && what.panel === "downloads") tell(); // a file deleted since shows as such
+  if (what.kind === "drawer" && what.panel === "downloads") checkFiles(); // a file deleted since shows as such
   overlayOn = what;
   overlay.setVisible(true);
   layout();
@@ -1437,13 +1439,15 @@ function messages() {
   on("rove:forget-all", () => { history = []; save("history.json", history, true); keepIcons(true); });
   on("rove:unstar", (url) => { bookmarks = bookmarks.filter((b) => b.url !== url); save("bookmarks.json", bookmarks); keepIcons(); tell(); });
   // a file gone since: no open, the list shows it as deleted
-  on("rove:download-open", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state !== "completed") return; if (existsSync(d.path)) shell.openPath(d.path); else tell(); });
-  on("rove:download-show", (id) => { const d = downloads.find((x) => x.id === id); if (d?.state !== "completed") return; if (existsSync(d.path)) shell.showItemInFolder(d.path); else tell(); });
+  const withFile = (id, then) => { const d = downloads.find((x) => x.id === id); if (d?.state !== "completed") return;
+    there(d.path).then((ok) => { if (ok) then(d.path); else { filesGone.add(d.id); tell(); } }); };
+  on("rove:download-open", (id) => withFile(id, (p) => shell.openPath(p)));
+  on("rove:download-show", (id) => withFile(id, (p) => shell.showItemInFolder(p)));
   // stopped, cancelled or deleted: the same address again from the start, as Chrome's 다시 시도 (its row
   // gives way to the new one); a private one only while its private session is still there
   on("rove:download-retry", (id) => {
     const d = downloads.find((x) => x.id === id);
-    if (!d || d.state === "progressing" || d.asking || !webby(d.url) || (d.state === "completed" && existsSync(d.path))) return;
+    if (!d || d.state === "progressing" || d.asking || !webby(d.url) || (d.state === "completed" && !filesGone.has(d.id))) return;
     const ses = d.private ? privateSes : rove();
     if (!ses) return;
     d.item?.cancel(); // a stopped one Chromium still holds: let it go, not two of one file
@@ -1581,12 +1585,37 @@ function importFrom(id) {
 // ---- downloads ----------------------------------------------------------------------
 // where they go: the folder picked in the downloads drawer (Chrome's and Brave's 위치 · 변경), else
 // Windows' own Downloads; a picked one that is gone (a drive taken out) falls back, the pick kept
-const downloadDir = () => (settings.downloadDir && statSync(settings.downloadDir, { throwIfNoEntry: false })?.isDirectory() ? settings.downloadDir
-  : TEST ? join(home, "downloads") : app.getPath("downloads"));
+const defaultDownloadDir = () => (TEST ? join(home, "downloads") : app.getPath("downloads"));
+// the sync look is only for a file coming down or a dialog opening (someone just asked for it)
+const downloadDir = () => {
+  try { dirOk = !!(settings.downloadDir && statSync(settings.downloadDir, { throwIfNoEntry: false })?.isDirectory()); }
+  catch { dirOk = false; } // a share that is off: UNKNOWN, not "no entry"
+  return dirOk ? settings.downloadDir : defaultDownloadDir();
+};
+// The state pushed on every change never looks at the disk itself: a file or picked folder on a network
+// share that is off blocks a look for about 20 s (again every ~50 s), and that was the whole of Rove
+// frozen. These are looked at off the main thread when the downloads drawer opens, and kept.
+let dirOk = true; // the picked folder is there (until a look says not)
+let filesGone = new Set(); // ids of finished downloads whose file was deleted or moved away
+const there = (p, dir = false) => stat(p).then((s) => (dir ? s.isDirectory() : true), () => false);
+let checking = null;
+function checkFiles() {
+  checking ??= (async () => {
+    const done = downloads.filter((d) => d.state === "completed");
+    const [ok, gone] = await Promise.all([settings.downloadDir ? there(settings.downloadDir, true) : true,
+      Promise.all(done.map((d) => there(d.path))).then((r) => new Set(done.filter((_, i) => !r[i]).map((d) => d.id)))]);
+    const changed = ok !== dirOk || gone.size !== filesGone.size || [...gone].some((id) => !filesGone.has(id));
+    dirOk = ok;
+    filesGone = gone;
+    if (changed) tell();
+  })().finally(() => { checking = null; });
+  return checking;
+}
 async function pickDownloadDir() {
   const r = await dialog.showOpenDialog(win, { title: "받는 곳", defaultPath: downloadDir(), properties: ["openDirectory", "createDirectory"] });
   if (r.canceled || !r.filePaths?.[0]) return;
   settings.downloadDir = r.filePaths[0];
+  dirOk = true;
   save("settings.json", settings);
   tell();
 }
@@ -2475,6 +2504,7 @@ app.whenReady().then(async () => {
   if (exts) await Promise.race([exts.ready, new Promise((r) => setTimeout(r, 3000))]);
   rmSync(join(home, "held"), { recursive: true, force: true }); // never answered: gone with the last run
   downloads = load("downloads.json", []).map(({ asking, ...d }) => (d.state === "progressing" ? { ...d, state: "interrupted" } : d));
+  checkFiles();
   checkDefault();
   nextId = Math.max(nextId, ...downloads.map((d) => d.id + 1));
 

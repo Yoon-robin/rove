@@ -2,7 +2,7 @@
 // session serves rove:// (the new tab): a page cannot take its tab there, frame it or open it in a
 // window, and a popup cannot walk its opener tab to the new tab and then to rove://ui/go?q=file:...
 // (the new tab's field takes what its own page sends, and only to http(s) or a search).
-// MIKAEL n366. Needs the network (example.com). Each line prints ok or FAIL.
+// MIKAEL n366; the files' list on the path as read, MIKAEL 11-27. Needs the network (example.com). Each line prints ok or FAIL.
 const H = `globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { BrowserWindow } = process.mainModule.require("electron");
 globalThis.PAGE = (js) => R.active.view.webContents.executeJavaScript(js);
@@ -25,4 +25,7 @@ export default [
     return CHECK("a frame of our page: not loaded", !urls.some((u) => u.startsWith("rove:")), urls);` },
   { js: `R.go("rove://ui/newtab.html"); await sleep(1200); await PAGE("document.getElementById('q').value = 'file:///C:/Windows/win.ini', document.getElementById('find').requestSubmit(), 1"); await sleep(1500);
     const url = R.active.view.webContents.getURL(); return CHECK("the new tab's own field: file: is not opened from it", !url.startsWith("file:"), url);` },
+  { js: `const ses = R.active.view.webContents.session; const st = async (u) => { try { return (await ses.fetch(u)).status; } catch (e) { return String(e.message).slice(0, 40); } };
+    const got = { icons: await st("rove://ui/icons.svg"), walk: await st("rove://ui/fonts/..%2fui.js"), walk2: await st("rove://ui/fonts/..%5cui.js"), ui: await st("rove://ui/ui.js") };
+    return CHECK("a tab's rove:// gives the new tab's files only (fonts/..%2fui.js is not a font)", got.icons === 200 && got.walk !== 200 && got.walk2 !== 200 && got.ui !== 200, got);` },
 ];

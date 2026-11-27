@@ -55,7 +55,7 @@
 const { getDomain, parse: parseHost } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, dialog, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
 const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
-const { join, normalize, sep, parse, resolve } = require("node:path");
+const { join, normalize, sep, parse, resolve, relative } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const UI = join(__dirname, "ui");
@@ -1607,9 +1607,11 @@ function serveUi(p = protocol, { tab = false, priv = false } = {}) {
     const u = new URL(req.url);
     if (u.host !== "ui") return new Response("", { status: 404 });
     if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine()[0], sites: priv ? [] : topSites(), links: config.links || [] });
-    if (tab && !FOR_TABS.test(u.pathname)) return new Response("", { status: 404 });
-    const path = normalize(join(UI, decodeURIComponent(u.pathname)));
+    let path = "";
+    try { path = normalize(join(UI, decodeURIComponent(u.pathname))); } catch { /* a broken % */ }
     if (!path.startsWith(UI + sep)) return new Response("", { status: 404 });
+    // the pages' list is matched on the path as read: fonts/..%2fui.js is ui.js, not a font
+    if (tab && !FOR_TABS.test("/" + relative(UI, path).split(sep).join("/"))) return new Response("", { status: 404 });
     return net.fetch(pathToFileURL(path).toString());
   });
 }

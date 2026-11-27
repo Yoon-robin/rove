@@ -989,6 +989,14 @@ function tabMenu(tab) {
 }
 
 // ---- what the toolbar asks for -----------------------------------------------------
+// the address bar's Enter: here, or with Alt a new tab (in front), with Shift a new window (as Chrome, Brave)
+function goIn(text, how) {
+  if (how !== "tab" && how !== "window") return go(text);
+  const url = toUrl(text);
+  if (!url) return;
+  if (how === "window") createWindow({ priv: !!cur?.private, urls: [url] });
+  else newTab(url);
+}
 function go(text, tab = active) {
   const url = toUrl(text);
   if (!url || !tab) return;
@@ -1321,7 +1329,7 @@ const on = (name, f) => ipcMain.on(name, (e, ...a) => { const w = whose(e); if (
 const handle = (name, f) => ipcMain.handle(name, (e, ...a) => { const w = whose(e); if (!w) return null; use(w); return f(...a); });
 function messages() {
   handle("rove:state", () => snapshot());
-  on("rove:go", (text) => { hideOverlay(); go(String(text)); });
+  on("rove:go", (text, how) => { hideOverlay(); goIn(String(text), how); });
   on("rove:new-tab", (url) => { hideOverlay(); newTab(url ? toUrl(String(url)) : HOME_PAGE); if (!url) focusAddress(); });
   on("rove:select", (id) => select(tabs.find((t) => t.id === id)));
   on("rove:close", (id) => { const t = tabs.find((x) => x.id === id); if (t) closeTab(t); });
@@ -1355,7 +1363,7 @@ function messages() {
   });
   on("rove:suggest-sel", (sel) => { if (overlayOn?.kind === "suggest") { overlayOn.sel = sel; overlay.webContents.send("rove:overlay", overlayOn); } });
   on("rove:overlay", (what) => { if (what) showOverlay(what); else hideOverlay(); });
-  on("rove:open", (url, inNew, tabId) => { hideOverlay(); if (!inNew && tabId && toTab(tabId)) return; if (inNew) newTab(String(url)); else go(String(url)); });
+  on("rove:open", (url, inNew, tabId) => { hideOverlay(); if (!inNew && tabId && toTab(tabId)) return; if (inNew === "window") createWindow({ priv: !!cur?.private, urls: [String(url)] }); else if (inNew) newTab(String(url)); else go(String(url)); });
   on("rove:devtools", () => active?.view.webContents.toggleDevTools());
   on("rove:full", () => { fullTab = null; win.setFullScreen(!win.isFullScreen()); });
   handle("rove:history", (q) => historyDays(q).map(withIcon));

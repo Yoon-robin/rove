@@ -442,6 +442,10 @@ url.addEventListener("keydown", (e) => {
     e.preventDefault();
     sel = Math.max(0, Math.min(items.length - 1, sel + (e.key === "ArrowDown" ? 1 : -1)));
     rove.send("rove:suggest-sel", sel);
+  } else if (e.key === "Enter" && (e.ctrlKey || e.altKey || e.shiftKey) && !e.isComposing) {
+    // as Chrome, Brave: Ctrl+Enter adds www. and .com to a bare word, Alt+Enter opens a new tab, Shift a new window
+    e.preventDefault();
+    submit({ dotcom: e.ctrlKey && !e.altKey, how: e.shiftKey ? "window" : e.altKey ? "tab" : "" });
   } else if (e.key === "Delete" && e.shiftKey && suggestShown && items[sel]?.kind === "history") {
     // Shift+Delete on a history row: that page forgotten, as in Chrome (the row after it stays chosen)
     e.preventDefault();
@@ -456,14 +460,16 @@ url.addEventListener("keydown", (e) => {
     rove.send("rove:focus-page");
   }
 });
-$("address").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const pick = suggestShown && items[sel];
+$("address").addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+function submit({ dotcom = false, how = "" } = {}) {
+  if (dotcom) unfill(); // what was typed, not the rest filled in
+  const word = url.value.trim();
+  const pick = !(dotcom && /^[^\s./:]+$/.test(word)) && suggestShown && items[sel];
   editing = false;
   close();
-  if (pick && pick.kind !== "search" && pick.kind !== "go") rove.send("rove:open", pick.url, false, pick.tab);
-  else if (url.value.trim()) rove.send("rove:go", url.value);
-});
+  if (pick && pick.kind !== "search" && pick.kind !== "go") rove.send("rove:open", pick.url, how || false, pick.tab);
+  else if (word) rove.send("rove:go", dotcom && /^[^\s./:]+$/.test(word) ? `www.${word}.com` : url.value, how);
+}
 function close() { if (suggestShown) { suggestShown = false; rove.send("rove:overlay", null); } }
 rove.on("rove:suggested", (list, typed, inline) => {
   items = list || []; suggestShown = items.length > 0;

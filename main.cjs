@@ -918,12 +918,15 @@ function pageMenu(tab, p) {
     // a new window as Shift+click makes it: private from a private window (so no "private" item there)
     const priv = !!tab.w?.private;
     const words = (p.linkText || "").trim();
+    const clean = require("./blocker.cjs").clean(p.linkURL);
     items.push({ label: "새 탭에서 링크 열기", click: () => newTab(p.linkURL, { background: true, from: tab }) },
       { label: "옆에 열기", click: () => { const t = newTab(p.linkURL, { background: true, after: tab }); splitWith(t, tab); } },
       { label: "새 창에서 링크 열기", click: () => createWindow({ priv, urls: [p.linkURL] }) },
       ...(priv ? [] : [{ label: "비공개 창에서 링크 열기", click: () => createWindow({ priv: true, urls: [p.linkURL] }) }]),
       { type: "separator" },
       { label: "링크 주소 복사", click: () => clipboard.writeText(p.linkURL) },
+      // Brave's 깨끗한 링크 복사: the click ids (fbclid, gclid ...) taken off, shown only when the link has one
+      ...(clean !== p.linkURL ? [{ label: "깨끗한 링크 복사", click: () => clipboard.writeText(clean) }] : []),
       ...(words ? [{ label: "링크 글자 복사", click: () => clipboard.writeText(words) }] : []), { type: "separator" });
   }
   if (p.mediaType === "image" && p.srcURL) {

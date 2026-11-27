@@ -147,7 +147,11 @@ const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, "
 const originOf = (url) => { try { const o = new URL(url).origin; return o === "null" ? "" : o; } catch { return ""; } };
 // the site a host is part of (www.edup.co.kr, contentsm.edup.co.kr: edup.co.kr)
 const siteOf = (url) => { const h = webby(url) ? hostOf(url) : ""; return h ? getDomain(h) || h : ""; };
-const awakeFor = (url) => { const s = siteOf(url); return !!s && settings.awake.includes(s); };
+// a private window's 막기 끔 and 창을 내려도 계속 sites: in memory, gone with the last one (Chrome, Brave);
+// it takes the normal windows' too (priv: asked for a private window's page)
+let privSites = { allow: [], awake: [] };
+const allowedFor = (host, priv) => settings.allow.includes(host) || (!!priv && privSites.allow.includes(host));
+const awakeFor = (url, priv) => { const s = siteOf(url); return !!s && (settings.awake.includes(s) || (!!priv && privSites.awake.includes(s))); };
 // what Windows hands us: addresses, and pages saved as files
 function opened(argv) {
   const out = [];
@@ -248,7 +252,7 @@ function snapshot() {
     version: mine?.version || app.getVersion(),
     update: update ? { ready: update.ready, downloading: update.downloading, error: update.error } : null,
     ask: asking() ? plainAsk(asking()) : null,
-    block: { ready: !!blocker, on: !!settings.block, site: active && webby(active.url) ? hostOf(active.url) : "", siteOn: !!active && !settings.allow.includes(hostOf(active.url)), count: active ? blocked.get(active.view.webContents.id) || 0 : 0 },
+    block: { ready: !!blocker, on: !!settings.block, site: active && webby(active.url) ? hostOf(active.url) : "", siteOn: !!active && !allowedFor(hostOf(active.url), cur?.private), count: active ? blocked.get(active.view.webContents.id) || 0 : 0 },
     isDefault,
     pass: passState(),
     sleep: !!settings.sleep,
@@ -401,7 +405,7 @@ function select(tab) {
 // stays awake, and so does a page that asks to be left (beforeunload: what
 // was typed there would go).
 function canSleep(tab) {
-  return tab !== active && !tab.asleep && !tab.awake && !tab.audible && !awakeFor(tab.url) && !tab.shownTo && !tab.loading && !tab.failed && !tab.crashed
+  return tab !== active && !tab.asleep && !tab.awake && !tab.audible && !awakeFor(tab.url, tab.w?.private) && !tab.shownTo && !tab.loading && !tab.failed && !tab.crashed
     && webby(tab.url) && share?.tab !== tab && fullTab !== tab && !asks.some((a) => a.tab === tab) && split?.a !== tab && split?.b !== tab;
 }
 function sleepTab(tab) {
@@ -580,7 +584,7 @@ function wire(tab) {
   guardOurPages(wc);
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
-    keepGoing(wc, awakeFor(d.url));
+    keepGoing(wc, awakeFor(d.url, tab.w?.private));
     // the page itself went on (a form sent): a password typed there may be offered to RobinPass
     tab.landed = false;
     if (d.initiator) passSent(tab);
@@ -1419,9 +1423,13 @@ function messages() {
   on("rove:downloads-clear", () => { downloads = downloads.filter((d) => d.state === "progressing"); saveDownloads(); tell(); });
   on("rove:keys", (input) => keys(input || {}));
   on("rove:answer", (id, yes, keep) => answer(Number(id), !!yes, keep !== false));
-  handle("rove:sites", () => Object.entries(gr()).map(([origin, g]) => ({ origin, host: hostOf(origin) || origin, ...g })).concat(settings.allow.map((h) => ({ origin: "", host: h, ads: false }))));
+  handle("rove:sites", () => Object.entries(gr()).map(([origin, g]) => ({ origin, host: hostOf(origin) || origin, ...g })).concat([...new Set([...settings.allow, ...(cur?.private ? privSites.allow : [])])].map((h) => ({ origin: "", host: h, ads: false }))));
   on("rove:forget-site", (origin, key) => forgetSite(String(origin), key ? String(key) : null));
-  on("rove:unallow", (host) => { settings.allow = settings.allow.filter((h) => h !== String(host)); save("settings.json", settings); tell(); });
+  on("rove:unallow", (host) => {
+    privSites.allow = privSites.allow.filter((h) => h !== String(host));
+    if (settings.allow.includes(String(host))) { settings.allow = settings.allow.filter((h) => h !== String(host)); save("settings.json", settings); }
+    tell();
+  });
   on("rove:block", (on, site) => setBlock(!!on, site ? active?.url : null));
   on("rove:awake", (on) => setAwake(!!on));
   on("rove:share", (id, pick, audio) => shareAnswer(Number(id), pick && typeof pick === "object" ? { kind: String(pick.kind), id: pick.kind === "tab" ? Number(pick.id) : String(pick.id) } : null, !!audio));
@@ -2026,7 +2034,7 @@ function popupsKept(tab) {
   if (typeof mine === "boolean") return mine;
   if (grants[o]?.popups === false) return false;
   // 창을 내려도 계속 on: a lecture site that opens its player by itself (robin 11-27 "응, 허용해")
-  return awakeFor(tab.view.webContents.getURL() || tab.url) ? true : undefined;
+  return awakeFor(tab.view.webContents.getURL() || tab.url, tab.w?.private) ? true : undefined;
 }
 const popupsOk = (tab) => popupsKept(tab) === true;
 function holdPopup(tab, url) {
@@ -2194,7 +2202,7 @@ function siteInfo() {
     origin, host: hostOf(url) || url, conn,
     grants: [...KINDS, ...Object.keys(g).filter(linkKey)].filter((k) => typeof g[k] === "boolean").map((k) => ({ key: k, allow: g[k] })),
     block: snapshot().block,
-    awake: siteOf(url) ? { site: siteOf(url), on: awakeFor(url) } : null,
+    awake: siteOf(url) ? { site: siteOf(url), on: awakeFor(url, cur?.private) } : null,
   };
 }
 const linkKey = (k) => /^external:[a-z][a-z0-9+.-]*$/.test(k); // another program's link kept for a site (external:zoommtg)
@@ -2232,12 +2240,12 @@ async function clearSite() {
 // ---- ads and trackers (blocker.cjs) ----------------------------------------------------
 let blocker = null;
 const blocked = new Map(); // webContents id: how many stopped on its page
-function blocking(ses) {
+function blocking(ses, priv = false) {
   try {
     const b = require("./blocker.cjs").start({
       ses, file: join(__dirname, "lists.bin"), log,
       on: () => settings.block,
-      skip: (url) => settings.allow.includes(hostOf(url)),
+      skip: (url) => allowedFor(hostOf(url), priv),
       counted: (id) => { blocked.set(id, (blocked.get(id) || 0) + 1); store(); if (windows.some((w) => w.active?.view.webContents.id === id)) tell(); },
     });
     blocker ??= b;
@@ -2247,8 +2255,10 @@ function setBlock(on, site) {
   if (site) {
     const h = hostOf(site);
     if (!h) return;
-    settings.allow = settings.allow.filter((x) => x !== h);
-    if (!on) settings.allow.push(h);
+    const list = cur?.private ? privSites : settings;
+    list.allow = list.allow.filter((x) => x !== h);
+    if (!on) list.allow.push(h);
+    if (list === privSites) return tell();
   } else settings.block = !!on;
   save("settings.json", settings);
   tell();
@@ -2316,7 +2326,7 @@ function popupGoing(child, url, tab = null) {
     const live = !!tab?.w && !tab.w.gone && tab.w.tabs.includes(tab);
     const clicked = Date.now() - input < ACTIVATION_MS;
     input = 0;
-    if (!clicked && !awakeFor(wc.getURL() || url) && !(live && popupsOk(tab))) {
+    if (!clicked && !awakeFor(wc.getURL() || url, priv) && !(live && popupsOk(tab))) {
       if (live) within(tab.w, () => holdPopup(tab, to));
       else log(`팝업 막음: ${hostOf(wc.getURL())}`);
       return { action: "deny" };
@@ -2332,8 +2342,8 @@ function popupGoing(child, url, tab = null) {
     });
     return { action: "deny" };
   });
-  keepGoing(wc, awakeFor(url));
-  wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url)); });
+  keepGoing(wc, awakeFor(url, priv));
+  wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url, priv)); });
   wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url, tab); });
   // a popup has no address bar: its title says whose page it is, the host first and as
   // punycode (a look-alike name shows as xn--…), whatever the page calls itself
@@ -2350,11 +2360,12 @@ function popupGoing(child, url, tab = null) {
 function setAwake(on) {
   const site = active && siteOf(active.url);
   if (!site) return;
-  settings.awake = settings.awake.filter((x) => x !== site);
-  if (on) settings.awake.push(site);
-  save("settings.json", settings);
-  for (const wc of webContents.getAllWebContents()) if (siteOf(wc.getURL()) === site) keepGoing(wc, on);
-  log(`창을 내려도 계속 ${on ? "켬" : "끔"}: ${site}`);
+  const list = cur?.private ? privSites : settings;
+  list.awake = list.awake.filter((x) => x !== site);
+  if (on) list.awake.push(site);
+  if (list === settings) save("settings.json", settings);
+  for (const wc of webContents.getAllWebContents()) if (siteOf(wc.getURL()) === site) keepGoing(wc, awakeFor(wc.getURL(), !!privateSes && wc.session === privateSes));
+  log(`창을 내려도 계속 ${on ? "켬" : "끔"}: ${list === settings ? site : "(비공개 창)"}`); // rove.log is on disk
   tell();
 }
 
@@ -2673,7 +2684,7 @@ function privateSession() {
   cleanAgent(ses);
   permissions(ses, true);
   sharing(ses);
-  blocking(ses);
+  blocking(ses, true);
   downloadsTo(ses, true);
   spelling(ses);
   privateSes = ses;
@@ -2683,6 +2694,7 @@ function endPrivate() {
   const ses = privateSes;
   privateSes = null;
   privGrants = {};
+  privSites = { allow: [], awake: [] };
   downloads = downloads.filter((d) => !d.private || d.state === "progressing");
   if (ses) { ses.clearStorageData().catch(() => {}); ses.clearCache().catch(() => {}); }
   log("비공개 창 끝: 데이터 지움");

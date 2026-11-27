@@ -620,7 +620,7 @@ async function drawDrawer() {
     for (const h of list) {
       const d = day(h.at);
       if (d !== last) { body += `<div class="rk-label">${d}</div>`; last = d; }
-      body += `<div class="item" data-url="${esc(h.url)}">${site(h, "globe")}<div class="w"><b>${esc(h.title || h.url)}</b><small>${esc(host(h.url))} · ${time(h.at)}</small></div><button class="btn hover" data-forget="${esc(h.url)}" aria-label="기록에서 지우기" title="기록에서 지우기">${icon("close")}</button></div>`;
+      body += `<div class="item" data-url="${esc(h.url)}" role="button" tabindex="0">${site(h, "globe")}<div class="w"><b title="${esc(h.title || h.url)}">${esc(h.title || h.url)}</b><small>${esc(host(h.url))} · ${time(h.at)}</small></div><button class="btn hover" data-forget="${esc(h.url)}" aria-label="기록에서 지우기" title="기록에서 지우기">${icon("close")}</button></div>`;
     }
   } else if (panel === "sites") {
     for (const s of list) {
@@ -642,7 +642,7 @@ async function drawDrawer() {
   } else if (panel === "bookmarks") {
     for (const b of list) body += b.url === renaming
       ? `<div class="item">${site(b, "star")}<div class="w"><input class="rk-input" id="bname" maxlength="300" aria-label="즐겨찾기 이름" spellcheck="false" value="${esc(renameText)}"><small>${esc(host(b.url))}</small></div><button class="btn" data-rename-ok aria-label="저장" title="저장">${icon("check")}</button></div>`
-      : `<div class="item" data-url="${esc(b.url)}">${site(b, "star")}<div class="w"><b>${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-rename="${esc(b.url)}" aria-label="이름 고치기" title="이름 고치기">${icon("edit")}</button><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
+      : `<div class="item" data-url="${esc(b.url)}" role="button" tabindex="0">${site(b, "star")}<div class="w"><b title="${esc(b.title || b.url)}">${esc(b.title || b.url)}</b><small>${esc(host(b.url))}</small></div><button class="btn hover" data-rename="${esc(b.url)}" aria-label="이름 고치기" title="이름 고치기">${icon("edit")}</button><button class="btn hover" data-unstar="${esc(b.url)}" aria-label="즐겨찾기에서 빼기" title="즐겨찾기에서 빼기">${icon("close")}</button></div>`;
   } else {
     for (const d of list) {
       const going = d.state === "progressing";
@@ -660,7 +660,8 @@ async function drawDrawer() {
       const act = typeof d.asking === "number" ? `<button class="rk-btn rk-btn--small rk-btn--danger" data-keep="${d.asking}" data-yes="0">버리기</button><button class="rk-btn rk-btn--small rk-btn--primary" data-keep="${d.asking}" data-yes="1">받기</button>`
         : going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`
         : done ? `<button class="btn hover" data-show="${d.id}" aria-label="폴더에서 보기" title="폴더에서 보기">${icon("out")}</button>` : again;
-      body += `<div class="item" data-dl="${d.id}">${icon(mark)}<div class="w"><b>${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
+      // only a finished file opens; the others are not buttons (their 다시 받기 is)
+      body += `<div class="item" data-dl="${d.id}"${done ? ' role="button" tabindex="0"' : ""}>${icon(mark)}<div class="w"><b title="${esc(d.name)}">${esc(d.name)}</b><small class="${d.state === "interrupted" ? "alarm" : ""}">${line}</small>${meter}</div>${act}</div>`;
     }
   }
   // a search that found nothing says so (as tab find and RobinPass do), not that there is nothing at all
@@ -693,6 +694,13 @@ async function drawDrawer() {
     if (e.button === 0 || e.button === 1) rove.send("rove:open", el.dataset.url, e.button === 1 || e.ctrlKey);
   }));
   root.querySelectorAll(".item[data-dl]").forEach((el) => el.addEventListener("click", (e) => { if (!e.target.closest("button")) rove.send("rove:download-open", Number(el.dataset.dl)); }));
+  // Enter or Space on a focused row does what a click does (Ctrl+Enter: a new tab, as Ctrl+click)
+  root.querySelectorAll(".item[tabindex='0']").forEach((el) => el.addEventListener("keydown", (e) => {
+    if (e.target !== el || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    if (el.dataset.url) rove.send("rove:open", el.dataset.url, e.ctrlKey);
+    else el.click();
+  }));
   root.querySelectorAll("[data-forget]").forEach((b) => b.addEventListener("click", () => { rove.send("rove:forget", b.dataset.forget); draw(); }));
   root.querySelectorAll("[data-rename]").forEach((b) => b.addEventListener("click", () => { renaming = b.dataset.rename; renameText = list.find((x) => x.url === renaming)?.title || ""; renameNew = true; draw(); }));
   const name = root.querySelector("#bname");

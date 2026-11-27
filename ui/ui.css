@@ -376,7 +376,8 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 10px; scrollbar-width: thin; scrollbar-color: var(--rk-scroll) transparent; }
 .drawer .rk-label { margin: 14px 0 4px; padding: 0 18px; }
 .drawer .item { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 8px; padding: 0 6px 0 10px; border-radius: var(--rk-r); color: var(--rk-text); cursor: default; }
-.drawer .item:hover { background: var(--rk-hover); color: var(--rk-head); }
+.drawer .item:hover, .drawer .item:focus-visible { background: var(--rk-hover); color: var(--rk-head); }
+.drawer .item:focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--rk-ring); }
 .drawer .item > .rk-ico { width: 15px; height: 15px; color: var(--rk-faint); }
 .drawer .item > img.fav { flex: none; width: 16px; height: 16px; margin: 0 -0.5px; border-radius: 3px; }
 .drawer .item > .ext { flex: none; width: 18px; height: 18px; margin: 0 -1.5px; border-radius: 4px; }
@@ -392,7 +393,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer .item.wrap small { white-space: normal; }
 .drawer .item .btn { width: 28px; height: 28px; }
 .drawer .item .btn .rk-ico { width: 14px; height: 14px; }
-.drawer .item:not(:hover) .btn.hover { opacity: 0; }
+.drawer .item:not(:hover):not(:focus-within) .btn.hover { opacity: 0; }
 .drawer .item .rk-meter { margin-top: 5px; }
 .drawer footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rk-line); }
 .drawer footer span { margin-right: auto; color: var(--rk-text); font-size: 13px; }
@@ -470,6 +471,7 @@ body.vertical .pop.tabfind { top: 48px; }
   .rk-switch[aria-checked="true"] { background: Highlight; border-color: Highlight; }
   .rk-switch[aria-checked="true"]::before { background: HighlightText; }
   .pop, .drawer { outline: 1px solid CanvasText; }
+  .drawer .item:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
   .rk-tab[aria-selected="true"], .rk-tab[aria-pressed="true"], .rk-tab.is-on { outline: 2px solid Highlight; outline-offset: -2px; }
   .rk-input, .rk-select, .rk-textarea { border: 1px solid CanvasText; }
   .rk-input:focus-visible, .rk-select:focus-visible, .rk-textarea:focus-visible { outline: 2px solid Highlight; outline-offset: -1px; }

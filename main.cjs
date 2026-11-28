@@ -2169,20 +2169,36 @@ function cleanAgent(ses) {
 // keeps such a frame's cookies for that one site only: here a cookie meant for
 // other sites (SameSite=None; Secure) set from another site's frame or part of a
 // page becomes Partitioned (CHIPS), kept for that page's site alone, so it still
-// can't follow anyone from site to site. Electron has one onHeadersReceived per
-// session: this is it. A cookie the frame writes itself (document.cookie) stays
-// blocked, as that needs a script put in the page.
+// can't follow anyone from site to site. A cookie the frame writes itself
+// (document.cookie) stays blocked, as that needs a script put in the page.
+//
+// And with blocking on, a page's Referrer-Policy header that hands its whole
+// address to other sites (unsafe-url, no-referrer-when-downgrade) becomes
+// Chrome's default, strict-origin-when-cross-origin: blocker.cjs already cuts
+// the Referer header, but a frame or linked page of another site still read the
+// whole address (search words, ids) from document.referrer, where Brave shows the
+// site alone. A policy in the page itself (<meta name=referrer>, referrerpolicy=)
+// still wins, as that needs a script put in the page.
+//
+// Electron has one onHeadersReceived per session: this is it.
 const partitioned = (c) => (/;\s*samesite\s*=\s*none/i.test(c) && /;\s*secure\s*(;|$)/i.test(c) && !/;\s*partitioned\s*(;|$)/i.test(c) ? c + "; Partitioned" : c);
-function partitionFrameCookies(ses) {
-  if (!COOKIES_AT_START) return;
+const POLICIES = ["no-referrer", "no-referrer-when-downgrade", "same-origin", "origin", "strict-origin", "origin-when-cross-origin", "strict-origin-when-cross-origin", "unsafe-url"];
+// the policy a header list ends on (the last one known wins, as in the spec)
+const policyOf = (values) => values.join(",").split(",").map((s) => s.trim().toLowerCase()).filter((s) => POLICIES.includes(s)).pop() || "";
+function pageHeaders(ses, priv = false) {
   ses.webRequest.onHeadersReceived((d, done) => {
-    const key = d.resourceType === "mainFrame" ? null : Object.keys(d.responseHeaders || {}).find((k) => k.toLowerCase() === "set-cookie");
-    if (!key) return done({});
+    const doc = d.resourceType === "mainFrame" || d.resourceType === "subFrame";
+    const find = (name) => Object.keys(d.responseHeaders || {}).find((k) => k.toLowerCase() === name);
     let top = "";
-    try { top = d.frame?.top?.url || d.webContents?.getURL() || ""; } catch { /* the frame is gone */ }
+    try { top = d.resourceType === "mainFrame" ? d.url : d.frame?.top?.url || d.webContents?.getURL() || ""; } catch { /* the frame is gone */ }
+    const headers = { ...d.responseHeaders };
+    let changed = false;
+    const cookie = COOKIES_AT_START && d.resourceType !== "mainFrame" && find("set-cookie");
     const site = siteOf(d.url), at = siteOf(top);
-    if (!site || !at || site === at) return done({});
-    done({ responseHeaders: { ...d.responseHeaders, [key]: d.responseHeaders[key].map(partitioned) } });
+    if (cookie && site && at && site !== at) { headers[cookie] = headers[cookie].map(partitioned); changed = true; }
+    const policy = doc && settings.block && !allowedFor(hostOf(top), priv) && find("referrer-policy");
+    if (policy && ["unsafe-url", "no-referrer-when-downgrade"].includes(policyOf(headers[policy]))) { headers[policy] = ["strict-origin-when-cross-origin"]; changed = true; }
+    done(changed ? { responseHeaders: headers } : {});
   });
 }
 
@@ -2503,7 +2519,7 @@ function setSite(origin, key, value) {
   keepGrants();
   tell();
 }
-// the cookies frames from other sites keep on this site (partitionFrameCookies). Electron's
+// the cookies frames from other sites keep on this site (pageHeaders). Electron's
 // cookies API neither shows a cookie's partition nor removes by it, and clearStorageData/clearData
 // leave them, so this asks Chromium (DevTools protocol) for them.
 async function clearFrameCookies(wc, url) {
@@ -2762,7 +2778,7 @@ app.whenReady().then(async () => {
   const ses = rove();
   serveUi(ses.protocol, { tab: true });
   cleanAgent(ses);
-  partitionFrameCookies(ses);
+  pageHeaders(ses);
   permissions(ses);
   sharing(ses);
   blocking(ses);
@@ -3073,7 +3089,7 @@ function privateSession() {
   const ses = session.fromPartition(`rove-private-${Date.now()}`);
   serveUi(ses.protocol, { tab: true, priv: true });
   cleanAgent(ses);
-  partitionFrameCookies(ses);
+  pageHeaders(ses, true);
   permissions(ses, true);
   sharing(ses);
   blocking(ses, true);

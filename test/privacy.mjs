@@ -13,6 +13,11 @@ globalThis.SRV = process.mainModule.require("node:http").createServer((q, s) => 
   // on another site (localhost) and one on its own
   if (q.url.startsWith("/refpage")) { s.writeHead(200, { "content-type": "text/html" }); const o = "http://localhost:" + SRV.address().port;
     return s.end('<meta name=referrer content=unsafe-url><img src="' + o + '/img-other"><img src="/img-same">'); }
+  // the same asked in the page's header (Referrer-Policy: unsafe-url), with a frame of another site
+  // that tells what document.referrer it sees (/said?<it>)
+  if (q.url.startsWith("/hdrpage")) { s.writeHead(200, { "content-type": "text/html", "referrer-policy": "unsafe-url" });
+    return s.end('<iframe src="http://localhost:' + SRV.address().port + '/tell"></iframe>'); }
+  if (q.url.startsWith("/tell")) { s.writeHead(200, { "content-type": "text/html" }); return s.end('<script>fetch("/said?" + encodeURIComponent(document.referrer))</script>'); }
   if (q.url.startsWith("/page")) { s.writeHead(200, { "content-type": "text/html" });
     return s.end('<title>p</title><iframe src="/frame?x=2&gclid=g"></iframe><img src="/img?n=1">'); }
   // a page with an icon: /icon?<file> — the icon kept in the cache a long time
@@ -79,6 +84,14 @@ export default [
       CHECK("another site gets only the page's site as Referer", other?.host === "localhost" && other?.ref === BASE + "/", other),
       CHECK("its own site still gets the whole address", same?.ref === BASE + "/refpage?secret=abc", same),
       CHECK("a site let be: what the page asks for", kept?.ref === BASE + "/refpage?secret=abc", kept),
+    ].join("\\n");` },
+  // …and what a frame of another site reads in document.referrer, the page's header asking for all
+  { js: `const said = async () => { const x = (await VISIT(R.active, "/hdrpage?secret=abc")).find((y) => y.url.startsWith("/said?")); return x ? decodeURIComponent(x.url.slice(6)) : null; };
+    const capped = await said();
+    R.setBlock(false, BASE + "/"); const kept = await said(); R.setBlock(true, BASE + "/");
+    return [
+      CHECK("another site's frame reads only the page's site (Referrer-Policy header)", capped === BASE + "/", capped),
+      CHECK("a site let be: the header as the page sent it", kept === BASE + "/hdrpage?secret=abc", kept),
     ].join("\\n");` },
   { js: `SRV.close(); return undefined;` },
 ];

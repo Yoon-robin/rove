@@ -65,7 +65,8 @@ const config = require("./config.cjs"); // the new tab's links, the first search
 const HOME_PAGE = "rove://ui/newtab.html";
 // what the address bar searches with (the words go at the end), chosen in ≡
 const ENGINES = { google: ["Google", "https://www.google.com/search?q="], naver: ["Naver", "https://search.naver.com/search.naver?query="], bing: ["Bing", "https://www.bing.com/search?q="], duckduckgo: ["DuckDuckGo", "https://duckduckgo.com/?q="] };
-const engine = () => ENGINES[settings.engine] || ENGINES[config.engine] || ENGINES.google;
+// a private window may search with its own (≡ 검색엔진 › 비공개 창, as Brave's settings › search); unset, the normal one
+const engine = (priv = !!cur?.private) => (priv && ENGINES[settings.privateEngine]) || ENGINES[settings.engine] || ENGINES[config.engine] || ENGINES.google;
 const TOP = 84; // tab strip 40 + toolbar 44
 const FIND = 44; // the find row under the toolbar, while open
 const ASK = 44; // the ask bar under the toolbar, while something asks
@@ -156,23 +157,23 @@ if (COOKIES_AT_START) app.commandLine.appendSwitch("test-third-party-cookie-phas
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
-function toUrl(text) {
+function toUrl(text, priv) {
   let t = text.trim();
   if (!t) return null;
   // a leading ? means "search for this" (Chrome, Brave)
-  if (t.startsWith("?")) return (t = t.slice(1).trim()) ? engine()[1] + encodeURIComponent(t) : null;
+  if (t.startsWith("?")) return (t = t.slice(1).trim()) ? engine(priv)[1] + encodeURIComponent(t) : null;
   if (/^(https?|file):\/\//i.test(t)) return t;
   if (/^(about:blank|view-source:)/i.test(t) || t === HOME_PAGE) return t;
   // a mail or phone address goes to its program (asked, as a page's link to it); a typed data: page opens (Brave)
   if (/^(mailto|tel):[^\s/]|^data:[\w.+-]*\/[\w.+-]+[;,]/i.test(t)) return t.replace(/\s/g, "%20");
   // as Brave reads it: the site part has no space, the path after it may (example.com/a b goes there, %20)
   const host = t.split(/[/?#]/)[0], rest = t.slice(host.length).replace(/\s/g, "%20");
-  if (/\s/.test(host)) return engine()[1] + encodeURIComponent(t);
+  if (/\s/.test(host)) return engine(priv)[1] + encodeURIComponent(t);
   // this PC, an IP, a one-word name with a port or a closing / (intranet/, foo:8080)
   if (/^(localhost|\d{1,3}(\.\d{1,3}){3}|\[[0-9a-f:.]+\])(:\d+)?$/i.test(host) || /^[a-z0-9-]+:\d+$/i.test(host) || (/^[a-z0-9-]+$/i.test(host) && rest === "/")) return "http://" + host + rest;
   // a real ending, in any script (네이버.한국)
   if (/^[^/]+\.\p{L}[\p{L}\p{N}-]+(:\d+)?$/u.test(host) && realEnding(host)) return "https://" + host + rest;
-  return engine()[1] + encodeURIComponent(t);
+  return engine(priv)[1] + encodeURIComponent(t);
 }
 // a site's ending as Chrome knows it: node.js, index.html are file names, not sites (*.localhost is this PC)
 function realEnding(t) { const h = t.split(/[/?#]/)[0].replace(/:\d+$/, "").replace(/^.*@/, ""); return parseHost(h).isIcann || /\.localhost$/i.test(h); }
@@ -641,7 +642,7 @@ function wire(tab) {
     const own = wc.getURL() === HOME_PAGE && e.initiator && e.initiator.processId === wc.mainFrame.processId && e.initiator.routingId === wc.mainFrame.routingId;
     if (!m || !own) return log(`rove:// 막음: ${siteInLog(wc.session !== rove(), wc.getURL()) || wc.getURL().slice(0, 40)}`);
     let to = null;
-    try { to = toUrl(decodeURIComponent(m[1])); } catch { /* a broken % */ }
+    try { to = toUrl(decodeURIComponent(m[1]), !!tab.w?.private); } catch { /* a broken % */ }
     if (webby(to)) go(to, tab);
   });
   guardOurPages(wc);
@@ -1024,7 +1025,7 @@ function pageMenu(tab, p) {
   } else if (p.selectionText) {
     const text = p.selectionText.trim();
     items.push({ label: "복사", role: "copy" },
-      { label: `"${text.length > 24 ? text.slice(0, 24) + "…" : text}" 찾아보기`, click: () => newTab(engine()[1] + encodeURIComponent(text), { after: tab }) }, { type: "separator" });
+      { label: `"${text.length > 24 ? text.slice(0, 24) + "…" : text}" 찾아보기`, click: () => newTab(engine(!!tab.w?.private)[1] + encodeURIComponent(text), { after: tab }) }, { type: "separator" });
   }
   if (!p.linkURL && !p.isEditable && !p.selectionText && p.mediaType !== "image" && p.mediaType !== "video") {
     items.push({ label: "뒤로", enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
@@ -1094,7 +1095,7 @@ function askedTitle(url) {
   return !url || url === HOME_PAGE || url === "about:blank" ? "새 탭" : url.replace(/^https?:\/\//, "");
 }
 function go(text, tab = active) {
-  const url = toUrl(text);
+  const url = toUrl(text, tab?.w?.private);
   if (!url || !tab) return;
   // a mail or phone address opens no page: the tab keeps its own address and name
   if (/^(mailto|tel):/i.test(url)) return void tab.view.webContents.loadURL(url).catch(() => {});
@@ -1540,13 +1541,18 @@ function messages() {
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
   on("rove:cookies", (yes) => { settings.cookies = !!yes; save("settings.json", settings); tell(); });
   // ≡ 검색엔진: a list to choose from, by the pointer, and under it what the address bar suggests
-  // from, each turned off on its own as in Brave's settings › search (all on at first)
-  on("rove:engine-menu", () => popup([...Object.entries(ENGINES).map(([k, [name]]) => ({ label: name, type: "radio", checked: engine() === ENGINES[k], click: () => {
-    settings.engine = k;
+  // from, each turned off on its own as in Brave's settings › search (all on at first). 비공개 창: the
+  // private windows' own, or the same as the normal one (at first)
+  const setEngine = (key, k) => {
+    if (k) settings[key] = k; else delete settings[key];
     save("settings.json", settings);
-    for (const t of tabs) if (t.view.webContents.getURL() === HOME_PAGE) t.view.webContents.reload(); // its field says the engine
+    everywhere(() => { for (const t of tabs) if (t.view.webContents.getURL() === HOME_PAGE) t.view.webContents.reload(); }); // its field says the engine
     everywhere(tell);
-  } })), { type: "separator" }, { label: "주소창 추천", enabled: false },
+  };
+  const engineRow = (key, k, name) => ({ label: name, type: "radio", checked: (settings[key] || "") === k, click: () => setEngine(key, k) });
+  on("rove:engine-menu", () => popup([...Object.entries(ENGINES).map(([k, [name]]) => ({ ...engineRow("engine", k, name), checked: engine(false) === ENGINES[k] })),
+    { label: "비공개 창", submenu: [engineRow("privateEngine", "", "일반 창과 같이"), { type: "separator" }, ...Object.entries(ENGINES).map(([k, [name]]) => engineRow("privateEngine", k, name))] },
+    { type: "separator" }, { label: "주소창 추천", enabled: false },
   ...[["history", "방문 기록"], ["bookmark", "즐겨찾기"], ["tab", "열린 탭"]].map(([kind, label]) => ({ label, type: "checkbox", checked: !settings.suggestOff.includes(kind), click: () => {
     const off = settings.suggestOff;
     settings.suggestOff = off.includes(kind) ? off.filter((x) => x !== kind) : [...off, kind];
@@ -1835,7 +1841,7 @@ function serveUi(p = protocol, { tab = false, priv = false } = {}) {
   p.handle("rove", (req) => {
     const u = new URL(req.url);
     if (u.host !== "ui") return new Response("", { status: 404 });
-    if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine()[0], private: priv, sites: priv ? [] : topSites(), links: config.links || [] });
+    if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine(priv)[0], private: priv, sites: priv ? [] : topSites(), links: config.links || [] });
     let path = "";
     try { path = normalize(join(UI, decodeURIComponent(u.pathname))); } catch { /* a broken % */ }
     if (!path.startsWith(UI + sep)) return new Response("", { status: 404 });

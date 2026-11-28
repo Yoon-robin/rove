@@ -21,6 +21,19 @@ export default [
     return CHECK("one file: .mhtml with the stylesheet inside", ok && /MIME-Version/i.test(s) && /color: red/.test(s), { ok, size: s.length });` },
   { js: `const f = DIR + "/c.pdf", ok = await R.savePageTo(R.active, f), head = FS.existsSync(f) ? FS.readFileSync(f).subarray(0, 5).toString() : "";
     return CHECK("a PDF straight away", ok && head === "%PDF-", { ok, head });` },
+  // as for downloads (Brave): the saved page's and its files' marks from the internet name only the site,
+  // not the full address or the page's address, and none at all from a private window
+  { js: `const port = SRV.address().port, Z = (f) => { try { return FS.readFileSync(f + ":Zone.Identifier", "utf8"); } catch { return null; } };
+    R.go("http://127.0.0.1:" + port + "/p?secret=abc"); await sleep(1200);
+    await R.savePageTo(R.active, DIR + "/m.html"); await sleep(300);
+    const got = { page: Z(DIR + "/m.html"), file: Z(DIR + "/m_files/" + (FS.readdirSync(DIR + "/m_files")[0] || "")) }, site = "HostUrl=http://127.0.0.1:" + port + "/\\r\\n";
+    return CHECK("the saved page's marks name only the site", got.page?.endsWith(site) && got.file?.endsWith(site) && !/secret|Referrer/.test(got.page + got.file), got);` },
+  { js: `const port = SRV.address().port, Z = (f) => { try { return FS.readFileSync(f + ":Zone.Identifier", "utf8"); } catch { return null; } };
+    const normal = R.cur; R.createWindow({ priv: true }); await sleep(1500); R.newTab("http://127.0.0.1:" + port + "/p?secret=abc"); await sleep(1200);
+    await R.savePageTo(R.active, DIR + "/q.html"); await sleep(300);
+    const got = { page: Z(DIR + "/q.html"), file: Z(DIR + "/q_files/" + (FS.readdirSync(DIR + "/q_files")[0] || "")) };
+    R.use(normal);
+    return CHECK("from a private window the marks name no site", [got.page, got.file].every((z) => z?.endsWith("HostUrl=about:internet\\r\\n")), got);` },
   { js: `const ok = await R.savePageTo(R.active, DIR + "/no/such/dir/d.pdf");
     SRV.closeAllConnections?.(); SRV.close(); FS.rmSync(DIR, { recursive: true, force: true });
     return CHECK("a place it cannot write: says it failed", ok === false, ok);` },

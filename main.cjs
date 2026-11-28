@@ -54,7 +54,7 @@
 // Store, their buttons in the toolbar, their items in the page menu.
 const { getDomain, parse: parseHost } = require("tldts");
 const { app, BrowserWindow, WebContentsView, Menu, clipboard, desktopCapturer, dialog, ipcMain, nativeTheme, net, powerMonitor, protocol, safeStorage, screen, session, shell, webContents } = require("electron");
-const { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
+const { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } = require("node:fs");
 const { stat } = require("node:fs/promises");
 const { join, normalize, sep, parse, resolve, relative } = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -1164,6 +1164,14 @@ async function savePageTo(tab, file) {
   try {
     if (ext === ".pdf") writeFileSync(file, await wc.printToPDF({}));
     else await wc.savePage(file, ext === ".mhtml" ? "MHTML" : "HTMLComplete");
+    // Chromium marks the saved page and each file beside it with the full address and the page's
+    // address; narrow those marks as markWeb does for downloads (the folder is Chromium's "<name>_files")
+    const dir = join(parse(file).dir, parse(file).name + "_files");
+    for (const f of [file, ...(existsSync(dir) ? readdirSync(dir).map((n) => join(dir, n)) : [])]) {
+      let mark = "";
+      try { mark = readFileSync(`${f}:Zone.Identifier`, "utf8"); } catch { continue; }
+      markWeb(f, /^HostUrl=(.*)$/m.exec(mark)?.[1].trim(), tab.w.private);
+    }
     return true;
   } catch (e) {
     log("페이지 저장 실패: " + e.message);

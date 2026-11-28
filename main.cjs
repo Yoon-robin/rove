@@ -216,6 +216,7 @@ const windows = []; // { id, win, overlay, tabs, closed, private, ses, gone } + 
 let cur = null;
 let lastNormal = null; // the normal window last in front (where an address from Windows goes)
 let quitting = false;
+let relaunching = false; // ≡ 다시 켜서 새 버전으로 waits for its question
 // a private window with several tabs is asked about before it closes: nothing of it is kept, so
 // Ctrl+Shift+T cannot bring it back (a normal window it can, so that one is not asked). Brave asks
 // the same (설정 › 시스템 › 탭 여러 개가 있는 창을 닫기 전에 경고, on at first). Tests give their own.
@@ -223,6 +224,15 @@ let askClose = TEST ? null : (bw, n) => dialog.showMessageBox(bw, {
   type: "question", message: `비공개 탭 ${n}개를 모두 닫을까요?`, detail: "비공개 창은 닫으면 다시 열 수 없어요.",
   buttons: ["닫기", "취소"], defaultId: 0, cancelId: 1, noLink: true,
 }).then((r) => r.response === 0);
+// Rove ending with files still coming down (the last window closed, ≡ 다시 켜서 새 버전으로) is asked about
+// first, as Chrome and Brave ask (Browser::OkToCloseWithInProgressDownloads): each one stops, and the next
+// start can only get it again from the start. again: for the relaunch. Tests give their own.
+let askQuit = TEST ? null : (bw, n, again) => dialog.showMessageBox(bw, {
+  type: "question", message: `받는 중인 파일이 ${n}개 있어요. ${again ? "다시 켤까요?" : "Rove를 끌까요?"}`,
+  detail: "지금 끄면 받던 파일은 멈추고, 다음에 처음부터 다시 받아야 해요.",
+  buttons: [again ? "다시 켜기" : "끄기", "계속 받기"], defaultId: 1, cancelId: 1, noLink: true,
+}).then((r) => r.response === 0);
+const going = () => downloads.filter((d) => d.state === "progressing").length;
 const closedTabs = []; // the normal windows' closed tabs (a private window keeps its own)
 function store() { if (cur) Object.assign(cur, { overlayOn, active, findOpen, split, fullTab, groups }); }
 function use(w) {
@@ -1647,8 +1657,14 @@ function messages() {
   handle("rove:pass-sync", async () => { let count; try { count = await pass.sync(); } catch (e) { return { error: e.message }; } tell(); return { ok: true, count }; });
   on("rove:pass-lock", () => { pass.lock(); peeked = null; tell(); });
   on("rove:pass-logout", () => { pass.logout(); peeked = null; tell(); });
-  on("rove:relaunch", () => {
-    if (!updates?.state().ready) return;
+  on("rove:relaunch", async () => {
+    if (!updates?.state().ready || relaunching) return;
+    const n = going();
+    if (n && askQuit) {
+      relaunching = true;
+      const yes = await Promise.resolve(askQuit(win, n, true)).finally(() => { relaunching = false; });
+      if (!yes) return;
+    }
     app.relaunch({ execPath: updates.exe(), args: [AGAIN] });
     app.quit();
   });
@@ -2979,6 +2995,14 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
       Promise.resolve(askClose(bw, tabs.length)).then((yes) => { w.asked = false; if (yes && !w.gone) { w.sure = true; bw.close(); } });
       return;
     }
+    // the last window: Rove ends with it
+    if (!quitting && !w.leave && askQuit && going() && !windows.some((x) => x !== w && !x.gone)) {
+      e.preventDefault();
+      if (w.asked) return;
+      w.asked = true;
+      Promise.resolve(askQuit(bw, going(), false)).then((yes) => { w.asked = false; if (yes && !w.gone) { w.leave = true; bw.close(); } });
+      return;
+    }
     if (quitting || priv) return;
     w.closedAt = { ...bw.getNormalBounds(), max: bw.isMaximized() }; // where Ctrl+Shift+T puts it back (gone by "closed")
     // the last normal window: what it has is kept for the next start
@@ -3150,7 +3174,7 @@ function testHooks() {
     setUpdater: (make) => { updates = make(() => tell()); tell(); }, // a fake update.cjs updater: no install, no network
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitSwap, splitRatio, get split() { return split; }, read, lookReadable, reader,
-    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; },
+    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; }, setAskQuit: (f) => { askQuit = f; },
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, setHideFolded, frame,
     httpsFirst, get exts() { return exts; } };
 }

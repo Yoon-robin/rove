@@ -2765,16 +2765,43 @@ function startExtensions(ses) {
       selectTab(wc) { const t = tabOf(wc); if (t && !t.w.gone && !addingTab) { use(t.w); select(t); } },
       // also told when a page's view goes (closed, asleep, its window shut): then nothing to do
       removeTab(wc) {
+        const pop = !wc.isDestroyed() && BrowserWindow.fromWebContents(wc);
+        if (pop && extPopups.has(pop)) return pop.close();
         const t = tabOf(wc);
         if (!t || t.w.gone || wc === movingWc || t.closing === wc || wc.isDestroyed()) return;
         within(t.w, () => closeTab(t));
       },
-      createWindow(details) { return createWindow({ urls: [].concat(details.url || []).filter((u) => typeof u === "string") }).win; },
+      createWindow(details) {
+        const urls = [].concat(details.url || []).filter((u) => typeof u === "string");
+        if (details.type === "popup" || details.type === "panel") return extPopup(ses, urls[0], details);
+        return createWindow({ urls }).win;
+      },
       // also told when a window has closed (then it is gone already)
-      removeWindow(bw) { if (!bw.isDestroyed() && windows.some((w) => w.win === bw && !w.gone)) bw.close(); },
+      removeWindow(bw) { if (!bw.isDestroyed() && (extPopups.has(bw) || windows.some((w) => w.win === bw && !w.gone))) bw.close(); },
       assignTabDetails(details, wc) { const t = tabOf(wc); if (t) Object.assign(details, { pinned: !!t.pinned, discarded: !!t.asleep }); },
     },
   });
+}
+// chrome.windows.create({ type: "popup" }) (a password manager's pop out, a wallet's confirm): as in
+// Chrome and Brave a window of that size with the page only, no tab strip or address bar — like a
+// site's sign-in popup; its page is the extension's one tab there (chrome.tabs / windows.remove close it)
+const extPopups = new WeakSet();
+function extPopup(ses, url, d) {
+  const near = cur && !cur.gone ? cur.win : null;
+  const area = screen.getDisplayMatching(near ? near.getBounds() : { x: 0, y: 0, width: 1, height: 1 }).workArea;
+  const fit = (v, dflt, max) => Math.min(Math.max(Number.isFinite(v) ? Math.round(v) : dflt, 100), max);
+  const width = fit(d.width, 520, area.width), height = fit(d.height, 680, area.height);
+  const nb = near?.getBounds();
+  const x = Number.isFinite(d.left) ? d.left : nb ? Math.round(nb.x + (nb.width - width) / 2) : undefined;
+  const y = Number.isFinite(d.top) ? d.top : nb ? Math.round(nb.y + (nb.height - height) / 3) : undefined;
+  const bw = new BrowserWindow({ width, height, x, y, autoHideMenuBar: true, backgroundColor: "#ffffff", show: !TEST,
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  bw.setMenu(null);
+  extPopups.add(bw);
+  popupGoing(bw, url || "about:blank");
+  exts?.add(bw.webContents, bw);
+  bw.loadURL(url || "about:blank").catch(() => {});
+  return bw;
 }
 // the web store's "Chrome에 추가": asked in that tab's ask bar, every time
 function askExtension({ name, allSites, wontBlock, wc }) {

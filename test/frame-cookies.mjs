@@ -30,4 +30,10 @@ export default [
   { js: H + `const n = await RUN(false); globalThis.P = await RUN(true);
     return CHECK("normal: a frame keeps its cookie on the site it is on", (${kept})(n), n) + " / " + CHECK("normal: not on another site, nor first-hand", (${alone})(n), n);` },
   { js: `return CHECK("private: a frame keeps its cookie on the site it is on", (${kept})(P), P) + " / " + CHECK("private: not on another site, nor first-hand", (${alone})(P), P);` },
+  // "사이트 데이터 지우기" on a site takes the cookies frames keep there too, and only there
+  { js: `R.use(R.createWindow({ urls: ["about:blank"] })); await sleep(800);
+    const before = await FRAMED(ON("127.0.0.1")); SEEN.length = 0; const said = await R.clearSite(); await sleep(1200);
+    // the page loads again after the clear (and B gives its cookie again): that load is what counts
+    const x = { before, said, here: SEEN.slice(), there: await FRAMED(ON("127.0.0.2") + "?c") };
+    return CHECK("clearing a site takes its frames' cookies, not another site's", x.before.sent[0] === "f=1" && x.said?.cookies >= 1 && x.here[0] === "" && x.there.sent[0] === "f=1", x);` },
 ];

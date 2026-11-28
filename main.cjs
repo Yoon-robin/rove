@@ -2432,8 +2432,21 @@ function setSite(origin, key, value) {
   keepGrants();
   tell();
 }
-// cookies (the site's own and a parent domain's sent to it), storage and the
-// cache, for the site in front; then it loads again
+// the cookies frames from other sites keep on this site (partitionFrameCookies). Electron's
+// cookies API neither shows a cookie's partition nor removes by it, and clearStorageData/clearData
+// leave them, so this asks Chromium (DevTools protocol) for them.
+async function clearFrameCookies(wc, url) {
+  const d = wc.debugger, mine = !d.isAttached();
+  if (mine) d.attach("1.3");
+  try {
+    const site = siteOf(url);
+    const kept = (await d.sendCommand("Network.getAllCookies")).cookies.filter((c) => c.partitionKey && siteOf(c.partitionKey.topLevelSite) === site);
+    for (const c of kept) await d.sendCommand("Network.deleteCookies", { name: c.name, domain: c.domain, path: c.path, partitionKey: c.partitionKey });
+    return kept.length;
+  } finally { if (mine) d.detach(); }
+}
+// cookies (the site's own and a parent domain's sent to it, and those frames keep
+// on it), storage and the cache, for the site in front; then it loads again
 async function clearSite() {
   const tab = active;
   const url = tab?.view.webContents.getURL() || "";
@@ -2446,6 +2459,7 @@ async function clearSite() {
       await ses.cookies.remove(`http${c.secure ? "s" : ""}://${c.domain.replace(/^\./, "")}${c.path}`, c.name);
       n++;
     }
+    n += await clearFrameCookies(tab.view.webContents, url);
     await ses.clearStorageData({ origin });
     // its cached files only (clearCache() empties every site's, as Chrome does not)
     await ses.clearData({ dataTypes: ["cache"], origins: [origin] });

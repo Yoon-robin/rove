@@ -8,7 +8,11 @@ const H = `globalThis.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 globalThis.CLEAN = process.mainModule.require("./blocker.cjs").clean;
 globalThis.SEEN = [];
 globalThis.SRV = process.mainModule.require("node:http").createServer((q, s) => {
-  SEEN.push({ url: q.url, gpc: q.headers["sec-gpc"] || null, method: q.method, ua: q.headers["user-agent"] || "" });
+  SEEN.push({ url: q.url, gpc: q.headers["sec-gpc"] || null, method: q.method, ua: q.headers["user-agent"] || "", host: (q.headers.host || "").split(":")[0], ref: q.headers.referer || null });
+  // a page that asks for its whole address to go to every site (referrer unsafe-url): a picture
+  // on another site (localhost) and one on its own
+  if (q.url.startsWith("/refpage")) { s.writeHead(200, { "content-type": "text/html" }); const o = "http://localhost:" + SRV.address().port;
+    return s.end('<meta name=referrer content=unsafe-url><img src="' + o + '/img-other"><img src="/img-same">'); }
   if (q.url.startsWith("/page")) { s.writeHead(200, { "content-type": "text/html" });
     return s.end('<title>p</title><iframe src="/frame?x=2&gclid=g"></iframe><img src="/img?n=1">'); }
   // a page with an icon: /icon?<file> — the icon kept in the cache a long time
@@ -67,5 +71,14 @@ export default [
   { js: `await VISIT(R.active, "/icon?fav.ico"); await sleep(500); const ico = R.active.favicon;
     await VISIT(R.active, "/icon?frame"); await sleep(500); const notImage = R.active.favicon;
     return CHECK("an .ico sent as octet-stream still shows; a page that is no picture does not", /^data:image\\/x-icon;base64,/.test(ico || "") && notImage === null, { ico: (ico || "").slice(0, 30), notImage });` },
+  // Brave caps a request to another site to the page's site, whatever the page asks
+  { js: `const seen = await VISIT(R.active, "/refpage?secret=abc");
+    const other = seen.find((x) => x.url === "/img-other"), same = seen.find((x) => x.url === "/img-same");
+    R.setBlock(false, BASE + "/"); const kept = (await VISIT(R.active, "/refpage?secret=abc")).find((x) => x.url === "/img-other"); R.setBlock(true, BASE + "/");
+    return [
+      CHECK("another site gets only the page's site as Referer", other?.host === "localhost" && other?.ref === BASE + "/", other),
+      CHECK("its own site still gets the whole address", same?.ref === BASE + "/refpage?secret=abc", same),
+      CHECK("a site let be: what the page asks for", kept?.ref === BASE + "/refpage?secret=abc", kept),
+    ].join("\\n");` },
   { js: `SRV.close(); return undefined;` },
 ];

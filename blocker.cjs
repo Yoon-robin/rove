@@ -136,8 +136,20 @@ function start({ ses, file, on, skip, counted, log, site, upgrade = () => null }
     if (r.match) { counted(d.webContentsId); return done({ cancel: true }); }
     done({});
   });
-  // Global Privacy Control: "do not sell or share" (the law in some places honours it)
-  ses.webRequest.onBeforeSendHeaders((d, done) => done(on() ? { requestHeaders: { ...d.requestHeaders, "Sec-GPC": "1" } } : {}));
+  // Global Privacy Control: "do not sell or share" (the law in some places honours it). And a
+  // request to another site carries only the page's site, as Brave caps it: a page may ask for
+  // its whole address to go along (referrer unsafe-url), search words and ids with it. A site let
+  // be (막기 끔) keeps what it asks for, as with Shields down.
+  const siteOfUrl = (u) => { try { const h = new URL(u).hostname; return site(h) || h; } catch { return ""; } };
+  ses.webRequest.onBeforeSendHeaders((d, done) => {
+    if (!on()) return done({});
+    const headers = { ...d.requestHeaders, "Sec-GPC": "1" };
+    const ref = headers.Referer;
+    if (ref && !skip(page(d)) && siteOfUrl(ref) !== siteOfUrl(d.url)) {
+      try { headers.Referer = new URL(ref).origin + "/"; } catch { delete headers.Referer; }
+    }
+    done({ requestHeaders: headers });
+  });
   return engine;
 }
 

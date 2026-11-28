@@ -659,8 +659,7 @@ function wire(tab) {
     if (webby(to)) go(to, tab);
   });
   guardOurPages(wc);
-  // the upgraded https answered with a move elsewhere: it works, no falling back to http on time
-  on("did-redirect-navigation", (d) => { const w = upgrading.get(wc.id); if (d.isMainFrame && w && d.url !== w.https) clearTimeout(w.timer); });
+  upgradeEnds(wc);
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url, tab.w?.private));
@@ -677,7 +676,6 @@ function wire(tab) {
     if (!d.url.startsWith("data:")) { tab.failed = null; tab.crashed = false; }
   });
   on("did-navigate", (e, url) => {
-    httpFallBack(wc, "ok");
     if (!own() || url.startsWith("data:")) return;
     const moved = hostOf(url) !== hostOf(tab.url);
     tab.url = url;
@@ -2608,6 +2606,11 @@ function httpFallBack(wc, asked) {
   if (!asked) wc.loadURL(w.http).catch(() => {});
   return true;
 }
+// a tab's or a popup's upgrade that went well stops its 3 s clock: the page opened, or https sent it on
+function upgradeEnds(wc) {
+  wc.on("did-redirect-navigation", (d) => { const w = upgrading.get(wc.id); if (d.isMainFrame && w && d.url !== w.https) clearTimeout(w.timer); });
+  wc.on("did-navigate", () => httpFallBack(wc, "ok"));
+}
 let blocker = null;
 const blocked = new Map(); // webContents id: how many stopped on its page
 function blocking(ses, priv = false) {
@@ -2716,6 +2719,9 @@ function popupGoing(child, url, tab = null) {
     return { action: "deny" };
   });
   keepGoing(wc, awakeFor(url, priv));
+  upgradeEnds(wc);
+  // its https failed: the http page now, not Chromium's error page and then http 3 s on
+  wc.on("did-fail-load", (e, code, what, at, isMainFrame) => { if (isMainFrame) httpFallBack(wc, code === -3 ? "ok" : false); });
   wc.on("did-start-navigation", (d) => { if (d.isMainFrame && !d.isSameDocument) keepGoing(wc, awakeFor(d.url, priv)); });
   wc.on("did-create-window", (c, d) => { c.setMenu(null); popupGoing(c, d.url, tab); });
   // a popup has no address bar: its title says whose page it is, the host first and as
@@ -3176,7 +3182,7 @@ function testHooks() {
     pin, splitWith, unsplit, splitSwap, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; }, setAskQuit: (f) => { askQuit = f; },
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, setHideFolded, frame,
-    httpsFirst, get exts() { return exts; } };
+    httpsFirst, extPopup, get exts() { return exts; } };
 }
 
 app.on("second-instance", (e, argv) => booted.then(() => {

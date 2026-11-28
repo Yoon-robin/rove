@@ -35,4 +35,11 @@ export default [
     const t0 = Date.now(); const got = await OPEN("http://slow.example.com/", (u) => u.startsWith("http://slow.example.com")); got.ms = Date.now() - t0;
     await ses.setProxy({ mode: "direct" }); hang.close(); plain.close();
     return CHECK("an https that never answers: the http page within a few seconds", got.url === "http://slow.example.com/" && !got.failed && got.ms < 6000, got);` },
+  // a popup (an extension's, or a site's window.open) upgraded fine keeps https: its 3 s clock
+  // stops when the page opens, as a tab's (it went back to http 3 s on, and the site with it)
+  { js: `const bw = R.extPopup(R.active.view.webContents.session, "http://example.com/", {}); const wc = bw.webContents, seen = [];
+    wc.on("did-start-navigation", (d) => { if (d.isMainFrame) seen.push(d.url); }); await sleep(5000);
+    const got = { url: wc.getURL(), seen }; bw.close();
+    got.tab = (await OPEN("http://example.com/", (u) => u.startsWith("http"))).url;
+    return CHECK("a popup's https page stays: no http 3 s on, the site still goes to https", got.url === "https://example.com/" && seen.filter((u) => u.startsWith("http:")).length <= 1 && got.tab === "https://example.com/", got);` },
 ];

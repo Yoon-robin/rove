@@ -716,7 +716,7 @@ function wire(tab) {
   on("dom-ready", () => { if (!tab.w.private && pass?.status().state === "open") wc.executeJavaScriptInIsolatedWorld(1001, [{ code: SNAP }]).catch(() => {}); });
   on("console-message", (e) => keyWord(tab, String(e.message || "")));
   on("context-menu", (e, p) => pageMenu(tab, p));
-  on("zoom-changed", (e, dir) => zoom(dir === "in" ? 1 : -1));
+  on("zoom-changed", (e, dir) => { if (mine()) zoom(dir === "in" ? 1 : -1, tab); });
   on("audio-state-changed", (e) => { if (!mine()) return; tab.audible = !!e.audible; tell(); });
 }
 // a tab's sound on and off (the speaker on the tab)
@@ -1126,9 +1126,10 @@ function reload(hard) {
   if (active.failed || active.crashed) { const u = active.failed || active.url; active.crashed = false; go(u); return; }
   if (hard) active.view.webContents.reloadIgnoringCache(); else active.view.webContents.reload();
 }
-function zoom(step) {
-  if (!active) return;
-  const wc = active.view.webContents;
+// tab: Ctrl+wheel's is the page under the pointer — side by side, maybe not the one in front
+function zoom(step, tab = active) {
+  if (!tab) return;
+  const wc = tab.view.webContents;
   const levels = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
   const now = wc.getZoomFactor();
   let i = levels.findIndex((l) => l >= now - 0.001);
@@ -1136,8 +1137,8 @@ function zoom(step) {
   const to = step === 0 ? 1 : levels[Math.max(0, Math.min(levels.length - 1, i + step))];
   wc.setZoomFactor(to);
   // kept for the site (Chromium shares it between a site's tabs, but forgets it on quitting)
-  const h = hostOf(active.url);
-  if (h && webby(active.url) && !cur.private) {
+  const h = hostOf(tab.url);
+  if (h && webby(tab.url) && !tab.w.private) {
     if (Math.abs(to - 1) < 0.001) delete settings.zoom[h]; else settings.zoom[h] = to;
     save("settings.json", settings);
   }

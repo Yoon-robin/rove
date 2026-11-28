@@ -513,6 +513,8 @@ function versionLine(version, u) {
 function drawMenu() {
   // a redraw (each state change, e.g. a download's progress) keeps the keyboard where it was
   const was = root.querySelector(".pop.menu")?.contains(document.activeElement) && document.activeElement.dataset.do;
+  // and where it was scrolled: in a short window a redraw threw it back to the top, so with a download going the lower rows were out of reach
+  const top = root.querySelector(".pop.menu")?.scrollTop || 0;
   root.innerHTML = `<div class="scrim"></div><div class="pop menu rk-menu" role="menu">
     <button class="rk-menu__item" data-do="new" role="menuitem">${icon("plus")}새 탭${shortcut("Ctrl+T")}</button>
     <button class="rk-menu__item" data-do="window" role="menuitem">${icon("window")}새 창${shortcut("Ctrl+N")}</button>
@@ -579,7 +581,8 @@ function drawMenu() {
     else if (d === "relaunch") rove.send("rove:relaunch");
     else if (d === "update-check") rove.send("rove:update-check");
   }));
-  (was && root.querySelector(`.pop.menu [data-do="${was}"]`) || root.querySelector(".rk-menu__item"))?.focus();
+  (was && root.querySelector(`.pop.menu [data-do="${was}"]`) || root.querySelector(".rk-menu__item"))?.focus({ preventScroll: top > 0 });
+  root.querySelector(".pop.menu").scrollTop = top;
 }
 
 // ---- the shortcuts (≡ 단축키): every one is main.cjs keyAction's (test/shortcut-list.mjs checks) ----

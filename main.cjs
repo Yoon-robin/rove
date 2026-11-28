@@ -1084,6 +1084,8 @@ function goIn(text, how) {
   if (how !== "tab" && how !== "window") return go(text);
   const url = toUrl(text);
   if (!url) return;
+  // a mail or phone address opens no page, so a new tab or window for it would stay empty
+  if (/^(mailto|tel):/i.test(url)) return go(text);
   if (how === "window") createWindow({ priv: !!cur?.private, urls: [url] });
   else newTab(url);
 }

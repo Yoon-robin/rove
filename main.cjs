@@ -206,6 +206,13 @@ const windows = []; // { id, win, overlay, tabs, closed, private, ses, gone } + 
 let cur = null;
 let lastNormal = null; // the normal window last in front (where an address from Windows goes)
 let quitting = false;
+// a private window with several tabs is asked about before it closes: nothing of it is kept, so
+// Ctrl+Shift+T cannot bring it back (a normal window it can, so that one is not asked). Brave asks
+// the same (설정 › 시스템 › 탭 여러 개가 있는 창을 닫기 전에 경고, on at first). Tests give their own.
+let askClose = TEST ? null : (bw, n) => dialog.showMessageBox(bw, {
+  type: "question", message: `비공개 탭 ${n}개를 모두 닫을까요?`, detail: "비공개 창은 닫으면 다시 열 수 없어요.",
+  buttons: ["닫기", "취소"], defaultId: 0, cancelId: 1, noLink: true,
+}).then((r) => r.response === 0);
 const closedTabs = []; // the normal windows' closed tabs (a private window keeps its own)
 function store() { if (cur) Object.assign(cur, { overlayOn, active, findOpen, split, fullTab, groups }); }
 function use(w) {
@@ -2734,7 +2741,14 @@ function createWindow({ priv = false, restore = null, urls = [], tab = null, at 
   bw.on("leave-full-screen", here(() => { fullTab = null; layout(); tell(); }));
   bw.on("blur", here(() => { if (overlayOn?.kind === "suggest") hideOverlay(); }));
   bw.on("focus", here(() => { if (!priv) lastNormal = w; checkDefault(); })); // back from Windows' settings
-  bw.on("close", here(() => {
+  bw.on("close", here((e) => {
+    if (!quitting && priv && tabs.length > 1 && !w.sure && askClose) {
+      e.preventDefault();
+      if (w.asked) return; // already on screen
+      w.asked = true;
+      Promise.resolve(askClose(bw, tabs.length)).then((yes) => { w.asked = false; if (yes && !w.gone) { w.sure = true; bw.close(); } });
+      return;
+    }
     if (quitting || priv) return;
     w.closedAt = { ...bw.getNormalBounds(), max: bw.isMaximized() }; // where Ctrl+Shift+T puts it back (gone by "closed")
     // the last normal window: what it has is kept for the next start
@@ -2905,7 +2919,7 @@ function testHooks() {
     setUpdater: (make) => { updates = make(() => tell()); tell(); }, // a fake update.cjs updater: no install, no network
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
-    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows,
+    setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; },
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
     get exts() { return exts; } };
 }

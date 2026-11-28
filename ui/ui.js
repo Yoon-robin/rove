@@ -137,7 +137,7 @@ function away(ev) {
   return state.vertical ? ev.clientX > (state.frame?.left || 240) + 60 : ev.clientY > 84 + 40;
 }
 let shownActive = null; // the tab the strip last scrolled to
-let shownVertical = false;
+let shownVertical = false, shownFolded = false;
 // across: bring the current tab into the strip (it may sit past the edge once tabs are at their 44px least)
 function showChosen() {
   const sel = tabsEl.querySelector('.tab[aria-selected="true"]');
@@ -187,10 +187,13 @@ function drawTabs() {
     const narrow = !v && first && first.getBoundingClientRect().width < 96;
     els.forEach((el) => el.classList.toggle("narrow", !!narrow));
     // when it changes (or the list moves to the left or top), not on every redraw: a list scrolled by hand stays
-    if (state.active !== shownActive || v !== shownVertical) showChosen();
+    const folded = v && !!state.narrow;
+    if (state.active !== shownActive || v !== shownVertical || folded !== shownFolded) showChosen();
     shownActive = state.active;
     shownVertical = v;
+    shownFolded = folded;
     markEdges();
+    markSide();
   });
 }
 // tabs past an edge of the strip (it scrolls with no bar): that edge fades, so they are seen to be there
@@ -200,6 +203,15 @@ function markEdges() {
   tabsEl.classList.toggle("more-right", across && x + tabsEl.clientWidth < tabsEl.scrollWidth - 1);
 }
 tabsEl.addEventListener("scroll", markEdges, { passive: true });
+// the same for the folded list at the left, which scrolls with no bar (ui.css .side.narrow .sidelist)
+const sideList = $("sidelist");
+function markSide() {
+  const folded = $("side").classList.contains("narrow"), y = sideList.scrollTop;
+  sideList.classList.toggle("more-up", folded && y > 0);
+  sideList.classList.toggle("more-down", folded && y + sideList.clientHeight < sideList.scrollHeight - 1);
+}
+sideList.addEventListener("scroll", markSide, { passive: true });
+new ResizeObserver(markSide).observe(sideList);
 // and when the strip narrows (the window made smaller)
 let stripWidth = 0;
 new ResizeObserver(() => { if (tabsEl.clientWidth < stripWidth) showChosen(); stripWidth = tabsEl.clientWidth; markEdges(); }).observe(tabsEl);

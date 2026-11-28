@@ -121,6 +121,13 @@ body.full .side { display: none; }
 .side.narrow .grp { flex: 0 0 40px; justify-content: center; padding: 0; }
 .side.narrow .grp .n, .side.narrow .grp .c, .side.narrow .grp .rk-ico { display: none; }
 .side.narrow .sidefoot { justify-content: center; }
+/* folded, a bar would take 10 of the 52px and push the icons out of line with the + and the fold
+   button (Brave's collapsed list has none): it scrolls with no bar, its cut ends faded (ui.js
+   markSide), and the current tab is brought out of the fade */
+.side.narrow .sidelist { scrollbar-width: none; scroll-padding: 32px 0; }
+.side.narrow .sidelist.more-up { -webkit-mask-image: linear-gradient(180deg, transparent, #000 32px); mask-image: linear-gradient(180deg, transparent, #000 32px); }
+.side.narrow .sidelist.more-down { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32px), transparent); }
+.side.narrow .sidelist.more-up.more-down { -webkit-mask-image: linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
 .side.tucked > * { display: none; }
 /* the folded list unfolded over the page while the pointer is on it (ui/overlay.js drawPeek): the
    overlay is cut to the list's own box, so it fills it */

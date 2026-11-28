@@ -867,9 +867,11 @@ function setHideFolded(on) {
 // puts it in front.
 let split = null;
 const splitShown = () => !!split && (active === split.a || active === split.b) && !(win?.isFullScreen() && fullTab);
-function splitWith(tab, other = active) {
+// side: where tab goes ("left"/"right"; by default as the two are in the strip)
+function splitWith(tab, other = active, side) {
   if (!tab || !other || tab === other || !tabs.includes(tab) || !tabs.includes(other)) return;
-  const [a, b] = tabs.indexOf(other) < tabs.indexOf(tab) ? [other, tab] : [tab, other];
+  const left = side ? side === "left" : tabs.indexOf(tab) < tabs.indexOf(other);
+  const [a, b] = left ? [tab, other] : [other, tab];
   split = { a, b, ratio: 0.5 };
   wake(tab);
   layout();
@@ -1207,7 +1209,7 @@ function showOverlay(what) {
   overlay.setVisible(true);
   layout();
   // a key pressed the moment a window opens: its pop-over page is still loading and would miss it
-  const wc = overlay.webContents, show = () => { wc.send("rove:overlay", what); if (what.kind !== "suggest" && what.kind !== "peek") wc.focus(); };
+  const wc = overlay.webContents, show = () => { wc.send("rove:overlay", what); if (!["suggest", "peek", "splitdrop"].includes(what.kind)) wc.focus(); };
   if (wc.isLoading()) wc.once("did-finish-load", () => { if (overlayOn === what) show(); });
   else show();
 }
@@ -1521,6 +1523,8 @@ function messages() {
   on("rove:group-new-tab", (id) => { hideOverlay(); const m = members(Number(id)); if (m.length) newTab(HOME_PAGE, { after: m[m.length - 1] }); });
   on("rove:split-ratio", (r) => splitRatio(Number(r)));
   on("rove:unsplit", unsplit);
+  // a tab let go at the page's edge (ui.js edge()): beside the tab in front when it was pressed
+  on("rove:split-drop", (id, side, was) => { const t = tabs.find((x) => x.id === id), o = tabs.find((x) => x.id === was); if (t && o && (side === "left" || side === "right")) { splitWith(t, o, side); select(t); } });
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
   // ≡ 검색엔진: a list to choose from, by the pointer, and under it what the address bar suggests
   // from, each turned off on its own as in Brave's settings › search (all on at first)

@@ -52,6 +52,7 @@ function draw() {
   if (open.kind === "share") return drawShare();
   if (open.kind === "tabs") return drawTabs();
   if (open.kind === "splitdrag") return drawSplitDrag();
+  if (open.kind === "splitdrop") return drawSplitDrop();
   if (open.kind === "group") return drawGroup();
   if (open.kind === "peek") return drawPeek();
 }
@@ -139,6 +140,15 @@ function drawSplitDrag() {
   const end = () => { removeEventListener("mousemove", move); removeEventListener("mouseup", end); shut(); };
   addEventListener("mousemove", move);
   addEventListener("mouseup", end);
+}
+
+// ---- a tab dragged from the strip, held at the page's edge: the half it would take ----------
+// (the strip still holds the pointer and sends the drop; if a release lands here, it is sent here)
+function drawSplitDrop() {
+  const f = state.frame || { top: 84, left: 0 }, { side, id, was } = open;
+  root.innerHTML = `<div class="scrim splitdrop"><div class="half ${side === "left" ? "l" : "r"}"><span>여기에 놓으면 나란히 보기</span></div></div>`;
+  Object.assign(root.firstChild.style, { top: `${f.top}px`, left: `${f.left}px` }); // the page's area (no inline style: CSP)
+  root.firstChild.addEventListener("mouseup", () => { rove.send("rove:split-drop", id, side, was); shut(); }, { once: true });
 }
 
 // ---- open tabs, found by name (Ctrl+Shift+A) ----------------------------------------------

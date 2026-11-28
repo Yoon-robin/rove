@@ -99,12 +99,12 @@ rove.on("rove:edit-group", (id) => editGroup(id));
 // dragging a tab along the strip (down it, when the tabs are at the left):
 // past the middle of another, it takes that place. A folded group's tabs are
 // where its label is.
-let dragging = null; // { id, p, on }
+let dragging = null; // { id, p, on, was (the tab in front when it was pressed), side }
 function dragFrom(el, e) {
   const v = !!state.vertical;
   const at = (ev) => (v ? ev.clientY : ev.clientX);
   const mid = (x) => { const r = x.getBoundingClientRect(); return v ? r.top + r.height / 2 : r.left + r.width / 2; };
-  dragging = { id: Number(el.dataset.id), p: at(e), on: false };
+  dragging = { id: Number(el.dataset.id), p: at(e), on: false, was: state.active };
   const move = (ev) => {
     if (!dragging) return;
     if (!dragging.on && Math.abs(at(ev) - dragging.p) < 5) return;
@@ -117,6 +117,9 @@ function dragFrom(el, e) {
       const ref = te && !te.classList.contains("folded") ? te : tabsEl.querySelector(`.grp[data-g="${t.group}"]`) || te;
       return ref ? mid(ref) : -Infinity;
     });
+    const side = edge(ev, dragging);
+    if (side !== dragging.side) { dragging.side = side; rove.send("rove:overlay", side ? { kind: "splitdrop", side, id: dragging.id, was: dragging.was } : null); }
+    if (away(ev)) return; // out over the page: the strip keeps its order
     const to = others.filter((m) => m < at(ev)).length;
     if (to !== state.tabs.findIndex((t) => t.id === dragging.id)) rove.send("rove:move", dragging.id, to);
   };
@@ -124,7 +127,9 @@ function dragFrom(el, e) {
     tabsEl.querySelector(".dragging")?.classList.remove("dragging");
     const d = dragging;
     dragging = null;
-    if (d?.on && away(ev)) rove.send("rove:tear", d.id, ev.screenX, ev.screenY);
+    if (d?.side) rove.send("rove:overlay", null);
+    if (d?.on && d.side) rove.send("rove:split-drop", d.id, d.side, d.was);
+    else if (d?.on && away(ev)) rove.send("rove:tear", d.id, ev.screenX, ev.screenY);
     removeEventListener("mousemove", move);
     removeEventListener("mouseup", up);
   };
@@ -135,6 +140,17 @@ function dragFrom(el, e) {
 function away(ev) {
   if (ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= innerWidth || ev.clientY >= innerHeight) return true;
   return state.vertical ? ev.clientX > (state.frame?.left || 240) + 60 : ev.clientY > 84 + 40;
+}
+// held at the page's left or right edge (Brave's split view drag and drop): let go, the tab is
+// side by side with the one that was in front when it was pressed (pressing it brings it to the
+// front), on that side. Not when it was the one in front, not in full screen.
+function edge(ev, { id, was }) {
+  const f = state.frame || { top: 84, left: 0 };
+  const w = innerWidth - f.left, zone = Math.min(200, Math.max(80, w * 0.18));
+  if (state.full || id === was || !state.tabs.some((t) => t.id === was) || w < 2 * 320 + 4 || ev.clientY < f.top || ev.clientY >= innerHeight) return null;
+  if (ev.clientX >= f.left && ev.clientX < f.left + zone) return "left";
+  if (ev.clientX >= innerWidth - zone && ev.clientX < innerWidth) return "right";
+  return null;
 }
 let shownActive = null; // the tab the strip last scrolled to
 let shownVertical = false, shownFolded = false;

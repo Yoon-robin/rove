@@ -271,6 +271,12 @@ body.vertical .pop.tabfind { top: 48px; }
 .split .gap { position: absolute; top: 0; bottom: 0; left: var(--left); width: 4px; pointer-events: auto; cursor: col-resize; background: var(--rk-side); transition: background-color var(--rk-t-fast) ease-out; }
 .split .gap:hover { background: var(--rk-accent-soft); }
 .scrim.splitdrag { cursor: col-resize; }
+/* a tab held at the page's edge: the half it would take */
+.scrim.splitdrop { padding: 8px; }
+.splitdrop .half { position: absolute; top: 8px; bottom: 8px; width: calc(50% - 10px); display: grid; place-items: center; border: 2px solid var(--rk-accent); border-radius: var(--rk-r-card); background: var(--rk-accent-soft); }
+.splitdrop .half.l { left: 8px; }
+.splitdrop .half.r { right: 8px; }
+.splitdrop .half span { padding: 6px 12px; border-radius: var(--rk-r-chip); background: var(--rk-hud); color: var(--rk-head); font-size: 13px; font-weight: var(--rk-w-strong); }
 #read.on .rk-ico { color: var(--rk-accent); fill: none; }
 
 /* RobinPass: under the key in the address bar */

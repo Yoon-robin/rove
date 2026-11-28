@@ -677,13 +677,15 @@ async function drawDrawer() {
       const line = d.asking ? "받을지 기다리는 중" : going ? `${size(d.received)}${d.total ? ` / ${size(d.total)}` : ""}`
         : d.gone ? "삭제됨"
         : d.state === "completed" ? `${size(d.received)} · ${time(d.at)}`
-        : d.state === "cancelled" ? "취소함" : "멈춤";
+        : d.state === "cancelled" ? "취소함"
+        : d.resumable ? `멈춤 · ${size(d.received)}${d.total ? ` / ${size(d.total)}` : ""}` : "멈춤";
       const meter = going && d.total && !d.asking ? `<span class="rk-meter"><i data-p="${Math.round((d.received / d.total) * 100)}"></i></span>` : "";
       // only a finished one has a file to show; a cancelled, stopped or deleted one says so by its mark
       // and can come down again (Chrome's 다시 시도)
       const done = d.state === "completed" && !d.gone;
       const mark = going || done ? kindOf(d.name) : d.state === "cancelled" || d.gone ? "close" : "alarm";
-      const again = /^https?:/i.test(d.url || "") ? `<button class="btn hover" data-retry="${d.id}" aria-label="다시 받기" title="다시 받기">${icon("refresh")}</button>` : "";
+      const againLabel = d.resumable ? "이어 받기" : "다시 받기";
+      const again = /^https?:/i.test(d.url || "") ? `<button class="btn hover" data-retry="${d.id}" aria-label="${againLabel}" title="${againLabel}">${icon("refresh")}</button>` : "";
       // one waiting for a yes: the same 버리기·받기 as the ask bar, which this drawer covers
       const act = typeof d.asking === "number" ? `<button class="rk-btn rk-btn--small rk-btn--danger" data-keep="${d.asking}" data-yes="0">버리기</button><button class="rk-btn rk-btn--small rk-btn--primary" data-keep="${d.asking}" data-yes="1">받기</button>`
         : going ? `<button class="btn" data-cancel="${d.id}" aria-label="취소" title="취소">${icon("close")}</button>`

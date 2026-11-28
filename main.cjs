@@ -292,7 +292,9 @@ function snapshot() {
     // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
     // what checkFiles last found: no disk here, as a gone network folder blocks a look for 20 s
     downloadDir: settings.downloadDir && dirOk ? settings.downloadDir : defaultDownloadDir(),
-    downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && filesGone.has(d.id) ? { ...plain(d), gone: true } : plain(d))),
+    // resumable: stopped (the network went), what came down is kept and it can go on from there
+    downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && filesGone.has(d.id) ? { ...plain(d), gone: true }
+      : d.state === "interrupted" && d.item?.canResume() ? { ...plain(d), resumable: true } : plain(d))),
     full: !!(win?.isFullScreen() && fullTab),
     version: mine?.version || app.getVersion(),
     update: updates ? (({ ready, downloading, checking, checkedAt, error }) => ({ ready, downloading, checking, checked: !!checkedAt, error }))(updates.state()) : null,
@@ -1577,9 +1579,11 @@ function messages() {
   on("rove:download-retry", (id) => {
     const d = downloads.find((x) => x.id === id);
     if (!d || d.state === "progressing" || d.asking || !webby(d.url) || (d.state === "completed" && !filesGone.has(d.id))) return;
+    // stopped after Chromium's own few tries: on from where it broke off (Chrome's 재개), not all of it again
+    if (d.state === "interrupted" && d.item?.canResume()) { d.item.resume(); return; }
     const ses = d.private ? privateSes : rove();
     if (!ses) return;
-    d.item?.cancel(); // a stopped one Chromium still holds: let it go, not two of one file
+    d.item?.cancel(); // a stopped one Chromium still holds that cannot go on: let it go, not two of one file
     downloads = downloads.filter((x) => x !== d);
     saveDownloads();
     ses.downloadURL(d.url);

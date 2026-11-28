@@ -95,15 +95,22 @@ function bouncer(rules, site) {
 // ses: the pages' session. on(): blocking is on. skip(pageUrl): the page's site is let be.
 // counted(webContentsId): one more stopped there. site(host): registrable domain.
 // Returns null without lists.bin.
+const engines = new Map(); // lists file: its engine (matching only reads it)
 function start({ ses, file, on, skip, counted, log, site }) {
   if (!existsSync(file)) { log("광고·추적 막기: lists.bin이 없어요"); return null; }
   const bounceFile = join(dirname(file), "bounce.json");
   let unbounce = () => null;
   try { unbounce = bouncer(JSON.parse(readFileSync(bounceFile, "utf8")), site); } catch (err) { log(`추적 주소 건너뛰기 못 켬: ${err.message}`); }
   const { FiltersEngine, Request } = lib();
-  const t0 = Date.now();
-  const engine = FiltersEngine.deserialize(readFileSync(file));
-  log(`광고·추적 막기: 목록 읽음 (${Date.now() - t0}ms)`);
+  // one engine for every session: each private window's session is new and Electron never
+  // frees a session, so an engine apiece kept another copy of the lists (7 MB) per window
+  let engine = engines.get(file);
+  if (!engine) {
+    const t0 = Date.now();
+    engine = FiltersEngine.deserialize(readFileSync(file));
+    engines.set(file, engine);
+    log(`광고·추적 막기: 목록 읽음 (${Date.now() - t0}ms)`);
+  }
   const page = (d) => {
     try { return d.webContents?.getURL() || ""; } catch { return ""; }
   };

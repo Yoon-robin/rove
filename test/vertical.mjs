@@ -27,7 +27,7 @@ export default [
   { js: `R.setFind(true); await sleep(500); const f = PAGE(R.active); R.setFind(false); await sleep(400);
     const [a, b] = R.tabs; R.select(a); R.splitWith(b, a); await sleep(500); const pa = PAGE(a), pb = PAGE(b), cb = R.win.getContentBounds(); R.unsplit(); await sleep(300);
     const got = { find: f, a: pa, b: pb, width: cb.width };
-    return CHECK("the find row and two side by side fit in what is left", f.y === 88 && f.x === 240 && pa.x === 240 && pa.x + pa.width <= pb.x && pb.x + pb.width <= cb.width && pa.y === pb.y && pa.y >= 44 && pa.y <= 48, got);` },
+    return CHECK("the find row and two side by side fit in what is left", f.y === 88 && f.x === 240 && pa.x === 240 && pa.x + pa.width <= pb.x && pb.x + pb.width <= cb.width && pa.y === pb.y && pa.y === 44 + 24, got);` },
   { js: `const b2 = W2.win.getContentBounds(); const inList = R.inStrip(W2, b2.x + 100, b2.y + 300), onTop = R.inStrip(W2, b2.x + 600, b2.y + 10);
     const t = R.tabs[2]; R.tear(t, b2.x + 100, b2.y + 300); await sleep(800);
     const got = { inList, onTop, moved: t.w === W2, there: W2.tabs.length };

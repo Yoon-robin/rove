@@ -367,7 +367,13 @@ function drawSplit() {
   el.style.left = `${f.left}px`;
   el.style.setProperty("--left", `${left}px`);
   el.classList.toggle("right", state.active === s.b);
+  for (const [k, id] of [["l", s.a], ["r", s.b]]) {
+    const t = state.tabs.find((x) => x.id === id), i = el.querySelector(`.${k}`);
+    i.textContent = /^https?:\/\/([^/?#]+)/i.exec(t?.url || "")?.[1] || t?.title || "";
+    i.dataset.id = id;
+  }
 }
+for (const i of $("split").querySelectorAll("i")) i.addEventListener("click", () => rove.send("rove:select", Number(i.dataset.id)));
 $("gap").addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
   e.preventDefault();

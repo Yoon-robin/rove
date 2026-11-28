@@ -69,7 +69,7 @@ const engine = () => ENGINES[settings.engine] || ENGINES[config.engine] || ENGIN
 const TOP = 84; // tab strip 40 + toolbar 44
 const FIND = 44; // the find row under the toolbar, while open
 const ASK = 44; // the ask bar under the toolbar, while something asks
-const MARK = 2; // over two tabs side by side: which one is in front
+const MARK = 24; // over two tabs side by side: each one's site (Brave shows the other's), the one in front lined
 const GAP = 4; // between them (it can be dragged)
 const SIDE = "#0a0e11"; // --rk-side
 const PAGE = "#0e1012"; // --rk-page

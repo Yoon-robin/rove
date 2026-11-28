@@ -137,10 +137,12 @@ function away(ev) {
   return state.vertical ? ev.clientX > (state.frame?.left || 240) + 60 : ev.clientY > 84 + 40;
 }
 let shownActive = null; // the tab the strip last scrolled to
+let shownVertical = false;
 // across: bring the current tab into the strip (it may sit past the edge once tabs are at their 44px least)
 function showChosen() {
-  const sel = !state.vertical && tabsEl.querySelector('.tab[aria-selected="true"]');
+  const sel = tabsEl.querySelector('.tab[aria-selected="true"]');
   if (!sel) return;
+  if (state.vertical) { sel.scrollIntoView({ block: "nearest" }); return; }
   const r = sel.getBoundingClientRect(), s = tabsEl.getBoundingClientRect();
   tabsEl.scrollLeft += r.left < s.left ? r.left - s.left : r.right > s.right ? r.right - s.right : 0;
 }
@@ -183,10 +185,10 @@ function drawTabs() {
     const first = els.find((el) => el.classList.contains("tab") && !el.classList.contains("pinned") && !el.classList.contains("folded"));
     const narrow = !v && first && first.getBoundingClientRect().width < 96;
     els.forEach((el) => el.classList.toggle("narrow", !!narrow));
-    if (v) tabsEl.querySelector('.tab[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
-    // when it changes, not on every redraw: a strip scrolled by hand stays
-    if (state.active !== shownActive) showChosen();
+    // when it changes (or the list moves to the left or top), not on every redraw: a list scrolled by hand stays
+    if (state.active !== shownActive || v !== shownVertical) showChosen();
     shownActive = state.active;
+    shownVertical = v;
     markEdges();
   });
 }

@@ -16,7 +16,7 @@
 // So the ask before such an install says so (blocksRequests).
 const { app, nativeImage, session, webContents } = require("electron");
 const { existsSync, readdirSync, readFileSync } = require("node:fs");
-const { join } = require("node:path");
+const { isAbsolute, join, relative } = require("node:path");
 const { ElectronChromeExtensions } = require("electron-chrome-extensions");
 const webStore = require("electron-chrome-web-store");
 
@@ -61,7 +61,7 @@ function start({ ses, dir, impl, confirm, actionsPreload, log, off = {}, saveOff
     },
   }).then(() => loadInstalled(ses, dir, off)).then(() => loadFolders(ses, folders, off, log)).then(() => {
     log(`확장 프로그램 ${exts().length}개${Object.keys(off).length ? `, 꺼 둔 것 ${Object.keys(off).length}개` : ""}`);
-    keepUpdated(ses, log);
+    keepUpdated(ses, dir, log);
   }, (e) => log(`확장 프로그램을 못 불러옴: ${e.message}`));
 
   const sx = ses.extensions || ses;
@@ -174,16 +174,30 @@ async function wake(ses, ext) {
   if (ext?.manifest.manifest_version === 3 && ext.manifest.background?.service_worker) await ses.serviceWorkers.startWorkerForScope(`chrome-extension://${ext.id}`).catch(() => {});
 }
 // the library's own updater (5 hours apart, and when a window comes up), after the load
-function keepUpdated(ses, log) {
+function keepUpdated(ses, dir, log) {
   let last = 0;
   const check = () => {
     if (Date.now() - last < 5 * 60 * 60e3) return;
     last = Date.now();
-    webStore.updateExtensions(ses).catch((e) => log(`확장 프로그램 업데이트 못 함: ${e.message}`));
+    webStore.updateExtensions(storeOnly(ses, dir)).catch((e) => log(`확장 프로그램 업데이트 못 함: ${e.message}`));
   };
   app.on("browser-window-focus", check);
   setInterval(check, 5 * 60 * 60e3).unref?.();
   check();
+}
+// the session as the updater sees it: only the ones installed in dir. It takes every loaded one
+// with a web store key and update_url, puts the new version beside it (<path>/../..) and deletes
+// the old folder — so a folder copied from Chrome's Extensions (<id>/<version>_0) and loaded as a
+// folder one was deleted and replaced outside Rove. Chrome doesn't update unpacked ones either
+function storeOnly(ses, dir) {
+  const sx = ses.extensions || ses;
+  const inDir = (e) => { const r = relative(dir, e.path); return !!r && !r.startsWith("..") && !isAbsolute(r); };
+  return { extensions: {
+    getAllExtensions: () => sx.getAllExtensions().filter(inDir),
+    getExtension: (id) => sx.getExtension(id),
+    removeExtension: (id) => sx.removeExtension(id),
+    loadExtension: (path) => sx.loadExtension(path),
+  } };
 }
 function manifestAt(path) {
   try { return JSON.parse(readFileSync(join(path, "manifest.json"), "utf8")); } catch { return {}; }
@@ -232,4 +246,4 @@ function icon(e) {
   return null;
 }
 
-module.exports = { start, STORE, blocksRequests, keyIs, loadInstalled, loadFolders };
+module.exports = { start, STORE, blocksRequests, keyIs, loadInstalled, loadFolders, storeOnly };

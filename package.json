@@ -1,7 +1,7 @@
 {
   "name": "rove",
   "productName": "Rove",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "private": true,
   "description": "Rove: a browser by Robin (Electron)",
   "main": "main.cjs",

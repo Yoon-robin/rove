@@ -2093,6 +2093,28 @@ function cleanAgent(ses) {
   ses.setUserAgent(ses.getUserAgent().replace(/\s(Electron|rove|Rove)\/\S+/g, ""));
 }
 
+// With other sites' cookies blocked (settings.cookies), a comment box, video or
+// chat framed on a site could keep no cookie and forgot a sign-in at once. Brave
+// keeps such a frame's cookies for that one site only: here a cookie meant for
+// other sites (SameSite=None; Secure) set from another site's frame or part of a
+// page becomes Partitioned (CHIPS), kept for that page's site alone, so it still
+// can't follow anyone from site to site. Electron has one onHeadersReceived per
+// session: this is it. A cookie the frame writes itself (document.cookie) stays
+// blocked, as that needs a script put in the page.
+const partitioned = (c) => (/;\s*samesite\s*=\s*none/i.test(c) && /;\s*secure\s*(;|$)/i.test(c) && !/;\s*partitioned\s*(;|$)/i.test(c) ? c + "; Partitioned" : c);
+function partitionFrameCookies(ses) {
+  if (!COOKIES_AT_START) return;
+  ses.webRequest.onHeadersReceived((d, done) => {
+    const key = d.resourceType === "mainFrame" ? null : Object.keys(d.responseHeaders || {}).find((k) => k.toLowerCase() === "set-cookie");
+    if (!key) return done({});
+    let top = "";
+    try { top = d.frame?.top?.url || d.webContents?.getURL() || ""; } catch { /* the frame is gone */ }
+    const site = siteOf(d.url), at = siteOf(top);
+    if (!site || !at || site === at) return done({});
+    done({ responseHeaders: { ...d.responseHeaders, [key]: d.responseHeaders[key].map(partitioned) } });
+  });
+}
+
 // ---- what sites ask for ---------------------------------------------------------------
 // asks: what waits in the ask bar, oldest first. A site's question belongs to
 // its tab (shown while that tab is in front); a held download to none (shown
@@ -2612,6 +2634,7 @@ app.whenReady().then(async () => {
   const ses = rove();
   serveUi(ses.protocol, { tab: true });
   cleanAgent(ses);
+  partitionFrameCookies(ses);
   permissions(ses);
   sharing(ses);
   blocking(ses);
@@ -2894,6 +2917,7 @@ function privateSession() {
   const ses = session.fromPartition(`rove-private-${Date.now()}`);
   serveUi(ses.protocol, { tab: true, priv: true });
   cleanAgent(ses);
+  partitionFrameCookies(ses);
   permissions(ses, true);
   sharing(ses);
   blocking(ses, true);

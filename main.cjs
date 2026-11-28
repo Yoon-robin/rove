@@ -163,6 +163,8 @@ function toUrl(text) {
   if (t.startsWith("?")) return (t = t.slice(1).trim()) ? engine()[1] + encodeURIComponent(t) : null;
   if (/^(https?|file):\/\//i.test(t)) return t;
   if (/^(about:blank|view-source:)/i.test(t) || t === HOME_PAGE) return t;
+  // a mail or phone address goes to its program (asked, as a page's link to it); a typed data: page opens (Brave)
+  if (/^(mailto|tel):[^\s/]|^data:[\w.+-]*\/[\w.+-]+[;,]/i.test(t)) return t.replace(/\s/g, "%20");
   // as Brave reads it: the site part has no space, the path after it may (example.com/a b goes there, %20)
   const host = t.split(/[/?#]/)[0], rest = t.slice(host.length).replace(/\s/g, "%20");
   if (/\s/.test(host)) return engine()[1] + encodeURIComponent(t);
@@ -1092,6 +1094,8 @@ function askedTitle(url) {
 function go(text, tab = active) {
   const url = toUrl(text);
   if (!url || !tab) return;
+  // a mail or phone address opens no page: the tab keeps its own address and name
+  if (/^(mailto|tel):/i.test(url)) return void tab.view.webContents.loadURL(url).catch(() => {});
   tab.failed = null;
   tab.url = url;
   tab.crashed = false;

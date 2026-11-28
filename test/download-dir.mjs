@@ -19,7 +19,7 @@ globalThis.BASE = "http://127.0.0.1:" + SRV.address().port;
 globalThis.PICKED = FS.mkdtempSync(PATH.join(process.mainModule.require("node:os").tmpdir(), "rove-picked-"));
 globalThis.GET = async (n) => { R.active.view.webContents.downloadURL(BASE + "/f?n=" + n); for (let i = 0; i < 30 && !R.downloads.find((d) => d.name === n && d.state === "completed"); i++) await sleep(100); return R.downloads.find((d) => d.name === n); };
 globalThis.FOOT = async () => { R.showOverlay({ kind: "drawer", panel: "downloads" }); await sleep(600);
-  return R.overlay.webContents.executeJavaScript("(() => { const f = document.querySelector('.drawer footer'); return f ? { where: f.querySelector('.where')?.textContent, title: f.querySelector('.where')?.title, buttons: [...f.querySelectorAll('button')].map((b) => b.textContent) } : null; })()"); };
+  return R.overlay.webContents.executeJavaScript("(() => { const f = document.querySelector('.drawer footer'); return f ? { where: f.querySelector('.where')?.textContent, title: f.querySelector('.where')?.title, buttons: [...f.querySelectorAll('button.rk-btn')].map((b) => b.textContent) } : null; })()"); };
 globalThis.CHECK = (name, ok, got) => (ok ? "ok   " : "FAIL ") + name + ": " + JSON.stringify(got);`;
 export default [
   { js: H + `const f = await FOOT();

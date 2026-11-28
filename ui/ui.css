@@ -421,6 +421,7 @@ body.vertical .pop.tabfind { top: 48px; }
 .drawer footer span { margin-right: auto; color: var(--rk-text); font-size: 13px; word-break: keep-all; text-wrap: pretty; }
 .drawer footer .where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rk-soft); }
 .drawer footer .where b { color: var(--rk-text); font-weight: 600; }
+.drawer footer .everytime { display: flex; align-items: center; gap: 6px; flex: none; color: var(--rk-soft); font-size: 13px; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none; border-color: var(--rk-accent); }

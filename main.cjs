@@ -292,6 +292,7 @@ function snapshot() {
     // gone: finished, then deleted or moved away outside Rove (Chrome's "삭제됨")
     // what checkFiles last found: no disk here, as a gone network folder blocks a look for 20 s
     downloadDir: settings.downloadDir && dirOk ? settings.downloadDir : defaultDownloadDir(),
+    askWhere: !!settings.askWhere,
     // resumable: stopped (the network went), what came down is kept and it can go on from there
     downloads: downloads.filter(mineKind).slice(-30).map((d) => (d.state === "completed" && filesGone.has(d.id) ? { ...plain(d), gone: true }
       : d.state === "interrupted" && d.item?.canResume() ? { ...plain(d), resumable: true } : plain(d))),
@@ -868,6 +869,11 @@ function setNarrow(on) {
   everywhere(() => { if (overlayOn?.kind === "peek") hideOverlay(); });
   save("settings.json", settings);
   everywhere(layout);
+  tell();
+}
+function setAskWhere(on) {
+  settings.askWhere = !!on;
+  save("settings.json", settings);
   tell();
 }
 function setHideFolded(on) {
@@ -1536,6 +1542,7 @@ function messages() {
   on("rove:vertical", (yes) => setVertical(!!yes));
   on("rove:narrow", (yes) => setNarrow(!!yes));
   on("rove:hide-folded", (yes) => setHideFolded(!!yes));
+  on("rove:ask-where", (yes) => setAskWhere(!!yes));
   on("rove:group-fold", (id) => groupFold(Number(id)));
   on("rove:group-set", (id, what) => groupSet(Number(id), what && typeof what === "object" ? { name: typeof what.name === "string" ? what.name : undefined, color: String(what.color || "") } : {}));
   on("rove:group-ungroup", (id) => { hideOverlay(); ungroup(Number(id)); });
@@ -1796,15 +1803,21 @@ function downloadsTo(ses, priv = false) {
     let referrer = "";
     try { referrer = wc?.getURL() || ""; } catch { /* gone */ }
     d.referrer = referrer;
-    if (kind) {
+    // 매번 묻기 (Chrome's and Brave's 다운로드 전에 각 파일의 저장 위치 확인): the path has to be set now,
+    // so it comes down into held while the save dialog is up, and goes where it was put after
+    const where = !!settings.askWhere;
+    if (kind || where) {
       const held = join(home, "held");
       mkdirSync(held, { recursive: true });
       d.held = join(held, `${d.id}-${d.name}`);
-      d.asking = true;
       item.setSavePath(d.held);
-      asks.push({ id: nextId++, kind: "download", tab: null, host: hostOf(d.url), what: [kind], name: d.name, d });
     } else item.setSavePath(d.path);
+    if (kind) {
+      d.asking = true;
+      asks.push({ id: nextId++, kind: "download", tab: null, host: hostOf(d.url), what: [kind], name: d.name, d });
+    } else if (where) d.keep = true;
     downloads.push(d);
+    if (where) chooseWhere(d);
     item.on("updated", (ev, state) => { d.received = item.getReceivedBytes(); d.total = item.getTotalBytes(); d.state = state === "interrupted" ? "interrupted" : "progressing"; tell(); });
     item.once("done", (ev, state) => {
       d.received = item.getReceivedBytes();
@@ -1812,7 +1825,7 @@ function downloadsTo(ses, priv = false) {
       d.done = state;
       if (!d.held) finish(d, state);
       else if (state !== "completed") { d.asking = false; asks = asks.filter((a) => a.d !== d); finish(d, state); everywhere(layout); }
-      else if (d.keep !== undefined) settle(d);
+      else if (d.keep !== undefined && !d.choosing) settle(d);
       // else: it waits for the answer
       tell();
     });
@@ -1833,7 +1846,7 @@ const saveDownloads = (now) => save("downloads.json", downloads.filter((d) => !d
 // the answer and the file are both there
 function settle(d) {
   if (d.keep) {
-    if (existsSync(d.path)) d.path = freePath(parse(d.path).dir, d.name); // taken while it waited
+    if (!d.picked && existsSync(d.path)) d.path = freePath(parse(d.path).dir, d.name); // taken while it waited
     d.name = parse(d.path).base;
     try { move(d.held, d.path); finish(d, "completed"); } catch { finish(d, "interrupted"); }
   } else {
@@ -1846,7 +1859,28 @@ function keepDownload(d, keep) {
   d.keep = keep;
   d.asking = false;
   if (!keep && d.item) d.item.cancel(); // its done comes with "cancelled"
-  else if (d.done === "completed") settle(d);
+  else if (d.done === "completed" && !d.choosing) settle(d);
+}
+// the save dialog of 매번 묻기; cancelled, the file is not wanted at all (in Chrome it is not listed either)
+async function chooseWhere(d) {
+  d.choosing = true;
+  const r = await dialog.showSaveDialog(win, { defaultPath: d.path }).catch(() => ({ canceled: true }));
+  d.choosing = false;
+  if (r.canceled || !r.filePath) {
+    downloads = downloads.filter((x) => x !== d);
+    asks = asks.filter((a) => a.d !== d);
+    d.asking = false;
+    d.keep = false;
+    if (d.item) d.item.cancel(); // Chromium takes the held part away
+    else if (d.held) { try { unlinkSync(d.held); } catch { /* gone */ } delete d.held; }
+    everywhere(layout);
+  } else {
+    d.path = r.filePath; // the dialog asked before putting it over a file there
+    d.picked = true;
+    d.name = parse(d.path).base;
+    if (d.done === "completed" && d.keep !== undefined) settle(d);
+  }
+  tell();
 }
 
 // ---- start ---------------------------------------------------------------------------

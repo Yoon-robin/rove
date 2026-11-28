@@ -364,7 +364,18 @@ function startWindows(list, again = false) {
 function reopenClosed() {
   const u = closed.pop();
   if (u?.urls) createWindow({ restore: u });
-  else if (u) newTab(u.url, { nav: u.nav });
+  else if (u) {
+    const f = u.from?.w === cur.id ? u.from : null; // closed in another window: at the end, as before
+    if (f?.group && !groupOf(f.group.id)) groups.push({ ...f.group, collapsed: false }); // its group went with it
+    const tab = newTab(u.url, { nav: u.nav, pinned: !!f?.pinned, group: f?.group?.id ?? null });
+    if (f) { // not moveTab(): a group it alone had would lose it there
+      tabs.splice(tabs.indexOf(tab), 1);
+      const pins = tabs.filter((t) => t.pinned).length;
+      tabs.splice(tab.pinned ? Math.min(f.at, pins) : Math.max(pins, Math.min(f.at, tabs.length)), 0, tab);
+      cluster(false);
+      tell();
+    }
+  }
 }
 
 // ---- tabs -------------------------------------------------------------------------
@@ -496,7 +507,8 @@ function sleepIdle() {
 function closeTab(tab) {
   const i = tabs.indexOf(tab);
   if (i < 0) return;
-  if (webby(tab.failed || tab.url)) closed.push({ url: tab.failed || tab.url, nav: navOf(tab) });
+  // where it was too (its place, pin, group): Ctrl+Shift+T puts it back there, as Chrome and Brave do
+  if (webby(tab.failed || tab.url)) closed.push({ url: tab.failed || tab.url, nav: navOf(tab), from: { w: cur.id, at: i, pinned: !!tab.pinned, group: tab.group ? { ...groupOf(tab.group) } : null } });
   if (closed.length > 25) closed.shift();
   tabs.splice(i, 1);
   if (split?.a === tab || split?.b === tab) split = null;

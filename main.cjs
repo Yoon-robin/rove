@@ -1603,6 +1603,13 @@ function messages() {
   handle("rove:site", () => siteInfo());
   handle("rove:extensions", () => exts?.list() || []);
   handle("rove:extension-on", (id, yes) => exts?.setOn(String(id), !!yes).catch((e) => { log(`확장 프로그램을 못 켜고 끔: ${e.message}`); return false; }) ?? false);
+  // 폴더에서 불러오기 (Brave's 압축해제된 확장 프로그램 로드): the folder is picked here, not sent by a page
+  handle("rove:extension-folder", async () => {
+    if (!exts) return null;
+    const r = await dialog.showOpenDialog(win, { title: "확장 프로그램 폴더", properties: ["openDirectory"] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    return exts.addFolder(r.filePaths[0]).catch((e) => ({ error: e.message }));
+  });
   handle("rove:extension-remove", (id) => exts?.remove(String(id)).catch((e) => { log(`확장 프로그램을 못 지움: ${e.message}`); return false; }) ?? false);
   on("rove:extension-options", (id) => { const u = exts?.options(String(id)); if (u) { hideOverlay(); newTab(u); } });
   on("rove:site-set", (origin, key, value) => setSite(String(origin), String(key), String(value)));
@@ -2755,6 +2762,7 @@ function startExtensions(ses) {
   return require("./extensions.cjs").start({
     ses, dir: join(home, "Extensions"), actionsPreload: actions, log, confirm: askExtension,
     off: { ...settings.extOff }, saveOff(off) { settings.extOff = { ...off }; save("settings.json", settings); },
+    folders: [...(settings.extFolders || [])].filter((p) => typeof p === "string"), saveFolders(f) { settings.extFolders = [...f]; save("settings.json", settings); },
     impl: {
       createTab(details) {
         const w = windowFor(details.windowId);

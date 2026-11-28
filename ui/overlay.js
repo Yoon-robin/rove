@@ -626,6 +626,7 @@ function size(n) {
 
 let importing = null; // the browsers to bring bookmarks from (true: to ask, null: not asked)
 let dropping = null; // the extension whose 지우기 was pressed once (pressed again: gone)
+let extMsg = null; // what 폴더에서 불러오기 did: "<name> 불러왔어요" or why not
 let importMsg = null;
 let renaming = null, renameText = "", renameNew = false; // the bookmark being renamed, what is typed, just opened (select all)
 // a history or bookmark row: the site's own icon once a normal window has shown it, else ours
@@ -660,7 +661,7 @@ async function drawDrawer() {
       const pic = x.icon ? `<img class="ext" src="${esc(x.icon)}" alt="">` : icon("spark");
       const sure = dropping === x.id;
       const turn = `<button class="rk-switch" role="switch" data-ext-on="${esc(x.id)}" aria-checked="${!!x.on}" aria-label="${esc(x.name)} 켜기" title="${x.on ? "끄기 (지우지 않음)" : "켜기"}"></button>`;
-      body += `<div class="item${x.on ? "" : " off"}">${pic}<div class="w"><b title="${esc(x.name)}">${esc(x.name)}</b><small class="rk-num">${x.on ? "" : "꺼짐 · "}${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="지우기">${icon("trash")}</button>`}${turn}</div>`;
+      body += `<div class="item${x.on ? "" : " off"}">${pic}<div class="w"><b title="${esc(x.name)}">${esc(x.name)}</b><small class="rk-num">${x.on ? "" : "꺼짐 · "}${x.folder ? "폴더 · " : ""}${esc(x.version)}</small></div>${x.options ? `<button class="btn hover" data-ext-options="${esc(x.id)}" aria-label="옵션" title="옵션">${icon("sliders")}</button>` : ""}${sure ? `<button class="rk-btn rk-btn--small rk-btn--danger-fill" data-ext-drop="${esc(x.id)}">지우기</button>` : `<button class="btn hover" data-ext-drop="${esc(x.id)}" aria-label="지우기" title="${x.folder ? "Rove에서 지우기 (폴더는 그대로)" : "지우기"}">${icon("trash")}</button>`}${turn}</div>`;
     }
   } else if (panel === "bookmarks" && importing) {
     body += `<div class="rk-label">가져오기</div>`;
@@ -699,7 +700,7 @@ async function drawDrawer() {
       : `<footer><button class="rk-btn rk-btn--small rk-btn--danger" data-all>기록 모두 지우기</button></footer>`)
     // where new files go, and 바꾸기 to pick another folder (Brave's and Chrome's 위치 · 변경)
     : panel === "downloads" ? `<footer><span class="where" title="${esc(state.downloadDir || "")}">받는 곳 <b>${esc((state.downloadDir || "").split(/[\\/]/).filter(Boolean).pop() || "")}</b></span><button class="rk-btn rk-btn--small" data-dir>바꾸기</button>${list.some((d) => d.state !== "progressing") ? `<button class="rk-btn rk-btn--small" data-clear>목록 비우기</button>` : ""}</footer>`
-    : panel === "extensions" ? `<footer><button class="rk-btn rk-btn--small" data-store>Chrome 웹 스토어</button></footer>`
+    : panel === "extensions" ? `<footer>${extMsg ? `<span role="status">${esc(extMsg)}</span>` : ""}<button class="rk-btn rk-btn--small" data-ext-folder>폴더에서 불러오기</button><button class="rk-btn rk-btn--small" data-store>Chrome 웹 스토어</button></footer>`
     : panel === "bookmarks" ? `<footer>${importMsg ? `<span role="status">${esc(importMsg)}</span>` : ""}${importing ? `<button class="rk-btn rk-btn--small" data-import-done>돌아가기</button>` : `<button class="rk-btn rk-btn--small" data-import-ask>다른 브라우저에서 가져오기</button>`}</footer>` : "";
   root.innerHTML = `<div class="scrim"></div><aside class="pop drawer" aria-label="${NAMES[panel]}">
     <header><div class="rk-tabs" role="tablist">${Object.keys(NAMES).map((k) => `<button class="rk-tab" role="tab" data-panel="${k}" aria-selected="${k === panel}"${TAB[k] !== NAMES[k] ? ` aria-label="${NAMES[k]}"` : ""}>${TAB[k]}</button>`).join("")}</div>
@@ -755,6 +756,13 @@ async function drawDrawer() {
   root.querySelector("[data-clear]")?.addEventListener("click", () => rove.send("rove:downloads-clear"));
   root.querySelector("[data-dir]")?.addEventListener("click", () => rove.send("rove:download-dir"));
   root.querySelector("[data-store]")?.addEventListener("click", () => rove.send("rove:open", STORE, true));
+  root.querySelector("[data-ext-folder]")?.addEventListener("click", async (ev) => {
+    ev.currentTarget.disabled = true;
+    const r = await rove.ask("rove:extension-folder");
+    extMsg = r ? (r.ok ? `${r.name} 불러왔어요` : r.error) : null;
+    await draw();
+    root.querySelector("[data-ext-folder]")?.focus();
+  });
   root.querySelectorAll("[data-ext-options]").forEach((b) => b.addEventListener("click", () => rove.send("rove:extension-options", b.dataset.extOptions)));
   root.querySelectorAll("[data-ext-on]").forEach((b) => b.addEventListener("click", async () => {
     const id = b.dataset.extOn;

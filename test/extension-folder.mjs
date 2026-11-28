@@ -40,6 +40,12 @@ export default [
     R.hideOverlay();
     const got = { again, empty, none: none.say, saved: R.settings.extFolders, rows: none.rows };
     return CHECK("the same folder again, a folder without manifest.json: said, nothing added; canceled: nothing said", again === "이미 불러온 폴더예요" && empty === "이 폴더에는 manifest.json이 없어요" && got.none === null && got.saved.length === 1 && none.rows.filter((r) => r.startsWith("Folder test")).length === 1, got);` },
+  { js: `R.win.setSize(800, 600); await sleep(500); PICK(EMPTY); await PRESS();
+    // the note's lines by the top of each letter: a wrap breaks between words, not inside one
+    const lines = await OV("(() => { const t = document.querySelector('.drawer footer [role=status]').firstChild, r = document.createRange(), by = new Map(); for (let i = 0; i < t.length; i++) { r.setStart(t, i); r.setEnd(t, i + 1); const y = Math.round(r.getBoundingClientRect().top); by.set(y, (by.get(y) || '') + t.data[i]); } return [...by.values()].map((s) => s.trim()); })()");
+    R.hideOverlay(); R.win.setSize(1280, 800); await sleep(300);
+    const words = "이 폴더에는 manifest.json이 없어요".split(" ");
+    return CHECK("800 wide: the note wraps between words (no lone 요 on its own line)", lines.length > 1 && lines.every((l) => l.split(" ").every((w) => words.includes(w))), lines);` },
   { js: `const id = ROW().id; SX.removeExtension(id); await sleep(200); const gone = await MARK();
     await X.loadFolders(SES, R.settings.extFolders, {}, () => {}); const got = { gone, loaded: !!SX.getExtension(id), mark: await MARK() };
     return CHECK("the next start's loader loads it again from the folder", got.gone === "" && got.loaded && got.mark === "folder", got);` },

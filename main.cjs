@@ -662,6 +662,7 @@ function wire(tab) {
     if (!d.url.startsWith("data:")) { tab.failed = null; tab.crashed = false; }
   });
   on("did-navigate", (e, url) => {
+    httpFallBack(wc, "ok");
     if (!own() || url.startsWith("data:")) return;
     const moved = hostOf(url) !== hostOf(tab.url);
     tab.url = url;
@@ -684,6 +685,8 @@ function wire(tab) {
   });
   on("page-favicon-updated", (e, icons) => { if (!own()) return; const at = hostOf(tab.url); iconOf(wc.session, icons.find((u) => /^https?:|^data:image\//.test(u)) || null).then((d) => { if (own() && hostOf(tab.url) === at) { tab.favicon = d; tell(); if (d && !tab.w.private && d.length < 20000 && siteIcons[at] !== d) { siteIcons[at] = d; keepIcons(); } } }); });
   on("did-fail-load", (e, code, what, url, isMainFrame) => {
+    // an https first that failed: the http page instead of an error page
+    if (isMainFrame && httpFallBack(wc, code === -3 ? "ok" : false)) return;
     if (!own() || !isMainFrame || code === -3 || url.startsWith("data:")) return;
     tab.failed = url;
     tab.favicon = null;
@@ -2482,6 +2485,35 @@ async function clearSite() {
 }
 
 // ---- ads and trackers (blocker.cjs) ----------------------------------------------------
+// HTTPS first (Brave's 'HTTPS 연결 업그레이드' 표준, on with 막기; Chrome's HTTPS-Upgrades): a page
+// asked over http goes to https. If that fails, or the site sends it back to http, the tab loads
+// the http page and the host stays on http in that session until Rove closes (httpFallBack).
+// Not for an IP, this PC, a one-word name or a port of its own: those seldom have https.
+const httpOnly = new WeakMap(); // session: hosts whose https failed
+const upgrading = new Map(); // webContents id: { host, http } the upgrade its page waits on
+function httpsFirst(d) {
+  let u;
+  try { u = new URL(d.url); } catch { return null; }
+  const h = u.hostname, ses = d.webContents?.session;
+  if (u.protocol !== "http:" || u.port || !ses || /\.localhost$/i.test(h) || !parseHost(h).isIcann) return null;
+  if (httpOnly.get(ses)?.has(h)) return null;
+  // the upgraded page came back to http: its https only sends here
+  if (upgrading.get(d.webContentsId)?.host === h) { httpFallBack(d.webContents, true); return null; }
+  upgrading.set(d.webContentsId, { host: h, http: d.url });
+  u.protocol = "https:";
+  return u.href;
+}
+// the upgrade ended: kept (ok), or the host goes on http (loads the http page unless asked now)
+function httpFallBack(wc, asked) {
+  const w = upgrading.get(wc.id);
+  if (!w) return false;
+  upgrading.delete(wc.id);
+  if (asked === "ok") return false;
+  if (!httpOnly.has(wc.session)) httpOnly.set(wc.session, new Set());
+  httpOnly.get(wc.session).add(w.host);
+  if (!asked) wc.loadURL(w.http).catch(() => {});
+  return true;
+}
 let blocker = null;
 const blocked = new Map(); // webContents id: how many stopped on its page
 function blocking(ses, priv = false) {
@@ -2489,7 +2521,7 @@ function blocking(ses, priv = false) {
     const b = require("./blocker.cjs").start({
       ses, file: join(__dirname, "lists.bin"), log, site: (h) => getDomain(h),
       on: () => settings.block,
-      skip: (url) => allowedFor(hostOf(url), priv),
+      skip: (url) => allowedFor(hostOf(url), priv), upgrade: httpsFirst,
       counted: (id) => { blocked.set(id, (blocked.get(id) || 0) + 1); store(); if (windows.some((w) => w.active?.view.webContents.id === id)) tell(); },
     });
     blocker ??= b;
@@ -3006,7 +3038,7 @@ function testHooks() {
     pin, splitWith, unsplit, splitSwap, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; },
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, setHideFolded, frame,
-    get exts() { return exts; } };
+    httpsFirst, get exts() { return exts; } };
 }
 
 app.on("second-instance", (e, argv) => booted.then(() => {

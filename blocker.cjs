@@ -94,9 +94,10 @@ function bouncer(rules, site) {
 
 // ses: the pages' session. on(): blocking is on. skip(pageUrl): the page's site is let be.
 // counted(webContentsId): one more stopped there. site(host): registrable domain.
+// upgrade(details): the https address for a page asked over http, or null (main.cjs httpsFirst).
 // Returns null without lists.bin.
 const engines = new Map(); // lists file: its engine (matching only reads it)
-function start({ ses, file, on, skip, counted, log, site }) {
+function start({ ses, file, on, skip, counted, log, site, upgrade = () => null }) {
   if (!existsSync(file)) { log("광고·추적 막기: lists.bin이 없어요"); return null; }
   const bounceFile = join(dirname(file), "bounce.json");
   let unbounce = () => null;
@@ -122,7 +123,7 @@ function start({ ses, file, on, skip, counted, log, site }) {
     if (d.resourceType === "mainFrame" || d.resourceType === "subFrame") {
       if (d.method !== "GET" || skip(d.url)) return done({});
       // a tracker's own address only in the address bar's place (a frame keeps its page's links)
-      const to = (d.resourceType === "mainFrame" && unbounce(d.url)) || clean(d.url);
+      const to = (d.resourceType === "mainFrame" && (unbounce(d.url) || upgrade(d))) || clean(d.url);
       return done(to !== d.url ? { redirectURL: to } : {});
     }
     const top = page(d);

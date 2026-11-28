@@ -1829,7 +1829,7 @@ function serveUi(p = protocol, { tab = false, priv = false } = {}) {
   p.handle("rove", (req) => {
     const u = new URL(req.url);
     if (u.host !== "ui") return new Response("", { status: 404 });
-    if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine()[0], sites: priv ? [] : topSites(), links: config.links || [] });
+    if (tab && u.pathname === "/newtab.json") return Response.json({ engine: engine()[0], private: priv, sites: priv ? [] : topSites(), links: config.links || [] });
     let path = "";
     try { path = normalize(join(UI, decodeURIComponent(u.pathname))); } catch { /* a broken % */ }
     if (!path.startsWith(UI + sep)) return new Response("", { status: 404 });

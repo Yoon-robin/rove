@@ -1,5 +1,5 @@
-// Rove's new tab. What it shows comes from main (newtab.json: the search engine's name, the
-// sites gone to most, config.cjs's links); what is typed goes to main (go?q=), which turns it into an address or a
+// Rove's new tab. What it shows comes from main (newtab.json: the search engine's name, whether it is a
+// private window's (then what such a window keeps and what it does not, as Brave's says), the sites gone to most, config.cjs's links); what is typed goes to main (go?q=), which turns it into an address or a
 // search the same way the address bar does.
 const $ = (id) => document.getElementById(id);
 
@@ -40,6 +40,7 @@ function link([name, url, ic]) {
 fetch("newtab.json").then((r) => r.json()).then((d) => {
   $("q").placeholder = `${d.engine} 검색 또는 주소`;
   $("q").setAttribute("aria-label", $("q").placeholder);
+  $("private").hidden = !d.private;
   if (d.sites?.length) { $("sites").append(...d.sites.map(tile)); $("sites").hidden = false; }
   if (d.links?.length) { $("links").append(...d.links.map(link)); $("links").hidden = false; }
 }).catch(() => {});

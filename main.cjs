@@ -881,6 +881,13 @@ function unsplit() {
   layout();
   tell();
 }
+// the two change sides; the gap stays where it is (the tab strip keeps its order)
+function splitSwap() {
+  if (!split) return;
+  split = { ...split, a: split.b, b: split.a };
+  layout();
+  tell();
+}
 function splitRatio(r) {
   if (!split || !Number.isFinite(r)) return;
   const w = bounds().w - frame().left;
@@ -1042,7 +1049,10 @@ function tabItems(tab) {
       tab.group ? { label: "묶음에서 빼기", click: () => groupOut(tab) } : { label: "새 묶음에 넣기", click: () => { const g = groupNew(tab); if (g) editGroup(g.id); } },
       ...(groups.some((g) => g.id !== tab.group) ? [{ label: "묶음에 넣기", submenu: groups.filter((g) => g.id !== tab.group).map((g) => ({ label: groupName(g), click: () => groupAdd(tab, g.id) })) }] : []),
     ]),
-    paired ? { label: "나란히 보기 끝내기", click: unsplit } : { label: "지금 탭과 나란히 보기", enabled: tab !== active, click: () => { splitWith(tab); select(tab); } },
+    // Brave's tab menu: the tab in front starts one with a new tab on its right; the two can change sides
+    ...(paired ? [{ label: "왼쪽·오른쪽 바꾸기", click: splitSwap }, { label: "나란히 보기 끝내기", click: unsplit }]
+      : tab === active ? [{ label: "새 탭과 나란히 보기", click: () => { const t = newTab(HOME_PAGE, { after: tab }); splitWith(t, tab); select(t); } }]
+      : [{ label: "지금 탭과 나란히 보기", click: () => { splitWith(tab); select(tab); } }]),
     { type: "separator" },
     { label: "새 창으로 옮기기", enabled: tabs.length > 1, click: () => { const priv = cur.private; if (takeTab(tab)) createWindow({ priv, tab }); } },
     ...(others.length ? [{ label: "다른 창으로 옮기기", submenu: others.map((w) => ({ label: windowName(w), click: () => moveToWindow(tab, w) })) }] : []),
@@ -2932,7 +2942,7 @@ function testHooks() {
     get share() { return share; }, get chosen() { return chosen; }, shareAnswer, dropShare, mute, moveTab, tabItems, get closed() { return closed; }, siteInfo, setSite, clearSite, session: rove,
     setUpdater: (make) => { updates = make(() => tell()); tell(); }, // a fake update.cjs updater: no install, no network
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
-    pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
+    pin, splitWith, unsplit, splitSwap, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; },
     get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, setHideFolded, frame,
     get exts() { return exts; } };

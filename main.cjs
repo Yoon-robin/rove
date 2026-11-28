@@ -1786,10 +1786,12 @@ const runs = (name) => Object.keys(RUNS).find((k) => RUNS[k].test(name)) || null
 function move(from, to) {
   try { renameSync(from, to); } catch { copyFileSync(from, to); unlinkSync(from); }
 }
-// Windows' mark on a file from the internet (what SmartScreen and Office look at)
-function markWeb(path, url, referrer) {
-  const web = (u) => (webby(u) ? u : "about:internet");
-  try { writeFileSync(`${path}:Zone.Identifier`, `[ZoneTransfer]\r\nZoneId=3\r\nReferrerUrl=${web(referrer)}\r\nHostUrl=${web(url)}\r\n`); } catch { /* not NTFS */ }
+// Windows' mark on a file from the internet (what SmartScreen and Office look at). The mark goes
+// wherever the file goes, so as in Brave it names only the site, not the full address (a signed
+// link, a search) or the page before it, and a private window's file names no site at all
+function markWeb(path, url, priv) {
+  const host = !priv && webby(url) ? new URL(url).origin + "/" : "about:internet";
+  try { writeFileSync(`${path}:Zone.Identifier`, `[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=${host}\r\n`); } catch { /* not NTFS */ }
 }
 function downloadsTo(ses, priv = false) {
   ses.on("will-download", (e, item, wc) => {
@@ -1800,9 +1802,6 @@ function downloadsTo(ses, priv = false) {
     const kind = runs(item.getFilename());
     const d = { id: nextId++, item, name: "", path: freePath(to, item.getFilename()), url: item.getURL(), received: 0, total: item.getTotalBytes(), state: "progressing", at: Date.now(), runs: kind, private: priv };
     d.name = parse(d.path).base;
-    let referrer = "";
-    try { referrer = wc?.getURL() || ""; } catch { /* gone */ }
-    d.referrer = referrer;
     // 매번 묻기 (Chrome's and Brave's 다운로드 전에 각 파일의 저장 위치 확인): the path has to be set now,
     // so it comes down into held while the save dialog is up, and goes where it was put after
     const where = !!settings.askWhere;
@@ -1835,7 +1834,7 @@ function downloadsTo(ses, priv = false) {
 }
 function finish(d, state) {
   d.state = state;
-  if (state === "completed") markWeb(d.path, d.url, d.referrer);
+  if (state === "completed") markWeb(d.path, d.url, d.private);
   if (d.private && !privateSes) downloads = downloads.filter((x) => x !== d); // its private windows are all closed
   saveDownloads();
 }

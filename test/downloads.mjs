@@ -1,5 +1,6 @@
 // node test/drive.mjs test/downloads.mjs: a file comes down into Downloads with Windows' mark from
-// the internet (Zone.Identifier: ZoneId=3, the page and the file's address); two of the same name
+// the internet (Zone.Identifier: ZoneId=3 and, as in Brave, only the site — no full address, no page
+// before it); two of the same name
 // at once get "name (1)"; a file that runs when opened (a program, a script, one of the shell's own
 // — .settingcontent-ms, .search-ms… — or a disk image) waits in Rove's folder until the ask bar's
 // yes, and a no leaves nothing; a private window's download is not kept in downloads.json.
@@ -28,7 +29,7 @@ export default [
     let mark = ""; try { mark = FS.readFileSync(d.path + ":Zone.Identifier", "utf8"); } catch {}
     const got = { state: d?.state, dir: PATH.basename(PATH.dirname(d?.path || "")), body: d && FS.existsSync(d.path) ? FS.readFileSync(d.path, "utf8") : null, mark };
     return CHECK("a file: in Downloads, marked from the internet", got.state === "completed" && got.dir === "downloads" && got.body === "hello plain.txt" &&
-      /ZoneId=3/.test(mark) && mark.includes("HostUrl=" + BASE + "/f?n=plain.txt") && mark.includes("ReferrerUrl=" + BASE + "/page"), got);` },
+      mark === "[ZoneTransfer]\\r\\nZoneId=3\\r\\nHostUrl=" + BASE + "/\\r\\n", got);` },
   { js: `GET("same.bin", "&slow"); await sleep(300); GET("same.bin", "&slow"); await sleep(2800);
     const two = R.downloads.filter((d) => /^same( \\(1\\))?\\.bin$/.test(d.name)).map((d) => ({ name: d.name, state: d.state }));
     const files = FS.readdirSync(PATH.dirname(D("same.bin").path)).filter((f) => f.startsWith("same"));

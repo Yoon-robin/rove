@@ -24,6 +24,9 @@ export default [
     await LOAD(); GET("private.txt"); await sleep(1000);
     const got = { priv: NAMES() }; R.use(NORMAL); got.normal = NAMES();
     return CHECK("each kind of window lists only its own downloads", JSON.stringify(got) === '{"priv":["private.txt"],"normal":["normal.txt"]}', got);` },
+  // as in Brave: the file's mark from the internet names no site when it came down in a private window
+  { js: `const p = R.downloads.find((x) => x.name === "private.txt").path; let mark = ""; try { mark = FS.readFileSync(p + ":Zone.Identifier", "utf8"); } catch {}
+    return CHECK("a private window's file: marked from the internet, no site in the mark", mark === "[ZoneTransfer]\\r\\nZoneId=3\\r\\nHostUrl=about:internet\\r\\n", mark);` },
   { js: `R.use(NORMAL); R.showOverlay({ kind: "drawer", panel: "downloads" }); await sleep(600);
     await R.overlay.webContents.executeJavaScript("document.querySelector('[data-clear]').click(), 1"); await sleep(400);
     const got = { normal: NAMES(), all: R.downloads.map((d) => d.name).sort() }; R.hideOverlay();

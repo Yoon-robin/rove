@@ -21,4 +21,12 @@ export default [
     return CHECK("a word found wrong: up to five it could be, then 사전에 추가, then editing", add > 0 && JSON.stringify(words) === '["world","wold","word","would","rold"]' && got.includes("붙여넣기"), got);` },
   { js: `const got = await RIGHT({});
     return CHECK("a box with no word wrong: just editing", !got.includes("사전에 추가") && got.includes("붙여넣기"), got);` },
+  { js: `const ITEM = () => (R.lastMenu || []).find((m) => m.label === "맞춤법 검사");
+    await RIGHT({}); const before = ITEM()?.checked; ITEM().click(); await sleep(200);
+    R.createWindow({ priv: true }); await sleep(1200); const p = R.windows.find((w) => w.private && !w.gone);
+    const off = { normal: R.session().isSpellCheckerEnabled(), priv: R.privateSes?.isSpellCheckerEnabled(), kept: R.settings.spell };
+    p.win.close(); await sleep(500); R.use(R.windows[0]); await RIGHT({}); const shown = ITEM()?.checked;
+    return CHECK("맞춤법 검사 off from the right-click menu: normal and private windows stop checking, kept in settings", before === true && off.normal === false && off.priv === false && off.kept === false && shown === false, { before, off, shown });` },
+  { js: `(R.lastMenu || []).find((m) => m.label === "맞춤법 검사").click(); await sleep(200);
+    return CHECK("맞춤법 검사 back on", R.session().isSpellCheckerEnabled() === true && R.settings.spell === true, R.settings.spell);` },
 ];

@@ -151,7 +151,7 @@ let grants = load("permissions.json", {}); // { origin: { camera: true, location
 // cookies: other sites' cookies blocked (a page's frames and pictures from another site get none and set none),
 // in every window as Brave's Shields and Chrome's private windows: Electron has no per-session or per-site
 // switch for it, only Chromium's one for the whole run, so a change takes the next start (D-071)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, hideFolded: false, awake: [], start: "last", suggestOff: [], cookies: true, ...load("settings.json", {}) };
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, hideFolded: false, awake: [], start: "last", suggestOff: [], cookies: true, spell: true, ...load("settings.json", {}) };
 const COOKIES_AT_START = !!settings.cookies;
 if (COOKIES_AT_START) app.commandLine.appendSwitch("test-third-party-cookie-phaseout");
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
@@ -1034,7 +1034,8 @@ function pageMenu(tab, p) {
   if (p.isEditable) {
     items.push({ label: "실행 취소", role: "undo", enabled: p.editFlags.canUndo }, { label: "다시 실행", role: "redo", enabled: p.editFlags.canRedo }, { type: "separator" },
       { label: "잘라내기", role: "cut", enabled: p.editFlags.canCut }, { label: "복사", role: "copy", enabled: p.editFlags.canCopy },
-      { label: "붙여넣기", role: "paste", enabled: p.editFlags.canPaste }, { label: "모두 선택", role: "selectAll" }, { type: "separator" });
+      { label: "붙여넣기", role: "paste", enabled: p.editFlags.canPaste }, { label: "모두 선택", role: "selectAll" }, { type: "separator" },
+      { label: "맞춤법 검사", type: "checkbox", checked: settings.spell, click: () => setSpell(!settings.spell) }, { type: "separator" });
   } else if (p.selectionText) {
     const text = p.selectionText.trim();
     items.push({ label: "복사", role: "copy" },
@@ -2716,6 +2717,14 @@ function spelling(ses) {
     const want = ["en-US", "ko"].filter((l) => have.includes(l));
     if (want.length) ses.setSpellCheckerLanguages(want);
   } catch (e) { log(`맞춤법 검사 언어 못 정함: ${e.message}`); }
+  ses.setSpellCheckerEnabled(settings.spell);
+}
+// on or off for every window at once, as Brave's settings › languages › spell check (here: right click in a box)
+function setSpell(on) {
+  settings.spell = on;
+  save("settings.json", settings);
+  for (const ses of [rove(), privateSes]) ses?.setSpellCheckerEnabled(on);
+  log(`맞춤법 검사 ${on ? "켬" : "끔"}`);
 }
 
 // ---- the default browser (defaults.cjs) -------------------------------------------------

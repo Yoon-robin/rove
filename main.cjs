@@ -147,7 +147,12 @@ let grants = load("permissions.json", {}); // { origin: { camera: true, location
 // are put to sleep; zoom: { host: factor } (not 1); awake: sites (edup.co.kr)
 // whose pages keep going with the window down (keepGoing, below)
 // start: "last" (the last run's tabs) or "home" (one home tab)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, hideFolded: false, awake: [], start: "last", suggestOff: [], ...load("settings.json", {}) };
+// cookies: other sites' cookies blocked (a page's frames and pictures from another site get none and set none),
+// in every window as Brave's Shields and Chrome's private windows: Electron has no per-session or per-site
+// switch for it, only Chromium's one for the whole run, so a change takes the next start (D-071)
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, hideFolded: false, awake: [], start: "last", suggestOff: [], cookies: true, ...load("settings.json", {}) };
+const COOKIES_AT_START = !!settings.cookies;
+if (COOKIES_AT_START) app.commandLine.appendSwitch("test-third-party-cookie-phaseout");
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
@@ -293,6 +298,7 @@ function snapshot() {
     isDefault,
     pass: passState(),
     sleep: !!settings.sleep,
+    cookies: { on: !!settings.cookies, later: !!settings.cookies !== COOKIES_AT_START },
     startLast: settings.start !== "home",
     engine: engine()[0],
     split: splitShown() ? { a: split.a.id, b: split.b.id, ratio: split.ratio } : null,
@@ -1526,6 +1532,7 @@ function messages() {
   // a tab let go at the page's edge (ui.js edge()): beside the tab in front when it was pressed
   on("rove:split-drop", (id, side, was) => { const t = tabs.find((x) => x.id === id), o = tabs.find((x) => x.id === was); if (t && o && (side === "left" || side === "right")) { splitWith(t, o, side); select(t); } });
   on("rove:sleep", (yes) => { settings.sleep = !!yes; save("settings.json", settings); tell(); });
+  on("rove:cookies", (yes) => { settings.cookies = !!yes; save("settings.json", settings); tell(); });
   // ≡ 검색엔진: a list to choose from, by the pointer, and under it what the address bar suggests
   // from, each turned off on its own as in Brave's settings › search (all on at first)
   on("rove:engine-menu", () => popup([...Object.entries(ENGINES).map(([k, [name]]) => ({ label: name, type: "radio", checked: engine() === ENGINES[k], click: () => {

@@ -531,8 +531,10 @@ function drawMenu() {
     ${state.private ? "" : `<div class="switchrow">${icon("refresh")}<span>지난 탭으로 시작</span><button class="rk-switch" role="switch" data-start aria-checked="${!!state.startLast}" aria-label="지난 탭으로 시작"></button></div>`}
     <hr>
     ${state.block?.ready ? `<div class="switchrow">${icon("shield")}<span>광고·추적 막기</span><button class="rk-switch" role="switch" data-block aria-checked="${!!state.block.on}" aria-label="광고·추적 막기"></button></div>
-    ${state.block.on && state.block.site ? `<div class="switchrow site"><span>${esc(state.block.site)}</span><small class="rk-num">${state.block.siteOn ? `${state.block.count}개 막음` : "꺼짐"}</small><button class="rk-switch" role="switch" data-block-site aria-checked="${!!state.block.siteOn}" aria-label="${esc(state.block.site)}에서 막기"></button></div>` : ""}
-    <hr>` : ""}
+    ${state.block.on && state.block.site ? `<div class="switchrow site"><span>${esc(state.block.site)}</span><small class="rk-num">${state.block.siteOn ? `${state.block.count}개 막음` : "꺼짐"}</small><button class="rk-switch" role="switch" data-block-site aria-checked="${!!state.block.siteOn}" aria-label="${esc(state.block.site)}에서 막기"></button></div>` : ""}` : ""}
+    ${state.cookies ? `<div class="switchrow">${icon("user")}<span>다른 사이트 쿠키 막기</span><button class="rk-switch" role="switch" data-cookies aria-checked="${!!state.cookies.on}" aria-label="다른 사이트 쿠키 막기"${state.cookies.later ? ' aria-describedby="cookies-later"' : ""}></button></div>
+    ${state.cookies.later ? `<div class="switchrow site" id="cookies-later"><span>Rove를 다시 켜면 바뀌어요</span></div>` : ""}` : ""}
+    <hr>
     <div class="zoomrow"><span>확대</span>
       <button class="btn" data-do="zoom-out" aria-label="작게" title="작게">${icon("minus")}</button>
       <span class="rk-num">${state.zoom || 100}%</span>
@@ -553,6 +555,7 @@ function drawMenu() {
   root.querySelector("[data-block]")?.addEventListener("click", () => rove.send("rove:block", !state.block.on, false));
   root.querySelector("[data-block-site]")?.addEventListener("click", () => rove.send("rove:block", !state.block.siteOn, true));
   root.querySelector("[data-sleep]").addEventListener("click", () => rove.send("rove:sleep", !state.sleep));
+  root.querySelector("[data-cookies]")?.addEventListener("click", () => rove.send("rove:cookies", !state.cookies.on));
   root.querySelector("[data-vertical]").addEventListener("click", () => rove.send("rove:vertical", !state.vertical));
   root.querySelector("[data-hide-folded]")?.addEventListener("click", () => rove.send("rove:hide-folded", !state.hideFolded));
   root.querySelector("[data-start]")?.addEventListener("click", () => rove.send("rove:start", !state.startLast));

@@ -26,4 +26,13 @@ export default [
     return CHECK("not an IP, this PC, a one-word name, a port of its own, https", got.every((v) => v === null), got);` },
   { js: `R.setBlock(false); await sleep(200); const got = await OPEN("http://example.com/", (u) => u.startsWith("http://example.com")); R.setBlock(true);
     return CHECK("막기 off: left on http", got.url === "http://example.com/", got);` },
+  // https that takes the connection and never answers (443 dropped): http after ~3 s, not ~30 s.
+  // The tab's session goes through two local servers: http is answered, https is held open.
+  { js: `const net = process.mainModule.require("node:net"), http = process.mainModule.require("node:http");
+    const hang = net.createServer((s) => s.on("error", () => {})), plain = http.createServer((q, s) => { s.writeHead(200, { "content-type": "text/html" }); s.end("<title>plain</title>"); });
+    await new Promise((r) => hang.listen(0, "127.0.0.1", r)); await new Promise((r) => plain.listen(0, "127.0.0.1", r));
+    const ses = R.active.view.webContents.session; await ses.setProxy({ proxyRules: "http=127.0.0.1:" + plain.address().port + ";https=127.0.0.1:" + hang.address().port });
+    const t0 = Date.now(); const got = await OPEN("http://slow.example.com/", (u) => u.startsWith("http://slow.example.com")); got.ms = Date.now() - t0;
+    await ses.setProxy({ mode: "direct" }); hang.close(); plain.close();
+    return CHECK("an https that never answers: the http page within a few seconds", got.url === "http://slow.example.com/" && !got.failed && got.ms < 6000, got);` },
 ];

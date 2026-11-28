@@ -646,6 +646,8 @@ function wire(tab) {
     if (webby(to)) go(to, tab);
   });
   guardOurPages(wc);
+  // the upgraded https answered with a move elsewhere: it works, no falling back to http on time
+  on("did-redirect-navigation", (d) => { const w = upgrading.get(wc.id); if (d.isMainFrame && w && d.url !== w.https) clearTimeout(w.timer); });
   on("did-start-navigation", (d) => {
     if (!d.isMainFrame || d.isSameDocument) return;
     keepGoing(wc, awakeFor(d.url, tab.w?.private));
@@ -2499,14 +2501,20 @@ function httpsFirst(d) {
   if (httpOnly.get(ses)?.has(h)) return null;
   // the upgraded page came back to http: its https only sends here
   if (upgrading.get(d.webContentsId)?.host === h) { httpFallBack(d.webContents, true); return null; }
-  upgrading.set(d.webContentsId, { host: h, http: d.url });
+  clearTimeout(upgrading.get(d.webContentsId)?.timer);
+  // an https that does not answer (443 dropped) would hold the page ~30 s: like Chrome, http after 3 s
+  const wc = d.webContents, w = { host: h, http: d.url };
+  w.timer = setTimeout(() => { if (upgrading.get(wc.id) === w && !wc.isDestroyed()) httpFallBack(wc, false); }, 3000);
   u.protocol = "https:";
+  w.https = u.href;
+  upgrading.set(d.webContentsId, w);
   return u.href;
 }
 // the upgrade ended: kept (ok), or the host goes on http (loads the http page unless asked now)
 function httpFallBack(wc, asked) {
   const w = upgrading.get(wc.id);
   if (!w) return false;
+  clearTimeout(w.timer);
   upgrading.delete(wc.id);
   if (asked === "ok") return false;
   if (!httpOnly.has(wc.session)) httpOnly.set(wc.session, new Set());

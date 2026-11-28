@@ -414,7 +414,7 @@ function newTab(url, { background = false, after = null, from = null, asleep = f
   const view = pageView();
   const back = navOk(nav);
   if (back) asleep = true;
-  const tab = { id: nextId++, w: cur, view, title: title || "새 탭", url: url || HOME_PAGE, favicon: null, loading: !asleep, failed: null, crashed: false, seen: Date.now() };
+  const tab = { id: nextId++, w: cur, view, title: title || askedTitle(url), url: url || HOME_PAGE, favicon: null, loading: !asleep, failed: null, crashed: false, seen: Date.now() };
   if (asleep) { tab.asleep = back || { entries: [{ url: tab.url, title: tab.title }], index: 0 }; if (!title) tab.title = back?.entries[back.index].title || hostOf(tab.url) || tab.url; }
   tab.pinned = !!pinned;
   tab.opener = from;
@@ -1058,13 +1058,17 @@ function goIn(text, how) {
   if (how === "window") createWindow({ priv: !!cur?.private, urls: [url] });
   else newTab(url);
 }
+// a tab's name till its page gives its own: the address asked for (as Chrome), not "새 탭" or the last title
+function askedTitle(url) {
+  return !url || url === HOME_PAGE || url === "about:blank" ? "새 탭" : url.replace(/^https?:\/\//, "");
+}
 function go(text, tab = active) {
   const url = toUrl(text);
   if (!url || !tab) return;
   tab.failed = null;
   tab.url = url;
   tab.crashed = false;
-  if (url !== HOME_PAGE) tab.title = url.replace(/^https?:\/\//, ""); // till the page gives its own, the address asked for (as Chrome), not the last title
+  if (url !== HOME_PAGE) tab.title = askedTitle(url);
   tab.view.webContents.loadURL(url).catch(() => {});
   tab.view.webContents.focus();
   layout();

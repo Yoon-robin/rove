@@ -76,6 +76,8 @@ const PAGE = "#0e1012"; // --rk-page
 const BAR = 44; // vertical tabs: the toolbar is the top row
 const SIDE_W = 240; // the tabs at the left
 const SIDE_NARROW = 52; // ... folded to their icons
+const SIDE_EDGE = 4; // ... folded and hidden: an edge left to rest the pointer on (Brave's hide completely)
+const sideWidth = () => (!settings.narrow ? SIDE_W : settings.hideFolded ? SIDE_EDGE : SIDE_NARROW);
 const TEST = !!process.env.ROVE_TEST;
 
 const home = process.env.ROVE_HOME || join(process.env.LOCALAPPDATA || app.getPath("appData"), "Rove");
@@ -145,7 +147,7 @@ let grants = load("permissions.json", {}); // { origin: { camera: true, location
 // are put to sleep; zoom: { host: factor } (not 1); awake: sites (edup.co.kr)
 // whose pages keep going with the window down (keepGoing, below)
 // start: "last" (the last run's tabs) or "home" (one home tab)
-let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, awake: [], start: "last", suggestOff: [], ...load("settings.json", {}) };
+let settings = { block: true, allow: [], sleep: true, zoom: {}, vertical: false, narrow: false, hideFolded: false, awake: [], start: "last", suggestOff: [], ...load("settings.json", {}) };
 const SLEEP_AFTER = Number(process.env.ROVE_SLEEP_MS) || 30 * 60e3;
 
 // ---- what the address bar means ------------------------------------------------
@@ -244,7 +246,7 @@ function bounds() {
 function frame() {
   if (win?.isFullScreen() && fullTab) return { top: 0, left: 0, full: true };
   const v = !!settings.vertical;
-  return { top: (v ? BAR : TOP) + (asking() ? ASK : 0) + (findOpen ? FIND : 0), left: v ? (settings.narrow ? SIDE_NARROW : SIDE_W) : 0 };
+  return { top: (v ? BAR : TOP) + (asking() ? ASK : 0) + (findOpen ? FIND : 0), left: v ? sideWidth() : 0 };
 }
 function layout() {
   if (!win) return;
@@ -298,6 +300,7 @@ function snapshot() {
     groups: groups.map((g) => ({ ...g })),
     vertical: !!settings.vertical,
     narrow: !!settings.narrow,
+    hideFolded: !!settings.hideFolded,
     frame: frame(),
     private: !!cur?.private,
     page: active && !cur?.private ? active.view.webContents.id : null, // the extension buttons' tab
@@ -847,6 +850,12 @@ function setVertical(on) {
 function setNarrow(on) {
   settings.narrow = !!on;
   everywhere(() => { if (overlayOn?.kind === "peek") hideOverlay(); });
+  save("settings.json", settings);
+  everywhere(layout);
+  tell();
+}
+function setHideFolded(on) {
+  settings.hideFolded = !!on;
   save("settings.json", settings);
   everywhere(layout);
   tell();
@@ -1494,6 +1503,7 @@ function messages() {
   on("rove:tear", (id, x, y) => { const t = tabs.find((v) => v.id === id); if (t && Number.isFinite(x) && Number.isFinite(y)) tear(t, x, y); });
   on("rove:vertical", (yes) => setVertical(!!yes));
   on("rove:narrow", (yes) => setNarrow(!!yes));
+  on("rove:hide-folded", (yes) => setHideFolded(!!yes));
   on("rove:group-fold", (id) => groupFold(Number(id)));
   on("rove:group-set", (id, what) => groupSet(Number(id), what && typeof what === "object" ? { name: typeof what.name === "string" ? what.name : undefined, color: String(what.color || "") } : {}));
   on("rove:group-ungroup", (id) => { hideOverlay(); ungroup(Number(id)); });
@@ -2852,7 +2862,7 @@ function tear(tab, x, y) {
 function inStrip(w, x, y) {
   const b = w.win.getContentBounds();
   if (x < b.x || x >= b.x + b.width || y < b.y || y >= b.y + b.height) return false;
-  return settings.vertical ? x < b.x + (settings.narrow ? SIDE_NARROW : SIDE_W) : y < b.y + 40;
+  return settings.vertical ? x < b.x + sideWidth() : y < b.y + 40;
 }
 const windowName = (w) => { const n = w.tabs.length; const t = w.active?.title || w.tabs[0]?.title || "창"; return n > 1 ? `${t} 외 ${n - 1}개` : t; };
 
@@ -2924,7 +2934,7 @@ function testHooks() {
     sleepTab, wake, sleepIdle, canSleep, get lastMenu() { return lastMenu; }, pip, importSources, importFrom, places, zoom,
     pin, splitWith, unsplit, splitRatio, get split() { return split; }, read, lookReadable, reader,
     setAwake, keepGoing, awakeFor, siteOf, savePageTo, openPaths, startWindows, setAskClose: (f) => { askClose = f; },
-    get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, frame,
+    get groups() { return groups; }, groupNew, groupAdd, groupOut, groupSet, groupFold, ungroup, groupClose, setVertical, setNarrow, setHideFolded, frame,
     get exts() { return exts; } };
 }
 

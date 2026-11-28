@@ -121,6 +121,7 @@ body.full .side { display: none; }
 .side.narrow .grp { flex: 0 0 40px; justify-content: center; padding: 0; }
 .side.narrow .grp .n, .side.narrow .grp .c, .side.narrow .grp .rk-ico { display: none; }
 .side.narrow .sidefoot { justify-content: center; }
+.side.tucked > * { display: none; }
 /* the folded list unfolded over the page while the pointer is on it (ui/overlay.js drawPeek): the
    overlay is cut to the list's own box, so it fills it */
 .side.peek { top: 0; width: 100%; }

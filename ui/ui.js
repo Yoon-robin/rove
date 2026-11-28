@@ -157,6 +157,7 @@ function drawTabs() {
   document.body.classList.toggle("vertical", v);
   $("side").hidden = !v;
   $("side").classList.toggle("narrow", v && !!state.narrow);
+  $("side").classList.toggle("tucked", v && !!state.narrow && !!state.hideFolded);
   const fold = $("sideFold");
   const say = state.narrow ? "탭 이름 보이기" : "탭을 아이콘만";
   fold.setAttribute("aria-label", say);
@@ -220,12 +221,16 @@ $("sideNew").addEventListener("click", () => rove.send("rove:new-tab"));
 $("sideFold").addEventListener("click", () => rove.send("rove:narrow", !state.narrow));
 // folded to icons: the pointer resting on them a moment shows the names (laid over the page, ui/overlay.js)
 let peekWait = 0;
-$("sidelist").addEventListener("mouseenter", (e) => {
+function peekSoon(e, ms) {
   if (!state.vertical || !state.narrow || e.buttons) return;
   clearTimeout(peekWait);
-  peekWait = setTimeout(() => { const r = $("side").getBoundingClientRect(); rove.send("rove:peek", { y: r.top, height: r.height }, $("sidelist").scrollTop); }, 400);
-});
+  peekWait = setTimeout(() => { const r = $("side").getBoundingClientRect(); rove.send("rove:peek", { y: r.top, height: r.height }, $("sidelist").scrollTop); }, ms);
+}
+$("sidelist").addEventListener("mouseenter", (e) => peekSoon(e, 400));
 $("sidelist").addEventListener("mouseleave", () => clearTimeout(peekWait));
+// folded and hidden: only an edge is left, and the pointer on it is asking for the tabs (Brave)
+$("side").addEventListener("mouseenter", (e) => { if (state.hideFolded) peekSoon(e, 150); });
+$("side").addEventListener("mouseleave", () => clearTimeout(peekWait));
 $("sidelist").addEventListener("mousedown", () => clearTimeout(peekWait));
 
 // ---- the toolbar --------------------------------------------------------------

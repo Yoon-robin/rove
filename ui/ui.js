@@ -353,6 +353,12 @@ function drawAsk() {
   const key = JSON.stringify(a);
   if (askShown === key) return;
   askShown = key;
+  fillAsk(a);
+  // a narrow window cuts the line with …: the whole of it on hover
+  $("askWho").title = $("askWho").textContent;
+  $("askWhat").title = $("askWhat").textContent;
+}
+function fillAsk(a) {
   // 이번만 허용: a site's own question only (not a download, a link to another app, an extension, RobinPass)
   $("askOnce").hidden = a.kind !== "site" || once(a);
   $("askNo").hidden = $("askYes").hidden = false;
@@ -377,8 +383,8 @@ function drawAsk() {
     $("ask").classList.toggle("warn", !!a.wontBlock);
     $("askIcon").innerHTML = `<use href="icons.svg#rk-i-${a.wontBlock ? "alarm" : "plus"}"/>`;
     $("askWho").textContent = a.name;
-    // the warning first: a narrow window cuts the end of the line
-    $("askWhat").textContent = ["확장 프로그램", a.wontBlock && "광고·요청 막기는 Rove에서 안 돌아요(광고는 Rove가 막아요)", a.allSites && "모든 사이트의 내용을 읽고 바꿀 수 있음"].filter(Boolean).join(" · ");
+    // the warnings first, reading every site before anything: a narrow window cuts the end of the line
+    $("askWhat").textContent = [a.allSites && "모든 사이트의 내용을 읽고 바꿀 수 있음", a.wontBlock && "광고·요청 막기는 Rove에서 안 돌아요(광고는 Rove가 막아요)", "확장 프로그램"].filter(Boolean).join(" · ");
     $("askNo").textContent = "취소";
     $("askNo").classList.remove("rk-btn--danger");
     $("askYes").textContent = "추가";
